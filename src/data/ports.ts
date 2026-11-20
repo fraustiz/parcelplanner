@@ -61,6 +61,13 @@ const oneInThreeOut: Port[] = [
   { side: 'W', offset: 0, dir: 'out' },
 ];
 
+/**
+ * The smart splitter also merges: in the same layout, belts feed some of them through their
+ * side arms, as well as from behind, and one belt leaves through the remaining side. The graph
+ * rewires such a splitter (see `reversible`).
+ */
+const smartSplitter: Port[] = oneInThreeOut.map((port) => ({ ...port, reversible: true }));
+
 const twoInOneOut: Port[] = [
   { side: 'N', offset: 0, dir: 'in' },
   { side: 'E', offset: 0, dir: 'in' },
@@ -169,7 +176,7 @@ export const PORTS: Record<string, Port[]> = {
   BP_ConveyorBelt_Joiner: twoInOneOut,
   BP_ConveyorBelt_Joiner_3Way: threeInOneOut,
   BP_ConveyorBelt_Joiner_2WayT: twoOpposedInOneOut,
-  BP_ConveyorBelt_Splitter: oneInThreeOut,
+  BP_ConveyorBelt_Splitter: smartSplitter,
   BP_ConveyorBelt_Splitter_2Way: twoWaySplitter,
   BP_ConveyorBelt_Diverter: oneInThreeOut,
   BP_ConveyorBelt_CountryDiverter2: countryDiverter,

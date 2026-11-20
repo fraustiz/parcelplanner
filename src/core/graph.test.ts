@@ -113,6 +113,65 @@ describe('buildGraph', () => {
     });
   });
 
+  describe('a reversible splitter', () => {
+    // Mirrors the smart splitter: in on N, out on S, E and W, all reversible.
+    const turned = (id: string, x: number, y: number, rotation: Placement['rotation']): Placement =>
+      ({ ...put(id, 'belt', x, y), rotation });
+    const splitterCatalogue = new Map(catalogue).set('smart', {
+      ...belt, id: 'smart',
+      ports: [
+        { side: 'N', offset: 0, dir: 'in', reversible: true },
+        { side: 'S', offset: 0, dir: 'out', reversible: true },
+        { side: 'E', offset: 0, dir: 'out', reversible: true },
+        { side: 'W', offset: 0, dir: 'out', reversible: true },
+      ],
+    });
+
+    it('merges three belts fed into its outputs and sends them out its input side', () => {
+      const g = buildGraph(plan([
+        put('s', 'smart', 0, 0),
+        turned('left', -1, 0, 90), // runs east into its W side
+        turned('right', 1, 0, 270), // runs west into its E side
+        turned('behind', 0, -1, 180), // runs into its S side
+        turned('away', 0, 1, 180), // leaves from its N side
+      ]), splitterCatalogue, []);
+      expect(g.edges).toEqual(expect.arrayContaining([
+        { from: 'left', to: 's' }, { from: 'right', to: 's' },
+        { from: 'behind', to: 's' }, { from: 's', to: 'away' },
+      ]));
+      expect(g.danglingOutputs.map((p) => p.placementId)).not.toContain('left');
+    });
+
+    it('merges a belt from behind and both sides into the side left free', () => {
+      // The layout that dropped parcels: fed through its input as usual, and
+      // also by two belts pushing into its side arms.
+      const g = buildGraph(plan([
+        put('s', 'smart', 0, 0),
+        turned('feed', 0, 1, 0), // runs into its N side
+        turned('left', -1, 0, 90),
+        turned('right', 1, 0, 270),
+        put('away', 'belt', 0, -1), // takes from its S side
+      ]), splitterCatalogue, []);
+      expect(g.edges).toEqual(expect.arrayContaining([
+        { from: 'feed', to: 's' }, { from: 'left', to: 's' },
+        { from: 'right', to: 's' }, { from: 's', to: 'away' },
+      ]));
+      expect(g.danglingOutputs.map((p) => p.placementId)).not.toContain('s');
+    });
+
+    it('splits as usual when only its input is fed', () => {
+      const g = buildGraph(plan([
+        put('s', 'smart', 0, 0),
+        turned('feed', 0, 1, 0),
+        put('away', 'belt', 0, -1),
+        turned('west', -1, 0, 270), // takes from its W side, runs west
+      ]), splitterCatalogue, []);
+      expect(g.edges).toEqual(expect.arrayContaining([
+        { from: 'feed', to: 's' }, { from: 's', to: 'away' }, { from: 's', to: 'west' },
+      ]));
+    });
+  });
+
   it('connects a belt to the belt in front of it', () => {
     // Belt's out is `S` (dy -1), so 'a' at (0,0) feeds (0,-1), where 'b'
     // enters on `N` (dy +1).

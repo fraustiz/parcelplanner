@@ -51,6 +51,38 @@ export function doorNodeId(door: Door): string {
 const inKey = (floor: number, cell: Cell, side: Side): string =>
   `${floor}:${cell.x}:${cell.y}:${side}`;
 
+/**
+ * Rewires each reversible piece that a belt feeds through one of its `out`
+ * ports, in place: every side a belt feeds becomes an `in`, every other side
+ * an `out`. A splitter fed from behind and from both sides thus merges the
+ * three into its one free side. A piece no belt feeds through an `out` keeps
+ * its ports. Fed is judged on the ports as declared, so two rewired pieces
+ * facing each other are not seen as fed.
+ */
+function turnReversedPieces(ports: ResolvedPort[], reversibleIds: ReadonlySet<string>): void {
+  if (reversibleIds.size === 0) return;
+  // Where every out port delivers: the neighbouring cell, its facing side.
+  const fedAt = new Set<string>();
+  for (const port of ports) {
+    if (port.dir !== 'out') continue;
+    const step = SIDE_STEP[port.side];
+    fedAt.add(inKey(port.targetFloor, { x: port.cell.x + step.dx, y: port.cell.y + step.dy }, OPPOSITE[port.side]));
+  }
+  const isFed = (port: ResolvedPort): boolean => fedAt.has(inKey(port.floor, port.cell, port.side));
+
+  const byPiece = new Map<string, ResolvedPort[]>();
+  for (const port of ports) {
+    if (!reversibleIds.has(port.placementId)) continue;
+    const list = byPiece.get(port.placementId);
+    if (list) list.push(port);
+    else byPiece.set(port.placementId, [port]);
+  }
+  for (const [, own] of byPiece) {
+    if (!own.some((port) => port.dir === 'out' && isFed(port))) continue;
+    for (const port of own) port.dir = isFed(port) ? 'in' : 'out';
+  }
+}
+
 export function buildGraph(
   plan: Plan,
   catalogue: Map<string, CatalogEntry>,
@@ -60,6 +92,7 @@ export function buildGraph(
   doors: readonly Door[],
 ): Graph {
   const ports: ResolvedPort[] = [];
+  const reversibleIds = new Set<string>();
 
   // Only the current warehouse takes part: a belt in the other building never
   // connects here, even on matching cells.
@@ -67,6 +100,7 @@ export function buildGraph(
     if (p.warehouse !== plan.warehouse) continue;
     const entry = catalogue.get(p.objectId);
     if (!entry) continue;
+    if (entry.ports.some((port) => port.reversible)) reversibleIds.add(p.id);
     const { w, h } = rotatedFootprint(entry.footprint, p.rotation);
     for (const port of entry.ports) {
       const { side, offset } = placedPort(port, p.rotation, p.mirrored ?? false, entry.footprint);
@@ -99,6 +133,8 @@ export function buildGraph(
       targetFloor: door.floor,
     });
   }
+
+  turnReversedPieces(ports, reversibleIds);
 
   // Inputs indexed by effective floor (targetFloor), so this index and the
   // out-side lookup agree for ports with a nonzero floorDelta.
