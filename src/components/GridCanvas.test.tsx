@@ -3,6 +3,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, act, screen } from '@testing-library/react';
 import GridCanvas from './GridCanvas';
 import { useEditor } from '@/store/editor';
+import { useSimStats } from '@/store/sim-stats';
+
+/** The preview's counts as published for the inspector. */
+const simStats = () => useSimStats.getState().stats;
 import { getCatalogue } from '@/data/catalogue';
 import { orientationFor, portFacings } from '@/core/grid';
 import { ALL_TIERS } from '@/data/warehouse-tiers';
@@ -2402,7 +2406,7 @@ describe('GridCanvas following parcels', () => {
       play();
       runClock(frames);
 
-      expect(container.textContent).toMatch(/on the belts [1-9]/i);
+      expect(simStats()?.onBelt).toBeGreaterThan(0);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2423,13 +2427,13 @@ describe('GridCanvas following parcels', () => {
 
     play();
 
-    expect(screen.queryByText(/on the belts/i)).toBeNull();
+    expect(simStats()).toBeNull();
   });
 
   it('does nothing at all on an empty plan', () => {
     render(<GridCanvas />);
     play();
-    expect(screen.queryByText(/on the belts/i)).toBeNull();
+    expect(simStats()).toBeNull();
   });
 
   it('cycles the speed, and says which one it is on', () => {
@@ -2460,7 +2464,7 @@ describe('GridCanvas following parcels', () => {
     play();
     fireEvent.click(screen.getByRole('button', { name: /stop/i }));
 
-    expect(container.textContent).not.toMatch(/on the belts/i);
+    expect(simStats()).toBeNull();
   });
   it('survives a frame timestamped BEFORE the clock started', () => {
     // requestAnimationFrame reports when the frame began, which can precede a
@@ -2485,7 +2489,7 @@ describe('GridCanvas following parcels', () => {
       }
 
       // Still standing, and still able to say what happened.
-      expect(container.textContent).toMatch(/on the belts [1-9]/i);
+      expect(simStats()?.onBelt).toBeGreaterThan(0);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2527,10 +2531,11 @@ describe('GridCanvas following parcels', () => {
       useEditor.setState((s) => ({ plan: { ...s.plan, placements: doorToDoor() } }));
       const { container } = render(<GridCanvas />);
       play();
-      runClock(frames);
+      // Long enough for the first parcel to cross the 20-cell line.
+      runClock(frames, 120);
 
-      expect(container.textContent).toMatch(/delivered|livr/i);
-      expect(container.textContent).not.toMatch(/fell off|stops at/i);
+      expect(simStats()?.delivered).toBeGreaterThan(0);
+      expect(simStats()?.fell).toBe(0);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2546,7 +2551,7 @@ describe('GridCanvas following parcels', () => {
       const { container } = render(<GridCanvas />);
       play();
       // The count must grow: the clock asking for frames alone proves nothing.
-      const delivered = () => Number(/Delivered (\d+)/.exec(container.textContent ?? '')?.[1] ?? 0);
+      const delivered = () => simStats()?.delivered ?? 0;
       // Long enough for the first parcel to cross the 20-cell line.
       runClock(frames, 120);
       const afterOne = delivered();
@@ -2559,91 +2564,6 @@ describe('GridCanvas following parcels', () => {
       window.requestAnimationFrame = realRaf;
     }
   });
-  it('says WHERE the line stops, not just that it does', () => {
-    // The report prints the cell where a parcel stops. fedLine(4) runs from
-    // the door at (2,19) to (2,16).
-    const realRaf = window.requestAnimationFrame;
-    try {
-      const frames = fakeFrames();
-      useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
-      const { container } = render(<GridCanvas />);
-      play();
-      runClock(frames, 60);
-
-      // Column 2 prints as 3 (the ruler is 1-based), so the cell shows as '3/'.
-      expect(container.textContent).toContain('3/');
-    } finally {
-      window.requestAnimationFrame = realRaf;
-    }
-  });
-
-  it('names the object the line stops at', () => {
-    // The report also names the object where parcels stop.
-    const realRaf = window.requestAnimationFrame;
-    try {
-      const frames = fakeFrames();
-      useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
-      const { container } = render(<GridCanvas />);
-      play();
-      runClock(frames, 60);
-
-      const name = getCatalogue().get(STRAIGHT)?.displayName.en;
-      expect(name).toBeTruthy();
-      expect(container.textContent).toContain(name!);
-    } finally {
-      window.requestAnimationFrame = realRaf;
-    }
-  });
-
-  it('says whether the cell ahead is empty or simply refuses', () => {
-    // The report says whether anything is in front of the stop. fedLine ends
-    // in mid-air.
-    const realRaf = window.requestAnimationFrame;
-    try {
-      const frames = fakeFrames();
-      useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
-      const { container } = render(<GridCanvas />);
-      play();
-      runClock(frames, 60);
-
-      expect(container.textContent).toMatch(/nothing there/i);
-    } finally {
-      window.requestAnimationFrame = realRaf;
-    }
-  });
-
-  it('says when the object ahead is there but will not take it', () => {
-    // Here a belt is in front but its input faces elsewhere.
-    const facingAway = [
-      ...fedLine(4),
-      {
-        id: 'wrong', objectId: STRAIGHT, warehouse: 'main' as const, floor: 0,
-        cell: { x: 2, y: 15 }, rotation: 180 as const, tier: 1,
-      },
-    ];
-    const realRaf = window.requestAnimationFrame;
-    try {
-      const frames = fakeFrames();
-      useEditor.setState((s) => ({ plan: { ...s.plan, placements: facingAway } }));
-      const { container } = render(<GridCanvas />);
-      play();
-      runClock(frames, 60);
-
-      expect(container.textContent).toMatch(/does not accept|will not take/i);
-      // Names which object refuses, with its cell.
-      const name = getCatalogue().get(STRAIGHT)?.displayName.en;
-      expect(container.textContent).toContain(`3/${'' }`);
-      expect((container.textContent ?? '').match(new RegExp(name!, 'g'))?.length).toBeGreaterThan(1);
-      // And how it is turned.
-      expect(container.textContent).toMatch(/180°/);
-      // And which sides it takes from. A belt at 180° takes from the cell
-      // above it on screen; an inverted mapping fails here.
-      expect(container.textContent).toMatch(/takes from above/i);
-    } finally {
-      window.requestAnimationFrame = realRaf;
-    }
-  });
-
   it('fills the belt end to end, one parcel a cell, losing none in the middle', () => {
     // A parcel exists until it arrives somewhere, so a 20-cell line ends up
     // holding about 20 of them.
@@ -2655,7 +2575,7 @@ describe('GridCanvas following parcels', () => {
       play();
       runClock(frames, 200);
 
-      const inFlight = Number(/On the belts (\d+)/.exec(container.textContent ?? '')?.[1] ?? 0);
+      const inFlight = simStats()?.onBelt ?? 0;
       expect(inFlight).toBeGreaterThan(12);
     } finally {
       window.requestAnimationFrame = realRaf;

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FastForward, Pause, Play, Square } from 'lucide-react';
-import { cellsBetween, centredAnchor, coveredCells, displayColumn, displayRow, emitDirection, joinerOrientation, orientationFor, portFacings, rotatedAboutCentre, SIDE_STEP, splitterOrientation, warehouseDimensions, type Orientation, type Step } from '@/core/grid';
+import { cellsBetween, centredAnchor, coveredCells, displayColumn, displayRow, emitDirection, joinerOrientation, orientationFor, portFacings, rotatedAboutCentre, splitterOrientation, warehouseDimensions, type Orientation, type Step } from '@/core/grid';
 import { flippedShape, pastedAt, turnedShape } from '@/core/clipboard';
 import { clampedCell, floorBounds, pickedSelection, placementAt, steppedCursor } from '@/core/cursor';
 import { buildGraph, doorNodeId } from '@/core/graph';
@@ -29,6 +29,7 @@ import { blackenIcon, toDraw2D } from '@/render/canvas-draw';
 import { cameraAfterTouch, MAX_ZOOM, MIN_ZOOM, type TouchPoint } from '@/render/touch-gestures';
 import { drawScene, DARK_SCENE, LIGHT_SCENE, type HighlightState } from '@/render/renderer';
 import { draggedPlacement, useEditor, type MarqueeState } from '@/store/editor';
+import { useSimStats } from '@/store/sim-stats';
 import ContextMenu, { type MenuAnchor } from './ContextMenu';
 import HoverCard from './HoverCard';
 
@@ -50,13 +51,8 @@ interface LiveParcel {
   heldFor: number;
   /** For a looping route: the cell it rejoins after the last one. */
   wrapTo?: number;
-  /** The placement its route ends at, so a stop can name the object. */
+  /** The placement its route ends at: for a stored parcel, its rack. */
   endsAt?: string;
-  /** Why the route ends there: nothing built yet, or an object facing the
-   * wrong way. They look identical on the grid. */
-  because?: 'nothing-there' | 'refused';
-  /** When refused: the placement doing the refusing, so the report can name it. */
-  blockedBy?: string;
 }
 
 /** What has become of the parcels since play was pressed: counted as they
@@ -74,7 +70,6 @@ const NO_SIM: SimState = { parcels: [], tally: NO_TALLY, racks: {} };
 /** A route a parcel can be sent along, as built for one step. */
 interface Walk {
   cells: RouteStep[]; ending: LiveParcel['ending']; wrapTo?: number; endsAt?: string;
-  because?: LiveParcel['because']; blockedBy?: string;
 }
 
 /** How fast a parcel crosses a cell on screen. A viewing speed, set by what the
@@ -916,8 +911,8 @@ export default function GridCanvas() {
     ]);
     const byId = new Map(plan.placements.map((p) => [p.id, p]));
 
-    // Which object covers each cell, on every floor, so a dangling output can
-    // say whether its target is empty or refuses that side.
+    // Which object covers each cell, on every floor, so an unloader can find
+    // the rack it stands against.
     const covering = new Map<string, string>();
     for (const p of plan.placements) {
       if (p.warehouse !== plan.warehouse) continue;
@@ -926,12 +921,6 @@ export default function GridCanvas() {
     }
     const onward = onwardOf(graph.edges);
     const portIndex = portIndexOf(graph.ports);
-    const danglingBy = new Map<string, typeof graph.danglingOutputs>();
-    for (const o of graph.danglingOutputs) {
-      const list = danglingBy.get(o.placementId);
-      if (list) list.push(o);
-      else danglingBy.set(o.placementId, [o]);
-    }
     const entries = [...entryPoints(graph.edges, deliveryIds)];
     const pullers = storePullers(
       graph.ports,
@@ -949,7 +938,7 @@ export default function GridCanvas() {
       ...entries.map((id) => ({ from: id, slot: firstSlot(id), rack: undefined as string | undefined })),
       ...pullers.map(({ puller, store }) => ({ from: puller, slot: firstSlot(puller), rack: store as string | undefined })),
     ].filter((source): source is { from: string; slot: string; rack: string | undefined } => source.slot !== undefined);
-    return { exitIds, storeIds, byCell, byId, covering, onward, portIndex, danglingBy, entries, sources, capacity };
+    return { exitIds, storeIds, byCell, byId, onward, portIndex, entries, sources, capacity };
   }, [plan, catalogue]);
 
   const buildWalks = (): {
@@ -957,21 +946,8 @@ export default function GridCanvas() {
     capacity: Map<string, number>;
   } => {
     const {
-      exitIds, storeIds, byCell, byId, covering, onward, portIndex, danglingBy, sources, capacity,
+      exitIds, storeIds, byCell, byId, onward, portIndex, sources, capacity,
     } = simLayout;
-    const whyStuck = (
-      placementId: string,
-    ): { because: LiveParcel['because']; blockedBy?: string } | undefined => {
-      const stuck = danglingBy.get(placementId) ?? [];
-      if (stuck.length === 0) return undefined;
-      for (const o of stuck) {
-        const step = SIDE_STEP[o.side];
-        const blocker = covering.get(`${o.targetFloor}:${o.cell.x + step.dx},${o.cell.y + step.dy}`);
-        if (blocker !== undefined) return { because: 'refused', blockedBy: blocker };
-      }
-      return { because: 'nothing-there' };
-    };
-
     /**
      * Which way a parcel goes at a choice. At a sticker checker it mostly
      * passes straight on; at splitters and diverters a fair toss is right.
@@ -1013,7 +989,6 @@ export default function GridCanvas() {
         cells: steps,
         ending: walked.ending,
         endsAt: last,
-        ...(walked.ending === 'dropped' && last !== undefined ? whyStuck(last) ?? {} : {}),
         ...(wrapTo !== undefined ? { wrapTo } : {}),
       };
     };
@@ -1082,7 +1057,6 @@ export default function GridCanvas() {
         stepped.push({
           cells: walk.cells, ending: walk.ending, index: 0, from: 0, heldFor: 0,
           wrapTo: walk.wrapTo, endsAt: walk.endsAt,
-          because: walk.because, blockedBy: walk.blockedBy,
         });
       }
 
@@ -1673,67 +1647,18 @@ export default function GridCanvas() {
   const hoveredEntry = hover?.placement ? catalogue.get(hover.placement.objectId) : undefined;
 
   /** What has become of the parcels so far, counted as they arrive or fall,
-   * then where the lines stop. */
-  const verdict = useMemo(() => {
-    if (parcels.length === 0) return '';
-    const { tally } = sim;
-    const stored = Object.values(sim.racks).reduce((sum, n) => sum + n, 0);
-    const counts = [
-      `${t(locale, 'sim.onBelt')} ${parcels.length}`,
-      `${t(locale, 'sim.delivered')} ${tally.delivered}`,
-      ...(stored > 0 ? [`${t(locale, 'sim.stored')} ${stored}`] : []),
-      ...(tally.fell > 0 ? [`${t(locale, 'sim.fell')} ${tally.fell}`] : []),
-    ].join('  ·  ');
-
-    // Where, not just what: a stopped parcel looks the same whatever the
-    // cause, so the report gives its cell.
-    const dims = warehouseDimensions(plan.warehouse, WAREHOUSES);
-    const stops: string[] = [];
-    for (const p of parcels) {
-      if (p.ending !== 'dropped' && p.ending !== 'exhausted') continue;
-      // Where its route ends, said as soon as a parcel is on its way there
-      // and for as long as one is, rather than only while one stands at the end.
-      const cell = p.cells[p.cells.length - 1]!;
-      // Named, not just located.
-      const at = p.endsAt === undefined ? undefined : simLayout.byId.get(p.endsAt);
-      const named = at && catalogue.get(at.objectId)?.displayName[locale];
-      const nameOf = (id: string | undefined) => {
-        const found = id === undefined ? undefined : simLayout.byId.get(id);
-        return found && catalogue.get(found.objectId)?.displayName[locale];
-      };
-      const blocker = p.blockedBy === undefined ? undefined : simLayout.byId.get(p.blockedBy);
-      const blockerName = nameOf(p.blockedBy);
-      // Also its rotation and which sides it takes from, as seen on screen.
-      // +y is down here: the inverted compass has N facing +y, and
-      // displayRow counts up from the bottom.
-      const sideWord = (step: { dx: number; dy: number }): TranslationKey =>
-        step.dy === 1 ? 'side.below'
-          : step.dy === -1 ? 'side.above'
-            : step.dx === 1 ? 'side.right' : 'side.left';
-      const blockerEntry = blocker && catalogue.get(blocker.objectId);
-      const accepts = blocker && blockerEntry
-        ? portFacings(blockerEntry, blocker.rotation, blocker.mirrored ?? false)
-          .filter((f) => f.dir === 'in')
-          .map((f) => t(locale, sideWord(f.step)))
-        : [];
-      const blockerWhere = blocker
-        ? ` ${displayColumn(blocker.cell.x)}/${displayRow(blocker.cell.y, dims)}`
-          + ` ${blocker.rotation}°${blocker.mirrored ? ' ⇄' : ''}`
-          + (accepts.length > 0 ? `, ${t(locale, 'parcel.takesFrom')} ${accepts.join(' + ')}` : '')
-        : '';
-      const why = p.because
-        ? `: ${t(locale, `parcel.${p.because}` as TranslationKey)}`
-          + (blockerName ? ` (${blockerName}${blockerWhere})` : '')
-        : '';
-      const where = `${displayColumn(cell.x)}/${displayRow(cell.y, dims)}${named ? ` (${named})` : ''}${why}`;
-      if (!stops.includes(where)) stops.push(where);
-      if (stops.length === 3) break;
-    }
-
-    return stops.length === 0
-      ? counts
-      : `${counts}  ·  ${t(locale, 'parcel.stopsAt')} ${stops.join(', ')}`;
-  }, [parcels, sim, locale, plan.warehouse, simLayout, catalogue]);
+   * shown in the inspector. */
+  useEffect(() => {
+    const stats = parcels.length === 0 ? null : {
+      onBelt: parcels.length,
+      delivered: sim.tally.delivered,
+      stored: Object.values(sim.racks).reduce((sum, n) => sum + n, 0),
+      fell: sim.tally.fell,
+    };
+    useSimStats.setState({ stats });
+  }, [parcels, sim]);
+  // Nothing to show once the canvas is gone.
+  useEffect(() => () => useSimStats.setState({ stats: null }), []);
 
   return (
     <div ref={wrapperRef} className="relative h-full w-full">
@@ -1809,17 +1734,6 @@ export default function GridCanvas() {
           <FastForward size={16} aria-hidden />{speed}×
         </button>
       </div>
-      )}
-
-      {/* Shown at once, since the result is known when play starts. Dismissed
-          by following another parcel, or by Escape. */}
-      {LIVE_PREVIEW && parcels.length > 0 && (
-        <div
-          role="status"
-          className="pointer-events-none absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded border border-[var(--line-strong)] bg-[var(--panel)]/95 px-3 py-1.5 text-xs shadow-lg"
-        >
-          {verdict}
-        </div>
       )}
 
       {/* Positioned over its own cell. Blur commits the note; Escape closes

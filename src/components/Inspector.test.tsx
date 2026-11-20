@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, screen } from '@testing-library/react';
 import Inspector from './Inspector';
 import { useEditor } from '@/store/editor';
+import { useSimStats } from '@/store/sim-stats';
 import { getCatalogue } from '@/data/catalogue';
 import type { Placement } from '@/core/types';
 
@@ -25,7 +26,10 @@ const withPlacements = (placements: Placement[], selectedIds: string[] = []) =>
     locale: 'en',
   });
 
-beforeEach(() => withPlacements([]));
+beforeEach(() => {
+  withPlacements([]);
+  useSimStats.setState({ stats: null });
+});
 
 describe('the inspector with nothing selected', () => {
   it('counts every object on the plan, most numerous first', () => {
@@ -325,5 +329,24 @@ describe('Inspector semantics', () => {
       expect(row.querySelector('dt')).not.toBeNull();
       expect(row.querySelector('dd')).not.toBeNull();
     }
+  });
+});
+
+describe('the parcel preview counts', () => {
+  it('shows what the running preview has counted, selected or not', () => {
+    useSimStats.setState({ stats: { onBelt: 385, delivered: 2, stored: 53, fell: 111 } });
+    for (const selectedIds of [[], ['a']]) {
+      withPlacements([belt('a', 0)], selectedIds);
+      render(<Inspector />);
+      const rows = [...screen.getByRole('region', { name: 'Parcels' }).querySelectorAll('dl > div')].map((row) => row.textContent);
+      expect(rows).toEqual(['On the belts385', 'Delivered2', 'In racks53', 'Fell off111']);
+      cleanup();
+    }
+  });
+
+  it('shows nothing while no parcel runs', () => {
+    withPlacements([belt('a', 0)]);
+    render(<Inspector />);
+    expect(screen.queryByText('Parcels')).toBeNull();
   });
 });

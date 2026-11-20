@@ -8,9 +8,35 @@ import { getCatalogue } from '@/data/catalogue';
 import { COLOUR_NAMES, OBJECT_COLOURS, repaintableColourOf } from '@/data/colours';
 import { WAREHOUSES } from '@/data/warehouses';
 import { isZone, ZONE_PREFIX } from '@/core/zone';
-import { formatMoney, t } from '@/i18n';
+import { formatMoney, t, type Locale } from '@/i18n';
 import { useEditor } from '@/store/editor';
+import { useSimStats } from '@/store/sim-stats';
 import { sizeOf } from './HoverCard';
+
+/** The parcel preview's counts, at the top of the panel while parcels run. */
+function SimStatsPanel({ locale }: { locale: Locale }) {
+  const stats = useSimStats((s) => s.stats);
+  if (!stats) return null;
+  const rows = [
+    ['sim.onBelt', stats.onBelt],
+    ['sim.delivered', stats.delivered],
+    ['sim.stored', stats.stored],
+    ['sim.fell', stats.fell],
+  ] as const;
+  return (
+    <section aria-label={t(locale, 'sim.title')} className="mb-3 border-b border-[var(--line)] pb-3">
+      <h2 className="mb-2 font-semibold">{t(locale, 'sim.title')}</h2>
+      <dl className="space-y-0.5">
+        {rows.map(([key, value]) => (
+          <div key={key} className="flex items-baseline justify-between gap-2 px-1">
+            <dt className="text-[var(--text-faint)]">{t(locale, key)}</dt>
+            <dd className="font-mono tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
 
 export default function Inspector() {
   const plan = useEditor((s) => s.plan);
@@ -92,6 +118,7 @@ export default function Inspector() {
     const inventory = countByObject(scope, catalogue, locale);
     return (
       <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
+        <SimStatsPanel locale={locale} />
         {scope.length === 0 ? (
           <span className="text-[var(--text-faint)]">{t(locale, 'inspector.empty')}</span>
         ) : (
@@ -126,6 +153,7 @@ export default function Inspector() {
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
+      <SimStatsPanel locale={locale} />
       {only && onlyEntry?.category === 'zone' ? (
         <>
           <h2 className="mb-2 font-semibold">{only.label ?? onlyEntry.displayName[locale]}</h2>
