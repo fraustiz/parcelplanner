@@ -8,7 +8,7 @@ import { clampedCell, floorBounds, pickedSelection, placementAt, steppedCursor }
 import { buildGraph, doorNodeId } from '@/core/graph';
 import { canPlace, shiftedSelection, type PlacementRejection } from '@/core/occupancy';
 import { advanceOneCell, isOnTheFloor, stillOnTheBelt } from '@/core/queueing';
-import { entryPoints, mostlyStraight, parcelPath } from '@/core/simulate';
+import { entryPoints, mostlyStraight, parcelPath, routeSteps, type RouteStep } from '@/core/simulate';
 import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/core/transform';
 import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
@@ -41,7 +41,7 @@ interface ClientPoint { clientX: number; clientY: number }
  * stepped off, so the drawing can slide between the two.
  */
 interface LiveParcel {
-  cells: Cell[];
+  cells: RouteStep[];
   ending: 'delivered' | 'stored' | 'dropped' | 'looped' | 'exhausted';
   index: number;
   from: number;
@@ -57,6 +57,12 @@ interface LiveParcel {
   /** When refused: the placement doing the refusing, so the report can name it. */
   blockedBy?: string;
 }
+
+/** What has become of the parcels since play was pressed: counted as they
+ * actually arrive or fall, not predicted from the routes. */
+interface SimTally { delivered: number; stored: number; fell: number }
+
+const NO_TALLY: SimTally = { delivered: 0, stored: 0, fell: 0 };
 
 /** How fast a parcel crosses a cell on screen. A viewing speed, set by what the
  * eye can follow: the game data has no belt speed. */
@@ -89,6 +95,14 @@ const STUCK_HOLD_STEPS = 12;
  * vitest.config.ts), so the code behind it stays tested.
  */
 const LIVE_PREVIEW = process.env.NEXT_PUBLIC_LIVE_PREVIEW === 'on';
+
+/**
+ * How many steps a parcel stays at the end of a line that leads nowhere
+ * before it falls: long enough to see it ringed in red, short enough that
+ * the line behind it keeps moving, as it does in the game, rather than
+ * queueing until the whole line falls at once.
+ */
+const DEAD_END_SHOW_STEPS = 2;
 
 /** A ceiling on parcels alive at once, so a pathological layout cannot grow
  * the list without bound. Far above what a warehouse ever holds. */
@@ -221,7 +235,11 @@ export default function GridCanvas() {
    * Every parcel in flight. A viewing aid: it never touches the plan (no
    * dispatch, no undo entry).
    */
-  const [parcels, setParcels] = useState<LiveParcel[]>([]);
+  const [sim, setSim] = useState<{ parcels: LiveParcel[]; tally: SimTally }>(
+    { parcels: [], tally: NO_TALLY },
+  );
+  const parcels = sim.parcels;
+  const floor = useEditor((s) => s.floor);
   /** How far through the current cell-step the drawing is, 0 to 1. Only the
    * drawing is continuous; the simulation moves in whole cells. */
   const [phase, setPhase] = useState(0);
@@ -232,9 +250,13 @@ export default function GridCanvas() {
    *   - arrived at an export door or a rack: gone;
    *   - nowhere left to go: stopped on the last belt, ringed in red.
    */
-  const parcelsNow = useMemo(() => parcels.map((p) => {
-    const from = p.cells[p.from] ?? p.cells[p.index]!;
+  const parcelsNow = useMemo(() => parcels.filter((p) => p.cells[p.index]!.floor === floor).map((p) => {
     const to = p.cells[p.index]!;
+    // Slides from the cell it left, unless that was on another floor: a parcel
+    // coming off an elevator appears at the top rather than sliding in from
+    // under the floor.
+    const left = p.cells[p.from];
+    const from = left !== undefined && left.floor === to.floor ? left : to;
     const into = p.from === p.index ? 0 : phase;
     return {
       at: { x: from.x + (to.x - from.x) * into, y: from.y + (to.y - from.y) * into },
@@ -246,14 +268,14 @@ export default function GridCanvas() {
         arrived: p.ending !== 'dropped' && p.ending !== 'exhausted',
       }),
     };
-  }), [parcels, phase]);
+  }), [parcels, phase, floor]);
 
   /** Where the oldest parcel still on the belt has been. Every trail would
    * paint the whole layout. */
   const trailNow = useMemo(() => {
     const oldest = parcels[0];
-    return oldest ? oldest.cells.slice(0, oldest.index + 1) : [];
-  }, [parcels]);
+    return oldest ? oldest.cells.slice(0, oldest.index + 1).filter((c) => c.floor === floor) : [];
+  }, [parcels, floor]);
 
   /** Whether the parcel is advancing. Paused leaves it exactly where it is,
    * so a junction can be read before letting it go on. */
@@ -269,7 +291,6 @@ export default function GridCanvas() {
   } | null>(null);
 
   const plan = useEditor((s) => s.plan);
-  const floor = useEditor((s) => s.floor);
   const locale = useEditor((s) => s.locale);
   const drag = useEditor((s) => s.drag);
   const marquee = useEditor((s) => s.marquee);
@@ -849,11 +870,11 @@ export default function GridCanvas() {
    * A branch is a coin toss; modelling the day's criteria would mean
    * rebuilding the game. Never touches the plan.
    *
-   * Doors are in `byCell` with the placements, so a parcel is seen entering
-   * a door rather than stopping on the doorstep.
+   * Each route runs cell by cell, from the delivery door through every cell of
+   * every object (see routeSteps), on every floor.
    */
   const buildWalks = (): {
-    cells: Cell[]; ending: LiveParcel['ending']; wrapTo?: number; endsAt?: string;
+    cells: RouteStep[]; ending: LiveParcel['ending']; wrapTo?: number; endsAt?: string;
     because?: LiveParcel['because']; blockedBy?: string;
   }[] => {
     const graph = buildGraph(plan, catalogue, DOORS);
@@ -878,19 +899,13 @@ export default function GridCanvas() {
     ]);
     const byId = new Map(plan.placements.map((p) => [p.id, p]));
 
-    // Every occupied cell, so a dangling output can say whether its target is
-    // empty or refuses that side.
-    const filled = new Set<string>();
-    for (const p of plan.placements) {
-      if (p.warehouse !== plan.warehouse || p.floor !== floor) continue;
-      const entry = catalogue.get(p.objectId);
-      if (entry) for (const c of coveredCells(p, entry)) filled.add(`${c.x},${c.y}`);
-    }
+    // Which object covers each cell, on every floor, so a dangling output can
+    // say whether its target is empty or refuses that side.
     const covering = new Map<string, string>();
     for (const p of plan.placements) {
-      if (p.warehouse !== plan.warehouse || p.floor !== floor) continue;
+      if (p.warehouse !== plan.warehouse) continue;
       const entry = catalogue.get(p.objectId);
-      if (entry) for (const c of coveredCells(p, entry)) covering.set(`${c.x},${c.y}`, p.id);
+      if (entry) for (const c of coveredCells(p, entry)) covering.set(`${p.floor}:${c.x},${c.y}`, p.id);
     }
     const whyStuck = (
       placementId: string,
@@ -899,7 +914,7 @@ export default function GridCanvas() {
       if (stuck.length === 0) return undefined;
       for (const o of stuck) {
         const step = SIDE_STEP[o.side];
-        const blocker = covering.get(`${o.cell.x + step.dx},${o.cell.y + step.dy}`);
+        const blocker = covering.get(`${o.targetFloor}:${o.cell.x + step.dx},${o.cell.y + step.dy}`);
         if (blocker !== undefined) return { because: 'refused', blockedBy: blocker };
       }
       return { because: 'nothing-there' };
@@ -939,22 +954,16 @@ export default function GridCanvas() {
           exits: exitIds,
           stores: storeIds,
         });
-        // Kept in step with `cells`: a node without a cell is dropped from
-        // both, so the rejoin index still points at the right cell.
-        const kept = walked.path.filter((n) => byCell.has(n));
-        const cells = kept.map((n) => byCell.get(n)!);
-        const loopNode = walked.loopsBackTo === undefined
-          ? undefined
-          : walked.path[walked.loopsBackTo];
-        const wrapTo = loopNode === undefined ? undefined : kept.indexOf(loopNode);
+        const onward = walked.loopsBackTo === undefined ? undefined : walked.path[walked.loopsBackTo];
+        const { steps, startOf } = routeSteps(walked.path, graph.ports, onward);
+        const wrapTo = walked.loopsBackTo === undefined ? undefined : startOf[walked.loopsBackTo];
+        const last = walked.path[walked.path.length - 1];
         return {
-          cells,
+          cells: steps,
           ending: walked.ending,
-          endsAt: kept[kept.length - 1],
-          ...(walked.ending === 'dropped' && kept.length > 0
-            ? whyStuck(kept[kept.length - 1]!) ?? {}
-            : {}),
-          ...(wrapTo !== undefined && wrapTo >= 0 ? { wrapTo } : {}),
+          endsAt: last,
+          ...(walked.ending === 'dropped' && last !== undefined ? whyStuck(last) ?? {} : {}),
+          ...(wrapTo !== undefined ? { wrapTo } : {}),
         };
       })
       .filter((w) => w.cells.length > 0);
@@ -966,7 +975,8 @@ export default function GridCanvas() {
    * cell apart.
    */
   const stepParcels = (): void => {
-    setParcels((live) => {
+    setSim(({ parcels: live, tally }) => {
+      const done = { ...tally };
       // Move first, then judge who is still on the belt by whether it moved.
       const moved = advanceOneCell(live);
       const stepped: LiveParcel[] = [];
@@ -976,20 +986,30 @@ export default function GridCanvas() {
         const going = index !== p.index;
         const heldFor = going ? 0 : p.heldFor + 1;
         // Only these two leave on arrival; a looping parcel goes round again,
-        // a stopped one stays until the stall rule retires it.
-        const arrived = index >= p.cells.length - 1
+        // a stopped one stays until the stall rule retires it. Judged on where
+        // it stood before this step, so the slide into the door or rack is
+        // drawn before it goes.
+        const arrived = p.index >= p.cells.length - 1
           && (p.ending === 'delivered' || p.ending === 'stored');
-        if (!stillOnTheBelt({ arrived, moving: going, heldFor }, STUCK_HOLD_STEPS)) continue;
+        const deadEnd = index >= p.cells.length - 1
+          && (p.ending === 'dropped' || p.ending === 'exhausted');
+        const hold = deadEnd ? DEAD_END_SHOW_STEPS : STUCK_HOLD_STEPS;
+        if (!stillOnTheBelt({ arrived, moving: going, heldFor }, hold)) {
+          if (!arrived) done.fell++;
+          else if (p.ending === 'delivered') done.delivered++;
+          else done.stored++;
+          continue;
+        }
         stepped.push({ ...p, from: p.index, index, heldFor });
       }
 
       // Each release re-rolls its branch choices, so a splitter visibly sends
       // parcels both ways.
-      const taken = new Set(stepped.map((p) => `${p.cells[p.index]!.x},${p.cells[p.index]!.y}`));
+      const taken = new Set(stepped.map((p) => p.cells[p.index]!.slot));
       for (const walk of buildWalksRef.current()) {
         const first = walk.cells[0];
         if (!first) continue;
-        const at = `${first.x},${first.y}`;
+        const at = first.slot;
         if (taken.has(at)) continue; // the belt at that door is still full
         taken.add(at);
         stepped.push({
@@ -999,7 +1019,10 @@ export default function GridCanvas() {
         });
       }
 
-      return stepped.length > MAX_PARCELS ? stepped.slice(-MAX_PARCELS) : stepped;
+      return {
+        parcels: stepped.length > MAX_PARCELS ? stepped.slice(-MAX_PARCELS) : stepped,
+        tally: done,
+      };
     });
   };
 
@@ -1012,14 +1035,14 @@ export default function GridCanvas() {
 
   /** Clears the parcels and resets the clock, for both Escape and Stop. */
   const stopParcels = (): void => {
-    setParcels([]);
+    setSim({ parcels: [], tally: NO_TALLY });
     setPhase(0);
     setPlaying(false);
   };
 
   const sendParcels = (): void => {
     if (buildWalks().length === 0) return; // nothing is wired up; say nothing
-    setParcels([]);
+    setSim({ parcels: [], tally: NO_TALLY });
     setPhase(0);
     setPlaying(true);
   };
@@ -1581,15 +1604,17 @@ export default function GridCanvas() {
 
   const hoveredEntry = hover?.placement ? catalogue.get(hover.placement.objectId) : undefined;
 
-  /** What became of the parcels, as a tally by ending rather than one line each. */
+  /** What has become of the parcels so far, counted as they arrive or fall,
+   * then where the lines stop. */
   const verdict = useMemo(() => {
     if (parcels.length === 0) return '';
-    // Counted across every parcel on the belt, so a leaking splitter shows.
-    const tally = new Map<string, number>();
-    for (const p of parcels) tally.set(p.ending, (tally.get(p.ending) ?? 0) + 1);
-    const counts = [...tally.entries()]
-      .map(([ending, n]) => `${n} × ${t(locale, `parcel.${ending}` as TranslationKey)}`)
-      .join('  ·  ');
+    const { tally } = sim;
+    const counts = [
+      `${t(locale, 'sim.onBelt')} ${parcels.length}`,
+      `${t(locale, 'sim.delivered')} ${tally.delivered}`,
+      ...(tally.stored > 0 ? [`${t(locale, 'sim.stored')} ${tally.stored}`] : []),
+      ...(tally.fell > 0 ? [`${t(locale, 'sim.fell')} ${tally.fell}`] : []),
+    ].join('  ·  ');
 
     // Where, not just what: a stopped parcel looks the same whatever the
     // cause, so the report gives its cell.
@@ -1597,8 +1622,9 @@ export default function GridCanvas() {
     const stops: string[] = [];
     for (const p of parcels) {
       if (p.ending !== 'dropped' && p.ending !== 'exhausted') continue;
-      if (p.index < p.cells.length - 1) continue;
-      const cell = p.cells[p.index]!;
+      // Where its route ends, said as soon as a parcel is on its way there
+      // and for as long as one is, rather than only while one stands at the end.
+      const cell = p.cells[p.cells.length - 1]!;
       // Named, not just located.
       const at = p.endsAt === undefined ? undefined : plan.placements.find((q) => q.id === p.endsAt);
       const named = at && catalogue.get(at.objectId)?.displayName[locale];
@@ -1638,7 +1664,7 @@ export default function GridCanvas() {
     return stops.length === 0
       ? counts
       : `${counts}  ·  ${t(locale, 'parcel.stopsAt')} ${stops.join(', ')}`;
-  }, [parcels, locale, plan.warehouse, plan.placements, catalogue]);
+  }, [parcels, sim, locale, plan.warehouse, plan.placements, catalogue]);
 
   return (
     <div ref={wrapperRef} className="relative h-full w-full">

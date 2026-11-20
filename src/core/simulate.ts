@@ -1,4 +1,6 @@
-import type { Edge } from './graph';
+import { OPPOSITE, type Edge, type ResolvedPort } from './graph';
+import { cellsBetween, SIDE_STEP } from './grid';
+import type { Cell } from './types';
 
 /**
  * One parcel walked along the flow graph, to show where a layout sends things.
@@ -140,4 +142,107 @@ export function feedingDoors(
     running.add(edge.from);
   }
   return running;
+}
+
+/**
+ * One cell of a parcel's route, as it is drawn and as it is queued.
+ *
+ * `slot` is what a parcel occupies: two parcels block each other only when
+ * they want the same slot. It is the object plus the cell, so the belt running
+ * under a bridge and the bridge above it never block each other, while two
+ * arms meeting in one joiner still do.
+ */
+export interface RouteStep extends Cell {
+  floor: number;
+  slot: string;
+  /** The object (or door) this cell belongs to. */
+  node: string;
+}
+
+export interface Route {
+  steps: RouteStep[];
+  /** For each node of the walk, the index in `steps` where it begins. */
+  startOf: number[];
+}
+
+/**
+ * Turns a walk from node to node into every cell the parcel crosses.
+ *
+ * A node is entered on the cell of the port it is fed through and left from
+ * the cell of the port that feeds the next one, so an object three cells long
+ * (bridge, speedway, elevator, country diverter) is crossed cell by cell
+ * instead of jumped over. Each cell keeps the floor of the object it belongs
+ * to, so a parcel climbing an elevator arrives on the floor above.
+ *
+ * The walk starts on the delivery door that feeds its first node, outside the
+ * wall, so the parcel is seen coming in; a walk into an export door ends on
+ * the door, so it is seen going out. `onward` is the node a looping walk goes
+ * back to, so its last object is left by the right port.
+ */
+export function routeSteps(
+  path: readonly string[],
+  ports: readonly ResolvedPort[],
+  onward?: string,
+): Route {
+  const byNode = new Map<string, ResolvedPort[]>();
+  for (const port of ports) {
+    const list = byNode.get(port.placementId);
+    if (list) list.push(port);
+    else byNode.set(port.placementId, [port]);
+  }
+
+  /** The out port of `from` that feeds an in port of `to`, and that in port. */
+  const link = (from: string, to: string): { out: ResolvedPort; into: ResolvedPort } | undefined => {
+    for (const out of byNode.get(from) ?? []) {
+      if (out.dir !== 'out') continue;
+      const step = SIDE_STEP[out.side];
+      const x = out.cell.x + step.dx;
+      const y = out.cell.y + step.dy;
+      const into = (byNode.get(to) ?? []).find((port) => port.dir === 'in'
+        && port.targetFloor === out.targetFloor
+        && port.side === OPPOSITE[out.side]
+        && port.cell.x === x && port.cell.y === y);
+      if (into) return { out, into };
+    }
+    return undefined;
+  };
+
+  const steps: RouteStep[] = [];
+  const startOf: number[] = [];
+  const push = (node: string, from: Cell, to: Cell, floor: number) => {
+    for (const cell of cellsBetween(from, to)) {
+      steps.push({ x: cell.x, y: cell.y, floor, node, slot: `${node}|${floor}:${cell.x},${cell.y}` });
+    }
+  };
+
+  // The door feeding the first node, if there is one.
+  const first = path[0];
+  let entry: ResolvedPort | undefined;
+  if (first !== undefined) {
+    for (const [node, list] of byNode) {
+      if (!node.startsWith('door:') || !list.some((port) => port.dir === 'out')) continue;
+      const found = link(node, first);
+      if (!found) continue;
+      push(node, found.out.cell, found.out.cell, found.out.floor);
+      entry = found.into;
+      break;
+    }
+  }
+
+  for (let i = 0; i < path.length; i++) {
+    const node = path[i]!;
+    const own = byNode.get(node) ?? [];
+    const next = i + 1 < path.length ? path[i + 1] : onward;
+    const found = next === undefined ? undefined : link(node, next);
+    // Where it leaves: towards the next node, or for a dead end the one out
+    // port, so the parcel runs to the end of the object before it falls.
+    const exit = found?.out ?? own.find((port) => port.dir === 'out');
+    const enter = entry ?? own.find((port) => port.dir === 'in') ?? exit;
+    startOf.push(steps.length);
+    if (enter === undefined) continue;
+    push(node, enter.cell, exit?.cell ?? enter.cell, enter.floor);
+    entry = found?.into;
+  }
+
+  return { steps, startOf };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { entryPoints, feedingDoors, mostlyStraight, parcelPath } from './simulate';
-import type { Edge } from './graph';
+import { entryPoints, feedingDoors, mostlyStraight, parcelPath, routeSteps } from './simulate';
+import type { Edge, ResolvedPort } from './graph';
 
 /**
  * One parcel walked along the flow graph. Not a sorting simulation: scanner
@@ -237,5 +237,57 @@ describe('which doors are actually wired up', () => {
   it('counts a door once however much it feeds', () => {
     const doors = new Set(['d1']);
     expect(feedingDoors(edges(['d1', 'a'], ['d1', 'b']), doors).size).toBe(1);
+  });
+});
+
+describe('routeSteps: the cells a parcel actually crosses', () => {
+  const port = (
+    placementId: string, x: number, y: number, side: 'N' | 'S', dir: 'in' | 'out',
+    floor = 0, targetFloor = floor,
+  ): ResolvedPort => ({ placementId, cell: { x, y }, floor, side, dir, targetFloor });
+
+  // A line running up the screen: door, a belt, a three-cell elevator, and a
+  // belt on the floor above. `N` faces down the screen, `S` up.
+  const ports: ResolvedPort[] = [
+    port('door:d', 5, 10, 'S', 'out'),
+    port('a', 5, 9, 'N', 'in'), port('a', 5, 9, 'S', 'out'),
+    port('lift', 5, 8, 'N', 'in'), port('lift', 5, 6, 'S', 'out', 0, 1),
+    port('b', 5, 5, 'N', 'in', 1), port('b', 5, 5, 'S', 'out', 1),
+  ];
+
+  it('starts on the door, outside the wall', () => {
+    const { steps } = routeSteps(['a', 'lift', 'b'], ports);
+    expect(steps[0]).toMatchObject({ node: 'door:d', x: 5, y: 10 });
+  });
+
+  it('crosses a three-cell object cell by cell instead of jumping it', () => {
+    const { steps, startOf } = routeSteps(['a', 'lift', 'b'], ports);
+    expect(steps.map((s) => `${s.node}@${s.y}`)).toEqual(
+      ['door:d@10', 'a@9', 'lift@8', 'lift@7', 'lift@6', 'b@5'],
+    );
+    expect(startOf).toEqual([1, 2, 5]);
+  });
+
+  it('arrives on the floor above after an elevator', () => {
+    const { steps } = routeSteps(['a', 'lift', 'b'], ports);
+    expect(steps.filter((s) => s.node === 'lift').every((s) => s.floor === 0)).toBe(true);
+    expect(steps.at(-1)!.floor).toBe(1);
+  });
+
+  it('gives a bridge and the belt under it different slots', () => {
+    const over = routeSteps(['lift'], ports).steps.find((s) => s.y === 7)!;
+    const under = routeSteps(['under'], [port('under', 5, 7, 'N', 'in'), port('under', 5, 7, 'S', 'out')]).steps[0]!;
+    expect(over.x === under.x && over.y === under.y).toBe(true);
+    expect(over.slot).not.toBe(under.slot);
+  });
+
+  it('leaves the last object of a loop by the port that goes round again', () => {
+    const loop: ResolvedPort[] = [
+      port('p', 0, 0, 'N', 'in'), port('p', 0, 0, 'S', 'out'),
+      port('q', 0, -1, 'N', 'in'), port('q', 0, -1, 'S', 'out'),
+    ];
+    // q feeds nothing here, but asked to go back to p it still ends on its own cell.
+    const { steps } = routeSteps(['p', 'q'], loop, 'p');
+    expect(steps.map((s) => s.node)).toEqual(['p', 'q']);
   });
 });

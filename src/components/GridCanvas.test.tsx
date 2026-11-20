@@ -2402,7 +2402,7 @@ describe('GridCanvas following parcels', () => {
       play();
       runClock(frames);
 
-      expect(container.textContent).toMatch(/falls off the end/i);
+      expect(container.textContent).toMatch(/on the belt [1-9]/i);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2423,13 +2423,13 @@ describe('GridCanvas following parcels', () => {
 
     play();
 
-    expect(screen.queryByText(/falls off the end/i)).toBeNull();
+    expect(screen.queryByText(/on the belt/i)).toBeNull();
   });
 
   it('does nothing at all on an empty plan', () => {
     render(<GridCanvas />);
     play();
-    expect(screen.queryByText(/falls off the end/i)).toBeNull();
+    expect(screen.queryByText(/on the belt/i)).toBeNull();
   });
 
   it('cycles the speed, and says which one it is on', () => {
@@ -2460,7 +2460,7 @@ describe('GridCanvas following parcels', () => {
     play();
     fireEvent.click(screen.getByRole('button', { name: /stop/i }));
 
-    expect(container.textContent).not.toMatch(/falls off the end/i);
+    expect(container.textContent).not.toMatch(/on the belt/i);
   });
   it('survives a frame timestamped BEFORE the clock started', () => {
     // requestAnimationFrame reports when the frame began, which can precede a
@@ -2485,7 +2485,7 @@ describe('GridCanvas following parcels', () => {
       }
 
       // Still standing, and still able to say what happened.
-      expect(container.textContent).toMatch(/falls off the end/i);
+      expect(container.textContent).toMatch(/on the belt [1-9]/i);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2530,7 +2530,7 @@ describe('GridCanvas following parcels', () => {
       runClock(frames);
 
       expect(container.textContent).toMatch(/delivered|livr/i);
-      expect(container.textContent).not.toMatch(/falls off the end/i);
+      expect(container.textContent).not.toMatch(/fell off|stops at/i);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2546,10 +2546,12 @@ describe('GridCanvas following parcels', () => {
       const { container } = render(<GridCanvas />);
       play();
       // The count must grow: the clock asking for frames alone proves nothing.
-      const delivered = () => Number(/(\d+) ×/.exec(container.textContent ?? '')?.[1] ?? 0);
-      runClock(frames, 25);
+      const delivered = () => Number(/Delivered (\d+)/.exec(container.textContent ?? '')?.[1] ?? 0);
+      // Long enough for the first parcel to cross the 20-cell line.
+      runClock(frames, 120);
       const afterOne = delivered();
-      runClock(frames, 70);
+      // The helper restarts its clock at 0, so the first 30 s of this run only catch up.
+      runClock(frames, 250);
 
       expect(afterOne).toBeGreaterThan(0);
       expect(delivered()).toBeGreaterThan(afterOne);
@@ -2653,7 +2655,7 @@ describe('GridCanvas following parcels', () => {
       play();
       runClock(frames, 200);
 
-      const inFlight = Number(/(\d+) ×/.exec(container.textContent ?? '')?.[1] ?? 0);
+      const inFlight = Number(/On the belt (\d+)/.exec(container.textContent ?? '')?.[1] ?? 0);
       expect(inFlight).toBeGreaterThan(12);
     } finally {
       window.requestAnimationFrame = realRaf;
