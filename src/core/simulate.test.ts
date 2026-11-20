@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { entryPoints, feedingDoors, mostlyStraight, parcelPath, routeSteps } from './simulate';
+import { entryPoints, feedingDoors, mostlyStraight, parcelPath, routeSteps, storePullers } from './simulate';
 import type { Edge, ResolvedPort } from './graph';
 
 /**
@@ -289,5 +289,25 @@ describe('routeSteps: the cells a parcel actually crosses', () => {
     // q feeds nothing here, but asked to go back to p it still ends on its own cell.
     const { steps } = routeSteps(['p', 'q'], loop, 'p');
     expect(steps.map((s) => s.node)).toEqual(['p', 'q']);
+  });
+});
+
+describe('storePullers: what empties a rack', () => {
+  const port = (placementId: string, x: number, y: number, side: 'N' | 'S', dir: 'in' | 'out'): ResolvedPort =>
+    ({ placementId, cell: { x, y }, floor: 0, side, dir, targetFloor: 0 });
+  // A rack covering (0,0)-(0,2); an unloader below it at (0,3) takes from
+  // above (its in port faces S, towards y - 1) and sends down.
+  const owner = (_: number, c: { x: number; y: number }) => (c.x === 0 && c.y >= 0 && c.y <= 2 ? 'rack' : undefined);
+  const ports = [
+    port('rack', 0, 2, 'N', 'in'),
+    port('unloader', 0, 3, 'S', 'in'), port('unloader', 0, 3, 'N', 'out'),
+  ];
+
+  it('finds an unloader whose entry faces a rack', () => {
+    expect(storePullers(ports, [], owner, (id) => id === 'rack')).toEqual([{ puller: 'unloader', store: 'rack' }]);
+  });
+
+  it('ignores one that a belt already feeds', () => {
+    expect(storePullers(ports, [{ from: 'belt', to: 'unloader' }], owner, (id) => id === 'rack')).toEqual([]);
   });
 });

@@ -246,3 +246,28 @@ export function routeSteps(
 
   return { steps, startOf };
 }
+
+/**
+ * The objects that take parcels out of a store (an unloader against a rack):
+ * an in port that nothing feeds, facing a cell of a store. Each comes with the
+ * store it empties.
+ *
+ * `ownerAt` names the placement covering a cell of a floor, if any.
+ */
+export function storePullers(
+  ports: readonly ResolvedPort[],
+  edges: readonly Edge[],
+  ownerAt: (floor: number, cell: Cell) => string | undefined,
+  isStore: (id: string) => boolean,
+): { puller: string; store: string }[] {
+  const fed = new Set(edges.map((edge) => edge.to));
+  const found: { puller: string; store: string }[] = [];
+  for (const port of ports) {
+    if (port.dir !== 'in' || fed.has(port.placementId) || isStore(port.placementId)) continue;
+    const step = SIDE_STEP[port.side];
+    const store = ownerAt(port.targetFloor, { x: port.cell.x + step.dx, y: port.cell.y + step.dy });
+    if (store === undefined || !isStore(store)) continue;
+    found.push({ puller: port.placementId, store });
+  }
+  return found;
+}

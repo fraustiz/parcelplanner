@@ -2402,7 +2402,7 @@ describe('GridCanvas following parcels', () => {
       play();
       runClock(frames);
 
-      expect(container.textContent).toMatch(/on the belt [1-9]/i);
+      expect(container.textContent).toMatch(/on the belts [1-9]/i);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2423,13 +2423,13 @@ describe('GridCanvas following parcels', () => {
 
     play();
 
-    expect(screen.queryByText(/on the belt/i)).toBeNull();
+    expect(screen.queryByText(/on the belts/i)).toBeNull();
   });
 
   it('does nothing at all on an empty plan', () => {
     render(<GridCanvas />);
     play();
-    expect(screen.queryByText(/on the belt/i)).toBeNull();
+    expect(screen.queryByText(/on the belts/i)).toBeNull();
   });
 
   it('cycles the speed, and says which one it is on', () => {
@@ -2460,7 +2460,7 @@ describe('GridCanvas following parcels', () => {
     play();
     fireEvent.click(screen.getByRole('button', { name: /stop/i }));
 
-    expect(container.textContent).not.toMatch(/on the belt/i);
+    expect(container.textContent).not.toMatch(/on the belts/i);
   });
   it('survives a frame timestamped BEFORE the clock started', () => {
     // requestAnimationFrame reports when the frame began, which can precede a
@@ -2485,7 +2485,7 @@ describe('GridCanvas following parcels', () => {
       }
 
       // Still standing, and still able to say what happened.
-      expect(container.textContent).toMatch(/on the belt [1-9]/i);
+      expect(container.textContent).toMatch(/on the belts [1-9]/i);
     } finally {
       window.requestAnimationFrame = realRaf;
     }
@@ -2655,7 +2655,7 @@ describe('GridCanvas following parcels', () => {
       play();
       runClock(frames, 200);
 
-      const inFlight = Number(/On the belt (\d+)/.exec(container.textContent ?? '')?.[1] ?? 0);
+      const inFlight = Number(/On the belts (\d+)/.exec(container.textContent ?? '')?.[1] ?? 0);
       expect(inFlight).toBeGreaterThan(12);
     } finally {
       window.requestAnimationFrame = realRaf;

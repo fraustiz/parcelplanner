@@ -8,12 +8,13 @@ import { clampedCell, floorBounds, pickedSelection, placementAt, steppedCursor }
 import { buildGraph, doorNodeId } from '@/core/graph';
 import { canPlace, shiftedSelection, type PlacementRejection } from '@/core/occupancy';
 import { advanceOneCell, isOnTheFloor, stillOnTheBelt } from '@/core/queueing';
-import { entryPoints, mostlyStraight, parcelPath, routeSteps, type RouteStep } from '@/core/simulate';
+import { entryPoints, mostlyStraight, parcelPath, routeSteps, storePullers, type RouteStep } from '@/core/simulate';
 import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/core/transform';
 import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
 import { DOORS } from '@/data/doors';
+import { storageCapacityOf } from '@/data/storage';
 import { STAIRS } from '@/data/stairs';
 import { repaintableColourOf } from '@/data/colours';
 import { CARGO_TYPE_ICONS, COUNTRY_DOOR_ICON, KEEP_OWN_COLOURS, OBJECT_ICONS, PARCEL_ICON } from '@/data/icons';
@@ -60,9 +61,21 @@ interface LiveParcel {
 
 /** What has become of the parcels since play was pressed: counted as they
  * actually arrive or fall, not predicted from the routes. */
-interface SimTally { delivered: number; stored: number; fell: number }
+interface SimTally { delivered: number; fell: number }
 
-const NO_TALLY: SimTally = { delivered: 0, stored: 0, fell: 0 };
+const NO_TALLY: SimTally = { delivered: 0, fell: 0 };
+
+/** Everything the preview keeps between steps: the parcels on the belts, what
+ * has become of the others, and how many each rack holds, by placement id. */
+interface SimState { parcels: LiveParcel[]; tally: SimTally; racks: Record<string, number> }
+
+const NO_SIM: SimState = { parcels: [], tally: NO_TALLY, racks: {} };
+
+/** A route a parcel can be sent along, as built for one step. */
+interface Walk {
+  cells: RouteStep[]; ending: LiveParcel['ending']; wrapTo?: number; endsAt?: string;
+  because?: LiveParcel['because']; blockedBy?: string;
+}
 
 /** How fast a parcel crosses a cell on screen. A viewing speed, set by what the
  * eye can follow: the game data has no belt speed. */
@@ -235,9 +248,7 @@ export default function GridCanvas() {
    * Every parcel in flight. A viewing aid: it never touches the plan (no
    * dispatch, no undo entry).
    */
-  const [sim, setSim] = useState<{ parcels: LiveParcel[]; tally: SimTally }>(
-    { parcels: [], tally: NO_TALLY },
-  );
+  const [sim, setSim] = useState<SimState>(NO_SIM);
   const parcels = sim.parcels;
   const floor = useEditor((s) => s.floor);
   /** How far through the current cell-step the drawing is, 0 to 1. Only the
@@ -872,11 +883,16 @@ export default function GridCanvas() {
    *
    * Each route runs cell by cell, from the delivery door through every cell of
    * every object (see routeSteps), on every floor.
+   *
+   * Also the routes out of the racks: an unloader against a rack takes one of
+   * its parcels each step its belt is free (`pulls`), and `capacity` says how
+   * many each rack holds before parcels have to wait in front of it.
    */
   const buildWalks = (): {
-    cells: RouteStep[]; ending: LiveParcel['ending']; wrapTo?: number; endsAt?: string;
-    because?: LiveParcel['because']; blockedBy?: string;
-  }[] => {
+    walks: Walk[];
+    pulls: { rack: string; walk: Walk }[];
+    capacity: Map<string, number>;
+  } => {
     const graph = buildGraph(plan, catalogue, DOORS);
     const here = DOORS.filter((d) => d.warehouse === plan.warehouse);
     const deliveryIds = new Set(
@@ -948,25 +964,39 @@ export default function GridCanvas() {
       return mostlyStraight(options, ahead, roll, REFUSED_AT_A_CHECKER);
     };
 
-    return [...entryPoints(graph.edges, deliveryIds)]
-      .map((id) => {
-        const walked = parcelPath(graph.edges, id, chooseBranch, {
-          exits: exitIds,
-          stores: storeIds,
-        });
-        const onward = walked.loopsBackTo === undefined ? undefined : walked.path[walked.loopsBackTo];
-        const { steps, startOf } = routeSteps(walked.path, graph.ports, onward);
-        const wrapTo = walked.loopsBackTo === undefined ? undefined : startOf[walked.loopsBackTo];
-        const last = walked.path[walked.path.length - 1];
-        return {
-          cells: steps,
-          ending: walked.ending,
-          endsAt: last,
-          ...(walked.ending === 'dropped' && last !== undefined ? whyStuck(last) ?? {} : {}),
-          ...(wrapTo !== undefined ? { wrapTo } : {}),
-        };
-      })
+    const walkFrom = (id: string): Walk => {
+      const walked = parcelPath(graph.edges, id, chooseBranch, {
+        exits: exitIds,
+        stores: storeIds,
+      });
+      const onward = walked.loopsBackTo === undefined ? undefined : walked.path[walked.loopsBackTo];
+      const { steps, startOf } = routeSteps(walked.path, graph.ports, onward);
+      const wrapTo = walked.loopsBackTo === undefined ? undefined : startOf[walked.loopsBackTo];
+      const last = walked.path[walked.path.length - 1];
+      return {
+        cells: steps,
+        ending: walked.ending,
+        endsAt: last,
+        ...(walked.ending === 'dropped' && last !== undefined ? whyStuck(last) ?? {} : {}),
+        ...(wrapTo !== undefined ? { wrapTo } : {}),
+      };
+    };
+
+    const walks = [...entryPoints(graph.edges, deliveryIds)]
+      .map(walkFrom)
       .filter((w) => w.cells.length > 0);
+    const pulls = storePullers(
+      graph.ports,
+      graph.edges,
+      (onFloor, cell) => covering.get(`${onFloor}:${cell.x},${cell.y}`),
+      (id) => storeIds.has(id),
+    )
+      .map(({ puller, store }) => ({ rack: store, walk: walkFrom(puller) }))
+      .filter(({ walk }) => walk.cells.length > 0);
+    const capacity = new Map(
+      [...storeIds].map((id) => [id, storageCapacityOf(byId.get(id)?.objectId ?? '')] as const),
+    );
+    return { walks, pulls, capacity };
   };
 
   /**
@@ -975,8 +1005,10 @@ export default function GridCanvas() {
    * cell apart.
    */
   const stepParcels = (): void => {
-    setSim(({ parcels: live, tally }) => {
+    const { walks, pulls, capacity } = buildWalksRef.current();
+    setSim(({ parcels: live, tally, racks: held }) => {
       const done = { ...tally };
+      const racks = { ...held };
       // Move first, then judge who is still on the belt by whether it moved.
       const moved = advanceOneCell(live);
       const stepped: LiveParcel[] = [];
@@ -988,16 +1020,24 @@ export default function GridCanvas() {
         // Only these two leave on arrival; a looping parcel goes round again,
         // a stopped one stays until the stall rule retires it. Judged on where
         // it stood before this step, so the slide into the door or rack is
-        // drawn before it goes.
-        const arrived = p.index >= p.cells.length - 1
-          && (p.ending === 'delivered' || p.ending === 'stored');
+        // drawn before it goes. A full rack takes nothing: the parcel waits.
+        const atEnd = p.index >= p.cells.length - 1;
+        const rack = p.ending === 'stored' ? p.endsAt : undefined;
+        const roomInRack = rack !== undefined
+          && (racks[rack] ?? 0) < (capacity.get(rack) ?? 0);
+        const arrived = atEnd && (p.ending === 'delivered' || roomInRack);
         const deadEnd = index >= p.cells.length - 1
           && (p.ending === 'dropped' || p.ending === 'exhausted');
-        const hold = deadEnd ? DEAD_END_SHOW_STEPS : STUCK_HOLD_STEPS;
+        // A parcel on its way to a door or a rack never falls for waiting: a
+        // queue behind a full rack or a busy merge is the layout's answer, not
+        // a jam. Only loops and dead ends drop parcels.
+        const hold = deadEnd ? DEAD_END_SHOW_STEPS
+          : p.ending === 'delivered' || p.ending === 'stored' ? Infinity
+            : STUCK_HOLD_STEPS;
         if (!stillOnTheBelt({ arrived, moving: going, heldFor }, hold)) {
           if (!arrived) done.fell++;
-          else if (p.ending === 'delivered') done.delivered++;
-          else done.stored++;
+          else if (rack !== undefined) racks[rack] = (racks[rack] ?? 0) + 1;
+          else done.delivered++;
           continue;
         }
         stepped.push({ ...p, from: p.index, index, heldFor });
@@ -1006,11 +1046,19 @@ export default function GridCanvas() {
       // Each release re-rolls its branch choices, so a splitter visibly sends
       // parcels both ways.
       const taken = new Set(stepped.map((p) => p.cells[p.index]!.slot));
-      for (const walk of buildWalksRef.current()) {
+      const sources: { walk: Walk; rack?: string }[] = [
+        ...walks.map((walk) => ({ walk })),
+        ...pulls,
+      ];
+      for (const { walk, rack } of sources) {
         const first = walk.cells[0];
         if (!first) continue;
         const at = first.slot;
         if (taken.has(at)) continue; // the belt at that door is still full
+        if (rack !== undefined) {
+          if ((racks[rack] ?? 0) === 0) continue; // nothing in it to take
+          racks[rack] = racks[rack]! - 1;
+        }
         taken.add(at);
         stepped.push({
           cells: walk.cells, ending: walk.ending, index: 0, from: 0, heldFor: 0,
@@ -1022,6 +1070,7 @@ export default function GridCanvas() {
       return {
         parcels: stepped.length > MAX_PARCELS ? stepped.slice(-MAX_PARCELS) : stepped,
         tally: done,
+        racks,
       };
     });
   };
@@ -1035,14 +1084,14 @@ export default function GridCanvas() {
 
   /** Clears the parcels and resets the clock, for both Escape and Stop. */
   const stopParcels = (): void => {
-    setSim({ parcels: [], tally: NO_TALLY });
+    setSim(NO_SIM);
     setPhase(0);
     setPlaying(false);
   };
 
   const sendParcels = (): void => {
-    if (buildWalks().length === 0) return; // nothing is wired up; say nothing
-    setSim({ parcels: [], tally: NO_TALLY });
+    if (buildWalks().walks.length === 0) return; // nothing is wired up; say nothing
+    setSim(NO_SIM);
     setPhase(0);
     setPlaying(true);
   };
@@ -1609,10 +1658,11 @@ export default function GridCanvas() {
   const verdict = useMemo(() => {
     if (parcels.length === 0) return '';
     const { tally } = sim;
+    const stored = Object.values(sim.racks).reduce((sum, n) => sum + n, 0);
     const counts = [
       `${t(locale, 'sim.onBelt')} ${parcels.length}`,
       `${t(locale, 'sim.delivered')} ${tally.delivered}`,
-      ...(tally.stored > 0 ? [`${t(locale, 'sim.stored')} ${tally.stored}`] : []),
+      ...(stored > 0 ? [`${t(locale, 'sim.stored')} ${stored}`] : []),
       ...(tally.fell > 0 ? [`${t(locale, 'sim.fell')} ${tally.fell}`] : []),
     ].join('  ·  ');
 
@@ -1719,7 +1769,7 @@ export default function GridCanvas() {
           onClick={() => (playing ? setPlaying(false) : parcels.length > 0 ? setPlaying(true) : sendParcels())}
           aria-label={t(locale, playing ? 'sim.pause' : 'sim.play')}
           title={t(locale, playing ? 'sim.pause' : 'sim.play')}
-          className="rounded px-2 py-1 leading-none text-[var(--text-faint)] hover:text-[var(--text-strong)]"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 py-1 leading-none text-[var(--text-faint)] hover:bg-[var(--raised)] hover:text-[var(--text-strong)] active:bg-[var(--raised-hover)] md:min-h-0 md:min-w-0"
         >
           {playing ? <Pause size={16} aria-hidden /> : <Play size={16} aria-hidden />}
         </button>
@@ -1727,7 +1777,7 @@ export default function GridCanvas() {
           onClick={stopParcels}
           aria-label={t(locale, 'sim.stop')}
           title={t(locale, 'sim.stop')}
-          className="rounded px-2 py-1 leading-none text-[var(--text-faint)] hover:text-[var(--text-strong)]"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 py-1 leading-none text-[var(--text-faint)] hover:bg-[var(--raised)] hover:text-[var(--text-strong)] active:bg-[var(--raised-hover)] md:min-h-0 md:min-w-0"
         >
           <Square size={16} aria-hidden />
         </button>
@@ -1735,7 +1785,7 @@ export default function GridCanvas() {
           onClick={() => setSpeed((s) => (s === 1 ? 2 : s === 2 ? 4 : 1))}
           aria-label={t(locale, 'sim.speed')}
           title={t(locale, 'sim.speed')}
-          className="flex items-center gap-1 rounded px-2 py-1 font-mono text-xs leading-none text-[var(--text-faint)] hover:text-[var(--text-strong)]"
+          className="flex min-h-11 items-center gap-1 rounded px-2 py-1 font-mono text-xs leading-none text-[var(--text-faint)] hover:bg-[var(--raised)] hover:text-[var(--text-strong)] active:bg-[var(--raised-hover)] md:min-h-0"
         >
           <FastForward size={16} aria-hidden />{speed}×
         </button>
