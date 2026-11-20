@@ -8,7 +8,7 @@ import { clampedCell, floorBounds, pickedSelection, placementAt, steppedCursor }
 import { buildGraph, doorNodeId } from '@/core/graph';
 import { canPlace, shiftedSelection, type PlacementRejection } from '@/core/occupancy';
 import { advanceOneCell, isOnTheFloor, stillOnTheBelt } from '@/core/queueing';
-import { entryPoints, mostlyStraight, parcelPath, routeSteps, storePullers, type RouteStep } from '@/core/simulate';
+import { entryPoints, mostlyStraight, onwardOf, parcelPath, portIndexOf, routeSteps, storePullers, type RouteStep } from '@/core/simulate';
 import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/core/transform';
 import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
@@ -888,11 +888,12 @@ export default function GridCanvas() {
    * its parcels each step its belt is free (`pulls`), and `capacity` says how
    * many each rack holds before parcels have to wait in front of it.
    */
-  const buildWalks = (): {
-    walks: Walk[];
-    pulls: { rack: string; walk: Walk }[];
-    capacity: Map<string, number>;
-  } => {
+  /**
+   * What the preview needs to know about the layout, worked out once per edit
+   * rather than at every step: on a layout of a few thousand objects,
+   * rebuilding it each step froze the drawing for about 150 ms per step.
+   */
+  const simLayout = useMemo(() => {
     const graph = buildGraph(plan, catalogue, DOORS);
     const here = DOORS.filter((d) => d.warehouse === plan.warehouse);
     const deliveryIds = new Set(
@@ -923,10 +924,45 @@ export default function GridCanvas() {
       const entry = catalogue.get(p.objectId);
       if (entry) for (const c of coveredCells(p, entry)) covering.set(`${p.floor}:${c.x},${c.y}`, p.id);
     }
+    const onward = onwardOf(graph.edges);
+    const portIndex = portIndexOf(graph.ports);
+    const danglingBy = new Map<string, typeof graph.danglingOutputs>();
+    for (const o of graph.danglingOutputs) {
+      const list = danglingBy.get(o.placementId);
+      if (list) list.push(o);
+      else danglingBy.set(o.placementId, [o]);
+    }
+    const entries = [...entryPoints(graph.edges, deliveryIds)];
+    const pullers = storePullers(
+      graph.ports,
+      graph.edges,
+      (onFloor, cell) => covering.get(`${onFloor}:${cell.x},${cell.y}`),
+      (id) => storeIds.has(id),
+    );
+    const capacity = new Map(
+      [...storeIds].map((id) => [id, storageCapacityOf(byId.get(id)?.objectId ?? '')] as const),
+    );
+    // Where a parcel from each source first stands: a source whose first cell
+    // is still taken releases nothing, and need not be walked at all.
+    const firstSlot = (id: string): string | undefined => routeSteps([id], portIndex).steps[0]?.slot;
+    const sources = [
+      ...entries.map((id) => ({ from: id, slot: firstSlot(id), rack: undefined as string | undefined })),
+      ...pullers.map(({ puller, store }) => ({ from: puller, slot: firstSlot(puller), rack: store as string | undefined })),
+    ].filter((source): source is { from: string; slot: string; rack: string | undefined } => source.slot !== undefined);
+    return { exitIds, storeIds, byCell, byId, covering, onward, portIndex, danglingBy, entries, sources, capacity };
+  }, [plan, catalogue]);
+
+  const buildWalks = (): {
+    sources: { slot: string; rack?: string; walk: () => Walk }[];
+    capacity: Map<string, number>;
+  } => {
+    const {
+      exitIds, storeIds, byCell, byId, covering, onward, portIndex, danglingBy, sources, capacity,
+    } = simLayout;
     const whyStuck = (
       placementId: string,
     ): { because: LiveParcel['because']; blockedBy?: string } | undefined => {
-      const stuck = graph.danglingOutputs.filter((o) => o.placementId === placementId);
+      const stuck = danglingBy.get(placementId) ?? [];
       if (stuck.length === 0) return undefined;
       for (const o of stuck) {
         const step = SIDE_STEP[o.side];
@@ -965,12 +1001,12 @@ export default function GridCanvas() {
     };
 
     const walkFrom = (id: string): Walk => {
-      const walked = parcelPath(graph.edges, id, chooseBranch, {
+      const walked = parcelPath(onward, id, chooseBranch, {
         exits: exitIds,
         stores: storeIds,
       });
-      const onward = walked.loopsBackTo === undefined ? undefined : walked.path[walked.loopsBackTo];
-      const { steps, startOf } = routeSteps(walked.path, graph.ports, onward);
+      const goesBackTo = walked.loopsBackTo === undefined ? undefined : walked.path[walked.loopsBackTo];
+      const { steps, startOf } = routeSteps(walked.path, portIndex, goesBackTo);
       const wrapTo = walked.loopsBackTo === undefined ? undefined : startOf[walked.loopsBackTo];
       const last = walked.path[walked.path.length - 1];
       return {
@@ -982,21 +1018,10 @@ export default function GridCanvas() {
       };
     };
 
-    const walks = [...entryPoints(graph.edges, deliveryIds)]
-      .map(walkFrom)
-      .filter((w) => w.cells.length > 0);
-    const pulls = storePullers(
-      graph.ports,
-      graph.edges,
-      (onFloor, cell) => covering.get(`${onFloor}:${cell.x},${cell.y}`),
-      (id) => storeIds.has(id),
-    )
-      .map(({ puller, store }) => ({ rack: store, walk: walkFrom(puller) }))
-      .filter(({ walk }) => walk.cells.length > 0);
-    const capacity = new Map(
-      [...storeIds].map((id) => [id, storageCapacityOf(byId.get(id)?.objectId ?? '')] as const),
-    );
-    return { walks, pulls, capacity };
+    return {
+      sources: sources.map(({ from, slot, rack }) => ({ slot, rack, walk: () => walkFrom(from) })),
+      capacity,
+    };
   };
 
   /**
@@ -1005,7 +1030,7 @@ export default function GridCanvas() {
    * cell apart.
    */
   const stepParcels = (): void => {
-    const { walks, pulls, capacity } = buildWalksRef.current();
+    const { sources, capacity } = buildWalksRef.current();
     setSim(({ parcels: live, tally, racks: held }) => {
       const done = { ...tally };
       const racks = { ...held };
@@ -1046,19 +1071,13 @@ export default function GridCanvas() {
       // Each release re-rolls its branch choices, so a splitter visibly sends
       // parcels both ways.
       const taken = new Set(stepped.map((p) => p.cells[p.index]!.slot));
-      const sources: { walk: Walk; rack?: string }[] = [
-        ...walks.map((walk) => ({ walk })),
-        ...pulls,
-      ];
-      for (const { walk, rack } of sources) {
-        const first = walk.cells[0];
-        if (!first) continue;
-        const at = first.slot;
+      for (const { slot: at, rack, walk: walkNow } of sources) {
         if (taken.has(at)) continue; // the belt at that door is still full
-        if (rack !== undefined) {
-          if ((racks[rack] ?? 0) === 0) continue; // nothing in it to take
-          racks[rack] = racks[rack]! - 1;
-        }
+        if (rack !== undefined && (racks[rack] ?? 0) === 0) continue; // nothing in it to take
+        // Walked only now, once it is sure to leave.
+        const walk = walkNow();
+        if (walk.cells.length === 0) continue;
+        if (rack !== undefined) racks[rack] = racks[rack]! - 1;
         taken.add(at);
         stepped.push({
           cells: walk.cells, ending: walk.ending, index: 0, from: 0, heldFor: 0,
@@ -1090,7 +1109,7 @@ export default function GridCanvas() {
   };
 
   const sendParcels = (): void => {
-    if (buildWalks().walks.length === 0) return; // nothing is wired up; say nothing
+    if (simLayout.entries.length === 0) return; // nothing is wired up; say nothing
     setSim(NO_SIM);
     setPhase(0);
     setPlaying(true);
@@ -1676,13 +1695,13 @@ export default function GridCanvas() {
       // and for as long as one is, rather than only while one stands at the end.
       const cell = p.cells[p.cells.length - 1]!;
       // Named, not just located.
-      const at = p.endsAt === undefined ? undefined : plan.placements.find((q) => q.id === p.endsAt);
+      const at = p.endsAt === undefined ? undefined : simLayout.byId.get(p.endsAt);
       const named = at && catalogue.get(at.objectId)?.displayName[locale];
       const nameOf = (id: string | undefined) => {
-        const found = id === undefined ? undefined : plan.placements.find((q) => q.id === id);
+        const found = id === undefined ? undefined : simLayout.byId.get(id);
         return found && catalogue.get(found.objectId)?.displayName[locale];
       };
-      const blocker = plan.placements.find((q) => q.id === p.blockedBy);
+      const blocker = p.blockedBy === undefined ? undefined : simLayout.byId.get(p.blockedBy);
       const blockerName = nameOf(p.blockedBy);
       // Also its rotation and which sides it takes from, as seen on screen.
       // +y is down here: the inverted compass has N facing +y, and
@@ -1714,7 +1733,7 @@ export default function GridCanvas() {
     return stops.length === 0
       ? counts
       : `${counts}  ·  ${t(locale, 'parcel.stopsAt')} ${stops.join(', ')}`;
-  }, [parcels, sim, locale, plan.warehouse, plan.placements, catalogue]);
+  }, [parcels, sim, locale, plan.warehouse, simLayout, catalogue]);
 
   return (
     <div ref={wrapperRef} className="relative h-full w-full">

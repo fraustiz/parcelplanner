@@ -45,18 +45,27 @@ export interface WalkOptions {
   maxHops?: number;
 }
 
-export function parcelPath(
-  edges: readonly Edge[],
-  start: string,
-  choose: ChooseNext,
-  { exits, stores, maxHops = 2000 }: WalkOptions = {},
-): ParcelWalk {
+/** Where each node leads, built once from the edges so that many walks over
+ * the same layout do not each rebuild it. */
+export type Onward = ReadonlyMap<string, readonly string[]>;
+
+export function onwardOf(edges: readonly Edge[]): Onward {
   const onward = new Map<string, string[]>();
   for (const edge of edges) {
     const list = onward.get(edge.from);
     if (list) list.push(edge.to);
     else onward.set(edge.from, [edge.to]);
   }
+  return onward;
+}
+
+export function parcelPath(
+  edges: readonly Edge[] | Onward,
+  start: string,
+  choose: ChooseNext,
+  { exits, stores, maxHops = 2000 }: WalkOptions = {},
+): ParcelWalk {
+  const onward: Onward = edges instanceof Map ? (edges as Onward) : onwardOf(edges as readonly Edge[]);
 
   const path = [start];
   const seen = new Set([start]);
@@ -179,17 +188,40 @@ export interface Route {
  * the door, so it is seen going out. `onward` is the node a looping walk goes
  * back to, so its last object is left by the right port.
  */
-export function routeSteps(
-  path: readonly string[],
-  ports: readonly ResolvedPort[],
-  onward?: string,
-): Route {
+/** Every port of each node, built once so that many routes over the same
+ * layout do not each rebuild it. */
+export type PortIndex = ReadonlyMap<string, readonly ResolvedPort[]>;
+
+export function portIndexOf(ports: readonly ResolvedPort[]): PortIndex {
   const byNode = new Map<string, ResolvedPort[]>();
   for (const port of ports) {
     const list = byNode.get(port.placementId);
     if (list) list.push(port);
     else byNode.set(port.placementId, [port]);
   }
+  return byNode;
+}
+
+const doorsByIndex = new WeakMap<PortIndex, string[]>();
+
+/** The doors with an out port in an index, worked out once per index. */
+function feedingDoorsOf(byNode: PortIndex): string[] {
+  let doors = doorsByIndex.get(byNode);
+  if (doors === undefined) {
+    doors = [...byNode]
+      .filter(([node, list]) => node.startsWith('door:') && list.some((port) => port.dir === 'out'))
+      .map(([node]) => node);
+    doorsByIndex.set(byNode, doors);
+  }
+  return doors;
+}
+
+export function routeSteps(
+  path: readonly string[],
+  ports: readonly ResolvedPort[] | PortIndex,
+  onward?: string,
+): Route {
+  const byNode: PortIndex = ports instanceof Map ? (ports as PortIndex) : portIndexOf(ports as readonly ResolvedPort[]);
 
   /** The out port of `from` that feeds an in port of `to`, and that in port. */
   const link = (from: string, to: string): { out: ResolvedPort; into: ResolvedPort } | undefined => {
@@ -219,8 +251,7 @@ export function routeSteps(
   const first = path[0];
   let entry: ResolvedPort | undefined;
   if (first !== undefined) {
-    for (const [node, list] of byNode) {
-      if (!node.startsWith('door:') || !list.some((port) => port.dir === 'out')) continue;
+    for (const node of feedingDoorsOf(byNode)) {
       const found = link(node, first);
       if (!found) continue;
       push(node, found.out.cell, found.out.cell, found.out.floor);
