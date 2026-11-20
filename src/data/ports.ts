@@ -84,6 +84,20 @@ const threeInOneOut: Port[] = [
   { side: 'S', offset: 0, dir: 'out' },
 ];
 
+/**
+ * The country diverter, three cells long: in at one end, straight out at the other, and a side
+ * exit on both sides of every one of its three cells, one per country lane. In a real layout
+ * belts left it from all six sides; with one exit a side, 16 of them were never fed.
+ */
+const countryDiverter: Port[] = [
+  { side: 'N', offset: 0, dir: 'in' },
+  { side: 'S', offset: 0, dir: 'out' },
+  ...[0, 1, 2].flatMap((offset): Port[] => [
+    { side: 'E', offset, dir: 'out' },
+    { side: 'W', offset, dir: 'out' },
+  ]),
+];
+
 /** Takes a parcel in on floor 0 and delivers it on the floor above. */
 const elevator: Port[] = [
   { side: 'N', offset: 0, dir: 'in', floorDelta: 0 },
@@ -123,6 +137,16 @@ const criteriaScanner: Port[] = [
   { side: 'W', offset: 0, dir: 'out' }, // left: does not
 ];
 
+/**
+ * The sticker appliers run down the screen in their reference orientation: fed through `S`, out
+ * through `N`. In a real layout three of their four placements connected this way round and not
+ * the other; the fourth sat the other way round, so this one is worth checking in game.
+ */
+const stickerApplier: Port[] = [
+  { side: 'S', offset: 0, dir: 'in' },
+  { side: 'N', offset: 0, dir: 'out' },
+];
+
 export const PORTS: Record<string, Port[]> = {
   BP_ConveyorBelt_Straight_Tier1: straightThrough,
   BP_ConveyorBelt_Corner_Tier1: cornerLeft,
@@ -140,15 +164,15 @@ export const PORTS: Record<string, Port[]> = {
   BP_ConveyorBelt_CriteriaScanner_CargoType: criteriaScanner,
   BP_ConveyorBelt_CriteriaScanner_Stamp: criteriaScanner,
   BP_ConveyorBelt_CriteriaScanner_ContentsProhibited: criteriaScanner,
-  BP_ConveyorBelt_StickerApplier_Approve: straightThrough,
-  BP_ConveyorBelt_StickerApplier_Deny: straightThrough,
+  BP_ConveyorBelt_StickerApplier_Approve: stickerApplier,
+  BP_ConveyorBelt_StickerApplier_Deny: stickerApplier,
   BP_ConveyorBelt_Joiner: twoInOneOut,
   BP_ConveyorBelt_Joiner_3Way: threeInOneOut,
   BP_ConveyorBelt_Joiner_2WayT: twoOpposedInOneOut,
   BP_ConveyorBelt_Splitter: oneInThreeOut,
   BP_ConveyorBelt_Splitter_2Way: twoWaySplitter,
   BP_ConveyorBelt_Diverter: oneInThreeOut,
-  BP_ConveyorBelt_CountryDiverter2: oneInThreeOut,
+  BP_ConveyorBelt_CountryDiverter2: countryDiverter,
   BP_ConveyorBelt_Elevator: elevator,
   BP_StorageRack_Medium: sinkOnly,
   BP_StorageRack_Large: sinkOnly,

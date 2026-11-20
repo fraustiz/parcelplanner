@@ -18,3 +18,21 @@ describe('criteria scanners', () => {
     }
   });
 });
+
+describe('racks', () => {
+  it('take a loader at either short end', () => {
+    for (const id of ['BP_StorageRack_Medium', 'BP_StorageRack_Large', 'BP_StorageRack_ExtraLarge']) {
+      expect(PORTS[id]!.filter((p) => p.dir === 'in').map((p) => p.side).sort()).toEqual(['N', 'S']);
+      expect(PORTS[id]!.some((p) => p.dir === 'out')).toBe(false);
+    }
+  });
+});
+
+describe('the country diverter', () => {
+  it('has a side exit on both sides of each of its three cells, and one straight on', () => {
+    const outs = PORTS.BP_ConveyorBelt_CountryDiverter2!.filter((p) => p.dir === 'out');
+    expect(outs.filter((p) => p.side === 'E').map((p) => p.offset)).toEqual([0, 1, 2]);
+    expect(outs.filter((p) => p.side === 'W').map((p) => p.offset)).toEqual([0, 1, 2]);
+    expect(outs.filter((p) => p.side === 'S')).toHaveLength(1);
+  });
+});
