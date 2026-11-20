@@ -1,0 +1,241 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_Upgrades",
+    "Flags": "RF_Public | RF_Standalone | RF_Transactional | RF_WasLoaded | RF_LoadCompleted",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Core/Blueprints/Widgets/Dashboard/Components/Upgrades/DT_Upgrades",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "UserDefinedStruct'F_Upgrade'",
+        "ObjectPath": "/Game/Core/Blueprints/Widgets/Dashboard/Components/Upgrades/F_Upgrade.0"
+      }
+    },
+    "Rows": {
+      "FasterDeliveriesTier1": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator0",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator4",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "Namespace": "",
+          "Key": "7697E6DD42EB0E09281E3D9D4C7D1A09",
+          "SourceString": "Fast deliveries",
+          "LocalizedString": "Fast deliveries"
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "Namespace": "",
+          "Key": "484BF2D14F4643ADF82F918B95D3F4D6",
+          "SourceString": "Deliveries now take 30 seconds, from a previous 40 seconds.",
+          "LocalizedString": "Deliveries now take 30 seconds, from a previous 40 seconds."
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-faster-deliveries'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-faster-deliveries.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 500,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 1,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": true
+      },
+      "FasterDeliveriesTier2": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator1",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator0",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "Namespace": "",
+          "Key": "727AC98E42E600EF27B1A3B39E8006B5",
+          "SourceString": "Fastest deliveries",
+          "LocalizedString": "Fastest deliveries"
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "Namespace": "",
+          "Key": "1C9B56384F6123F0A7DA0692900B6AEF",
+          "SourceString": "Deliveries now take 20 seconds, from a previous 30 seconds.",
+          "LocalizedString": "Deliveries now take 20 seconds, from a previous 30 seconds."
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-faster-deliveries'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-faster-deliveries.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 2000,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 3,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": false
+      },
+      "LargerDeliveriesTier1": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator2",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator4",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "Namespace": "",
+          "Key": "33696F144EB66BBA71D4B7A3572DA02E",
+          "SourceString": "Large Deliveries",
+          "LocalizedString": "Large Deliveries"
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "Namespace": "",
+          "Key": "993071C94498C7F82E6DC2B7CF87C23F",
+          "SourceString": "Deliveries now contain 5 parcels, increased from a previous 3.",
+          "LocalizedString": "Deliveries now contain 5 parcels, increased from a previous 3."
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-larger-deliveries-1'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-larger-deliveries-1.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 500,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 2,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": true
+      },
+      "LargerDeliveriesTier2": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator3",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator2",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "Namespace": "",
+          "Key": "2947E83445F21DDD51260380BB5827E5",
+          "SourceString": "Largest Deliveries",
+          "LocalizedString": "Largest Deliveries"
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "Namespace": "",
+          "Key": "87F56A504903A8C5814A3FAE6F4E23B4",
+          "SourceString": "Deliveries now contain 8 parcels, increased from a previous 5.",
+          "LocalizedString": "Deliveries now contain 8 parcels, increased from a previous 5."
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-larger-deliveries-2'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-larger-deliveries-2.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 1500,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 4,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": false
+      },
+      "ConveyorDeliveriesTier1": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator5",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator4",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "Namespace": "",
+          "Key": "35F93F4F4C4F6A589A1895AB4EAA4FDC",
+          "SourceString": "Conveyor Deliveries",
+          "LocalizedString": "Conveyor Deliveries"
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "Namespace": "",
+          "Key": "350215414E0EFB6FF4ED1491481061A0",
+          "SourceString": "Tier 1 conveyors will be added to the delivery bay so that you can connect deliveries to the rest of your automation system.",
+          "LocalizedString": "Tier 1 conveyors will be added to the delivery bay so that you can connect deliveries to the rest of your automation system."
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-conveyor-deliveries-1'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-conveyor-deliveries-1.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 1500,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 2,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": true
+      },
+      "ConveyorDeliveriesTier2": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator6",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator5",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "Namespace": "",
+          "Key": "ABB6EF524256BAD1AE5A5AA8B4625D46",
+          "SourceString": "Conveyor Deliveries 2",
+          "LocalizedString": "Conveyor Deliveries 2"
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "Namespace": "",
+          "Key": "9B07AD694F0E63D585408DBB8738483A",
+          "SourceString": "Tier 2 conveyors will be added to the delivery bay so that you can connect deliveries to the rest of your automation system.",
+          "LocalizedString": "Tier 2 conveyors will be added to the delivery bay so that you can connect deliveries to the rest of your automation system."
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-conveyor-deliveries-1'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-conveyor-deliveries-1.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 1500,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 6,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": false
+      },
+      "LargerExportsTier1": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator7",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator4",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "UpgradeLargerExportsTier1Name",
+          "SourceString": null,
+          "LocalizedString": null
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "UpgradeLargerExportsTier1Description",
+          "SourceString": null,
+          "LocalizedString": null
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": null,
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 0,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 999,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": false
+      },
+      "LargerExportsTier2": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator8",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator7",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "UpgradeLargerExportsTier2Name",
+          "SourceString": null,
+          "LocalizedString": null
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "UpgradeLargerExportsTier2Description",
+          "SourceString": null,
+          "LocalizedString": null
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": null,
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 0,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 999,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": false
+      },
+      "AutomaticExports": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator9",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator4",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "UpgradeAutomaticExportsName",
+          "SourceString": null,
+          "LocalizedString": null
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "UpgradeAutomaticExportsDescription",
+          "SourceString": null,
+          "LocalizedString": null
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-automated-exports'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-automated-exports.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 0,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 999,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": false
+      },
+      "NewRow": {
+        "UpgradeID_13_19258FAF4C20DDD24422ABAF08435DEA": "E_Upgrade::NewEnumerator10",
+        "DependentUpgradeID_15_C54C2DC24CFC6ADBD39355B1EE582BD0": "E_Upgrade::NewEnumerator4",
+        "Title_2_B1E6D17F41D91DCE81A5E7B476B4FFE6": {
+          "Namespace": "",
+          "Key": "4A7E557A43750C13F3331CA16924A0CD",
+          "SourceString": "Faster boots",
+          "LocalizedString": "Faster boots"
+        },
+        "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
+          "Namespace": "",
+          "Key": "FF37C2A947C9C06DB67FF79E0385DA18",
+          "SourceString": "Increases your base movement speed by 25%.",
+          "LocalizedString": "Increases your base movement speed by 25%."
+        },
+        "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
+          "ObjectName": "Texture2D'upgrade-faster-boots'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-faster-boots.0"
+        },
+        "Price_10_6422EF1142479E9EE2A2C8A463600240": 0,
+        "RequiredWarehouseTier_18_69C4ECDE4499D15FFC5A4C8C47861EF9": 999,
+        "IsInDemo_20_FC0855D14CCAC73A0B7C56B452A10FDC": false
+      }
+    }
+  }
+]

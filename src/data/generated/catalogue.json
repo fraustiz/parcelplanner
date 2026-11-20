@@ -1,0 +1,473 @@
+[
+  {
+    "id": "BP_ConveyorBelt_Straight_Tier1",
+    "displayName": {
+      "en": "Straight Conveyor",
+      "fr": "Convoyeur Simple"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 100,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Corner_Tier1",
+    "displayName": {
+      "en": "Corner Conveyor",
+      "fr": "Convoyeur en Virage"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 100,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Joiner",
+    "displayName": {
+      "en": "Joiner Conveyor",
+      "fr": "Convoyeur à 3 branches"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 350,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Joiner_2WayT",
+    "displayName": {
+      "en": "T-Joiner Conveyor",
+      "fr": "Convoyeur à 3 branches (en T)"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 650,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Bridger",
+    "displayName": {
+      "en": "Bridger Conveyor",
+      "fr": "Convoyeur Pont"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 3
+    },
+    "price": 500,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3,
+    "bridgedCells": [
+      {
+        "x": 0,
+        "y": 1
+      }
+    ]
+  },
+  {
+    "id": "BP_ConveyorBelt_Loader",
+    "displayName": {
+      "en": "Loader Conveyor",
+      "fr": "Convoyeur de Chargement"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 600,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Scanner2_Tier1",
+    "displayName": {
+      "en": "Sticker Checker Conveyor",
+      "fr": "Convoyeur de Vérification d'Autocollants"
+    },
+    "category": "scanner",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1200,
+    "upgradePrice": 2000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_CriteriaScanner_Weight",
+    "displayName": {
+      "en": "Scanner Conveyor (Weight)",
+      "fr": "Convoyeur Scanner (Poids)"
+    },
+    "category": "scanner",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1500,
+    "upgradePrice": 5000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_CriteriaScanner_SerialNumber",
+    "displayName": {
+      "en": "Scanner Conveyor (Serial Number)",
+      "fr": "Convoyeur Scanner (Numéro de Série)"
+    },
+    "category": "scanner",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1500,
+    "upgradePrice": 5000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_CriteriaScanner_Country",
+    "displayName": {
+      "en": "Scanner Conveyor (Country)",
+      "fr": "Convoyeur Scanner (Pays)"
+    },
+    "category": "scanner",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1500,
+    "upgradePrice": 5000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_CriteriaScanner_CargoType",
+    "displayName": {
+      "en": "Scanner Conveyor (Cargo Type)",
+      "fr": "Convoyeur Scanner (Type de Fret)"
+    },
+    "category": "scanner",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1500,
+    "upgradePrice": 5000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_CriteriaScanner_Stamp",
+    "displayName": {
+      "en": "Scanner Conveyor (Stamp)",
+      "fr": "Convoyeur Scanner (Timbre)"
+    },
+    "category": "scanner",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1500,
+    "upgradePrice": 5000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_CriteriaScanner_ContentsProhibited",
+    "displayName": {
+      "en": "Scanner Conveyor (Contents - Prohibited)",
+      "fr": "Convoyeur Scanner (Contenu - Interdit)"
+    },
+    "category": "scanner",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 2000,
+    "upgradePrice": 5000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Pauser",
+    "displayName": {
+      "en": "Pauser Conveyor",
+      "fr": "Convoyeur de Pause"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 125,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Unloader",
+    "displayName": {
+      "en": "Unloader Conveyor",
+      "fr": "Convoyeur de Déchargement"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 600,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Diverter",
+    "displayName": {
+      "en": "Cargo Type Diverter Conveyor",
+      "fr": "Convoyeur de Déviation en fonction du Type de Fret"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1200,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Splitter_2Way",
+    "displayName": {
+      "en": "Contents Inspection Diverter Conveyor",
+      "fr": "Convoyeur de Déviation pour Inspection du Contenu"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 1250,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_StickerApplier_Approve",
+    "displayName": {
+      "en": "Sticker Applier Conveyor (Approve)",
+      "fr": "Convoyeur d'Application d'Autocollants (Accepter)"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 3000,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_StickerApplier_Deny",
+    "displayName": {
+      "en": "Sticker Applier Conveyor (Deny)",
+      "fr": "Convoyeur d'Application d'Autocollants (Refuser)"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 3000,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Joiner_3Way",
+    "displayName": {
+      "en": "Multi Joiner Conveyor",
+      "fr": "Convoyeur multiconnexions"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 850,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Splitter",
+    "displayName": {
+      "en": "Smart Splitter Conveyor",
+      "fr": "Convoyeur Séparateur Intelligent"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 800,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Launcher",
+    "displayName": {
+      "en": "Launcher Conveyor",
+      "fr": "Convoyeur de Lancement"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 650,
+    "upgradePrice": 250,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_CountryDiverter2",
+    "displayName": {
+      "en": "Country Diverter Conveyor",
+      "fr": "Convoyeur de Déviation en fonction du Type de Pays"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 3
+    },
+    "price": 10000,
+    "upgradePrice": null,
+    "ports": [],
+    "maxTier": 1
+  },
+  {
+    "id": "BP_ConveyorBelt_Elevator",
+    "displayName": {
+      "en": "Vertical Elevator Conveyor",
+      "fr": "Convoyeur Monte-charge vertical"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 3
+    },
+    "price": 10000,
+    "upgradePrice": 10000,
+    "ports": [],
+    "maxTier": 3,
+    "spansTheFloorAbove": true
+  },
+  {
+    "id": "BP_ConveyorBelt_Speedway",
+    "displayName": {
+      "en": "Speedway Conveyor",
+      "fr": "Convoyeur Rapide"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 3
+    },
+    "price": 5000,
+    "upgradePrice": 5000,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_AutoPauser",
+    "displayName": {
+      "en": "Auto Pauser Conveyor",
+      "fr": "Convoyeur automatique de Pause"
+    },
+    "category": "conveyor",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 30000,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_StorageRack_Medium",
+    "displayName": {
+      "en": "Storage Rack (Small)",
+      "fr": "Étagère de Stockage (Petite)"
+    },
+    "category": "storage",
+    "footprint": {
+      "w": 1,
+      "h": 3
+    },
+    "price": 500,
+    "upgradePrice": null,
+    "ports": [],
+    "maxTier": 1
+  },
+  {
+    "id": "BP_StorageRack_Large",
+    "displayName": {
+      "en": "Storage Rack (Medium)",
+      "fr": "Étagère de Stockage (Moyenne)"
+    },
+    "category": "storage",
+    "footprint": {
+      "w": 1,
+      "h": 3
+    },
+    "price": 900,
+    "upgradePrice": null,
+    "ports": [],
+    "maxTier": 1
+  },
+  {
+    "id": "BP_StorageRack_ExtraLarge",
+    "displayName": {
+      "en": "Storage Rack (Large)",
+      "fr": "Étagère de Stockage (Grande)"
+    },
+    "category": "storage",
+    "footprint": {
+      "w": 1,
+      "h": 3
+    },
+    "price": 1600,
+    "upgradePrice": null,
+    "ports": [],
+    "maxTier": 1
+  }
+]

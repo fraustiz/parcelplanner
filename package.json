@@ -1,0 +1,48 @@
+{
+  "name": "parcelplanner",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run catalogue && npm run shapes && npm run ui-shapes && npm run icons && next build",
+    "start": "next start",
+    "test": "vitest run",
+    "catalogue": "node scripts/transform-catalogue.mjs",
+    "shapes": "node scripts/build-shapes.mjs",
+    "ui-shapes": "node scripts/build-ui-shapes.mjs",
+    "icons": "node scripts/build-object-icons.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "dependencies": {
+    "@sentry/nextjs": "^10.73.0",
+    "lucide-react": "^1.27.0",
+    "next": "^16.4.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.5.23",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

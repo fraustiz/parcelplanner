@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.data/
+
+# Secrets. The example file is the one exception: it carries names, never values.
+.env
+.env.*
+!.env.example
+
+# Sentry Config File
+.env.sentry-build-plugin

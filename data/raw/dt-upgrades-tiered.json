@@ -1,0 +1,171 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_TieredUpgrades",
+    "Flags": "RF_Public | RF_Standalone | RF_Transactional | RF_WasLoaded | RF_LoadCompleted",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Core/Blueprints/Widgets/Dashboard/Components/Upgrades/DT_TieredUpgrades",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "UserDefinedStruct'F_TieredUpgradeInfo'",
+        "ObjectPath": "/Game/Core/Blueprints/Widgets/Dashboard/Components/Upgrades/F_TieredUpgradeInfo.0"
+      }
+    },
+    "Rows": {
+      "DeliverySpeed": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator0",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 3,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeDeliverySpeedName",
+          "SourceString": "Delivery Speed",
+          "LocalizedString": "Delivery Speed"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeDeliverySpeedDescription",
+          "SourceString": "Increases the speed of deliveries by 10 seconds.",
+          "LocalizedString": "Increases the speed of deliveries by 10 seconds."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 2,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 500,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'upgrade-delivery-speed'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-delivery-speed.0"
+        }
+      },
+      "DeliverySize": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator1",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 2,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeDeliverySizeName",
+          "SourceString": "Delivery Size",
+          "LocalizedString": "Delivery Size"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeDeliverySizeDescription",
+          "SourceString": "Receive an additional 2 parcels per delivery.",
+          "LocalizedString": "Receive an additional 2 parcels per delivery."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 2,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 500,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'upgrade-delivery-size'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-delivery-size.0"
+        }
+      },
+      "ConveyorDeliveries": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator5",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 3,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeConveyorDeliveriesName",
+          "SourceString": "Conveyor Deliveries",
+          "LocalizedString": "Conveyor Deliveries"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeConveyorDeliveriesDescription",
+          "SourceString": "Conveyors are now attached to inbound delivery doors.",
+          "LocalizedString": "Conveyors are now attached to inbound delivery doors."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 2,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 1500,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'upgrade-conveyor-deliveries'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-conveyor-deliveries.0"
+        }
+      },
+      "ExportSize": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator4",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 2,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeExportSizeName",
+          "SourceString": "Export Size",
+          "LocalizedString": "Export Size"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeExportSizeDescription",
+          "SourceString": "Increases the number of parcels that can be in each export batch.",
+          "LocalizedString": "Increases the number of parcels that can be in each export batch."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 6,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 1000,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'upgrade-export-size'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-export-size.0"
+        }
+      },
+      "AutomaticExports": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator2",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 1,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeAutomaticExportsName",
+          "SourceString": "Automatic Exports",
+          "LocalizedString": "Automatic Exports"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeAutomaticExportsDescription",
+          "SourceString": "Automatically submits export trucks when they reach maximum capacity.",
+          "LocalizedString": "Automatically submits export trucks when they reach maximum capacity."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 10,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 3000,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'upgrade-automatic-exports'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-automatic-exports.0"
+        }
+      },
+      "PalletPlacement": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator7",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 1,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradePalletPlacementName",
+          "SourceString": "Pallet Build Mode",
+          "LocalizedString": "Pallet Build Mode"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradePalletPlacementDescription",
+          "SourceString": "Allows conveyors to be placed directly while holding a pallet.",
+          "LocalizedString": "Allows conveyors to be placed directly while holding a pallet."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 13,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 5000,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'upgrade-image-pallet-build-mode'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-image-pallet-build-mode.0"
+        }
+      },
+      "Flooring": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator6",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 1,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeFlooringName",
+          "SourceString": "Flooring",
+          "LocalizedString": "Flooring"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeFlooringDescription",
+          "SourceString": "Adds a tab to the tablet for changing the floor material for the warehouse.",
+          "LocalizedString": "Adds a tab to the tablet for changing the floor material for the warehouse."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 14,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 5000,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'upgrade-flooring'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-flooring.0"
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,24 @@
+<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_13_240)">
+<path d="M2 0H10V2H2V0Z" fill="#D9D9D9"/>
+<path d="M2 10H10V12H2V10Z" fill="#D9D9D9"/>
+<path d="M2 2H10V10H2V2Z" fill="#D9D9D9"/>
+<path d="M10 2H12V10H10V2Z" fill="#D9D9D9"/>
+<path d="M2 10H0V2H2V10Z" fill="#D9D9D9"/>
+<path d="M10 12C10.5177 12 10.9438 11.6067 10.9951 11.1025L11 11C11.5523 11 12 10.5523 12 10H10V12Z" fill="#044ABE"/>
+<path d="M2 0C1.48232 0 1.05621 0.393331 1.00488 0.897461L1 1C0.447715 1 0 1.44772 0 2H2V0Z" fill="#044ABE"/>
+<path d="M12 2C12 1.48232 11.6067 1.05621 11.1025 1.00488L11 1C11 0.447715 10.5523 0 10 0V2H12Z" fill="#044ABE"/>
+<path d="M0 10C0 10.5177 0.393331 10.9438 0.897461 10.9951L1 11C1 11.5523 1.44772 12 2 12V10H0Z" fill="#044ABE"/>
+<path d="M6 2V6" stroke="black" stroke-linecap="round"/>
+<path d="M6 6H10" stroke="black" stroke-linecap="round"/>
+<path d="M6 2L8 4" stroke="black" stroke-linecap="round"/>
+<path d="M6 6V10" stroke="black" stroke-linecap="round"/>
+<path d="M2 6L6 6" stroke="black" stroke-linecap="round"/>
+<path d="M6 2L4 4" stroke="black" stroke-linecap="round"/>
+</g>
+<defs>
+<clipPath id="clip0_13_240">
+<rect width="12" height="12" fill="white"/>
+</clipPath>
+</defs>
+</svg>

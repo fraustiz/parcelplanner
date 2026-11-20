@@ -1,0 +1,155 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_Licences",
+    "Flags": "RF_Public | RF_Standalone | RF_Transactional | RF_WasLoaded | RF_LoadCompleted",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Core/Blueprints/Framework/Managers/Money/DT_Licences",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "UserDefinedStruct'F_LicenceInfo'",
+        "ObjectPath": "/Game/Core/Blueprints/Framework/Managers/Money/F_LicenceInfo.0"
+      }
+    },
+    "Rows": {
+      "Stamp": {
+        "Name_2_B48B71EC49926B97CA745DBF44091B0D": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "StampName",
+          "SourceString": "Stamp Authentication",
+          "LocalizedString": "Stamp Authentication"
+        },
+        "Description_4_B2B04AAE4CE467AB956534A7BDD59D9C": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "StampDescription",
+          "SourceString": "Using the database of valid stamps, check that stamps are not forged or invalid.",
+          "LocalizedString": "Using the database of valid stamps, check that stamps are not forged or invalid."
+        },
+        "Criteria_7_1CDC34B84386EB6249DE5C87054DBCC5": "E_ChecklistCriterion::NewEnumerator10",
+        "RequiredTool_24_3E45198C4EC4AF007A0DE19D97D33A57": null,
+        "LicenseCost_13_88ACD37E490333043E26FEA7E51CE182": 500,
+        "ParcelSubmitIncrease_18_9F9F91A84D2ACA4D435A549350485A1C": 10,
+        "WarehouseTierXpIncrease_20_9E970D49408B47026A2E948075203D21": 6,
+        "LicenceRowName_23_AFCC2F0946BC56D40909FA8AB1D19175": "Stamp",
+        "RequiredWarehouseTier_27_FC9DB252424F4B54B70B5DB969077F9C": 5,
+        "IsDefault_29_A3A581FE4964600BC055F4B90BA6735A": false
+      },
+      "ContentsProhibited": {
+        "Name_2_B48B71EC49926B97CA745DBF44091B0D": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "Licence_Name_ContentsProhibited",
+          "SourceString": "Contents Inspection - Prohibited",
+          "LocalizedString": "Contents Inspection - Prohibited"
+        },
+        "Description_4_B2B04AAE4CE467AB956534A7BDD59D9C": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "Licence_Description_ContentsProhibited",
+          "SourceString": "Check certain parcels for prohibited items.",
+          "LocalizedString": "Check certain parcels for prohibited items."
+        },
+        "Criteria_7_1CDC34B84386EB6249DE5C87054DBCC5": "E_ChecklistCriterion::NewEnumerator12",
+        "RequiredTool_24_3E45198C4EC4AF007A0DE19D97D33A57": {
+          "ObjectName": "BlueprintGeneratedClass'BP_OpeningKit_C'",
+          "ObjectPath": "/Game/Core/Blueprints/Actors/ParcelOpeningKit/BP_OpeningKit.0"
+        },
+        "LicenseCost_13_88ACD37E490333043E26FEA7E51CE182": 500,
+        "ParcelSubmitIncrease_18_9F9F91A84D2ACA4D435A549350485A1C": 10,
+        "WarehouseTierXpIncrease_20_9E970D49408B47026A2E948075203D21": 4,
+        "LicenceRowName_23_AFCC2F0946BC56D40909FA8AB1D19175": "ContentsProhibited",
+        "RequiredWarehouseTier_27_FC9DB252424F4B54B70B5DB969077F9C": 3,
+        "IsDefault_29_A3A581FE4964600BC055F4B90BA6735A": false
+      },
+      "SerialNumber": {
+        "Name_2_B48B71EC49926B97CA745DBF44091B0D": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "SerialNumberName",
+          "SourceString": "Serial Number Verification",
+          "LocalizedString": "Serial Number Verification"
+        },
+        "Description_4_B2B04AAE4CE467AB956534A7BDD59D9C": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "SerialNumberDescription",
+          "SourceString": "Serial numbers uniquely identify parcels and must be keyed into a serial number keypad to confirm their validity.",
+          "LocalizedString": "Serial numbers uniquely identify parcels and must be keyed into a serial number keypad to confirm their validity."
+        },
+        "Criteria_7_1CDC34B84386EB6249DE5C87054DBCC5": "E_ChecklistCriterion::NewEnumerator8",
+        "RequiredTool_24_3E45198C4EC4AF007A0DE19D97D33A57": {
+          "ObjectName": "BlueprintGeneratedClass'BP_Keypad_C'",
+          "ObjectPath": "/Game/Core/Blueprints/Actors/Keypad/BP_Keypad.0"
+        },
+        "LicenseCost_13_88ACD37E490333043E26FEA7E51CE182": 300,
+        "ParcelSubmitIncrease_18_9F9F91A84D2ACA4D435A549350485A1C": 15,
+        "WarehouseTierXpIncrease_20_9E970D49408B47026A2E948075203D21": 2,
+        "LicenceRowName_23_AFCC2F0946BC56D40909FA8AB1D19175": "SerialNumber",
+        "RequiredWarehouseTier_27_FC9DB252424F4B54B70B5DB969077F9C": 0,
+        "IsDefault_29_A3A581FE4964600BC055F4B90BA6735A": false
+      },
+      "Weight": {
+        "Name_2_B48B71EC49926B97CA745DBF44091B0D": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "WeightName",
+          "SourceString": "Weight Class Examination",
+          "LocalizedString": "Weight Class Examination"
+        },
+        "Description_4_B2B04AAE4CE467AB956534A7BDD59D9C": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
+          "Key": "WeightDescription",
+          "SourceString": "Weigh parcels using industrial scales and check they are within their labelled weight class.",
+          "LocalizedString": "Weigh parcels using industrial scales and check they are within their labelled weight class."
+        },
+        "Criteria_7_1CDC34B84386EB6249DE5C87054DBCC5": "E_ChecklistCriterion::NewEnumerator6",
+        "RequiredTool_24_3E45198C4EC4AF007A0DE19D97D33A57": {
+          "ObjectName": "BlueprintGeneratedClass'BP_KillergramScales_C'",
+          "ObjectPath": "/Game/Core/Blueprints/Actors/Scales/BP_KillergramScales.1"
+        },
+        "LicenseCost_13_88ACD37E490333043E26FEA7E51CE182": 300,
+        "ParcelSubmitIncrease_18_9F9F91A84D2ACA4D435A549350485A1C": 10,
+        "WarehouseTierXpIncrease_20_9E970D49408B47026A2E948075203D21": 1,
+        "LicenceRowName_23_AFCC2F0946BC56D40909FA8AB1D19175": "Weight",
+        "RequiredWarehouseTier_27_FC9DB252424F4B54B70B5DB969077F9C": 0,
+        "IsDefault_29_A3A581FE4964600BC055F4B90BA6735A": false
+      },
+      "CargoType": {
+        "Name_2_B48B71EC49926B97CA745DBF44091B0D": {
+          "Namespace": "",
+          "Key": "33711B514A89E92F47C176B26449DBB9",
+          "SourceString": "Cargo hide me",
+          "LocalizedString": "Cargo hide me"
+        },
+        "Description_4_B2B04AAE4CE467AB956534A7BDD59D9C": {
+          "Namespace": "",
+          "Key": "16EBD5144DC03BB71983E4A9D26EB505",
+          "SourceString": "hide",
+          "LocalizedString": "hide"
+        },
+        "Criteria_7_1CDC34B84386EB6249DE5C87054DBCC5": "E_ChecklistCriterion::NewEnumerator11",
+        "RequiredTool_24_3E45198C4EC4AF007A0DE19D97D33A57": null,
+        "LicenseCost_13_88ACD37E490333043E26FEA7E51CE182": 0,
+        "ParcelSubmitIncrease_18_9F9F91A84D2ACA4D435A549350485A1C": 0,
+        "WarehouseTierXpIncrease_20_9E970D49408B47026A2E948075203D21": 0,
+        "LicenceRowName_23_AFCC2F0946BC56D40909FA8AB1D19175": "CargoType",
+        "RequiredWarehouseTier_27_FC9DB252424F4B54B70B5DB969077F9C": 0,
+        "IsDefault_29_A3A581FE4964600BC055F4B90BA6735A": true
+      },
+      "Country": {
+        "Name_2_B48B71EC49926B97CA745DBF44091B0D": {
+          "CultureInvariantString": null
+        },
+        "Description_4_B2B04AAE4CE467AB956534A7BDD59D9C": {
+          "CultureInvariantString": null
+        },
+        "Criteria_7_1CDC34B84386EB6249DE5C87054DBCC5": "E_ChecklistCriterion::NewEnumerator4",
+        "RequiredTool_24_3E45198C4EC4AF007A0DE19D97D33A57": {
+          "ObjectName": "BlueprintGeneratedClass'BP_InspectionTablet_C'",
+          "ObjectPath": "/Game/Core/Blueprints/Actors/InspectionTablet/BP_InspectionTablet.1"
+        },
+        "LicenseCost_13_88ACD37E490333043E26FEA7E51CE182": 0,
+        "ParcelSubmitIncrease_18_9F9F91A84D2ACA4D435A549350485A1C": 0,
+        "WarehouseTierXpIncrease_20_9E970D49408B47026A2E948075203D21": 0,
+        "LicenceRowName_23_AFCC2F0946BC56D40909FA8AB1D19175": "Country",
+        "RequiredWarehouseTier_27_FC9DB252424F4B54B70B5DB969077F9C": 0,
+        "IsDefault_29_A3A581FE4964600BC055F4B90BA6735A": true
+      }
+    }
+  }
+]

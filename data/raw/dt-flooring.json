@@ -1,0 +1,95 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_FlooringOptions",
+    "Flags": "RF_Public | RF_Standalone | RF_Transactional | RF_WasLoaded | RF_LoadCompleted",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Core/Blueprints/Widgets/Flooring/DT_FlooringOptions",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "UserDefinedStruct'F_FlooringOption'",
+        "ObjectPath": "/Game/Core/Blueprints/Widgets/Flooring/F_FlooringOption.0"
+      }
+    },
+    "Rows": {
+      "Default": {
+        "Name_5_F7989B52486D8EFFB41A54B36BF0672D": {
+          "CultureInvariantString": null
+        },
+        "MI_3_4C0053B44D96AF6AE96EC3A48DCD9FA8": {
+          "ObjectName": "MaterialInstanceConstant'MI_Concrete_Polished_01'",
+          "ObjectPath": "/Game/FactoryInterior/Materials/MI_Concrete_Polished_01.0"
+        },
+        "Image_8_3895A6C74E15D5C737B29CBFABAB0688": {
+          "ObjectName": "Texture2D'T_Flooring_Default'",
+          "ObjectPath": "/Game/ThumbnailGenerator/T_Flooring_Default.0"
+        }
+      },
+      "WoodDark": {
+        "Name_5_F7989B52486D8EFFB41A54B36BF0672D": {
+          "CultureInvariantString": null
+        },
+        "MI_3_4C0053B44D96AF6AE96EC3A48DCD9FA8": {
+          "ObjectName": "MaterialInstanceConstant'M_Kitchen_Decor_1_Wood_Inst'",
+          "ObjectPath": "/Game/ModernHouse/Materials/M_Kitchen_Decor_1_Wood_Inst.0"
+        },
+        "Image_8_3895A6C74E15D5C737B29CBFABAB0688": {
+          "ObjectName": "Texture2D'T_Flooring_DarkWood'",
+          "ObjectPath": "/Game/ThumbnailGenerator/T_Flooring_DarkWood.0"
+        }
+      },
+      "WoodLight": {
+        "Name_5_F7989B52486D8EFFB41A54B36BF0672D": {
+          "CultureInvariantString": null
+        },
+        "MI_3_4C0053B44D96AF6AE96EC3A48DCD9FA8": {
+          "ObjectName": "MaterialInstanceConstant'MI_WoodLight'",
+          "ObjectPath": "/Game/ModernHouse/Materials/MI_WoodLight.0"
+        },
+        "Image_8_3895A6C74E15D5C737B29CBFABAB0688": {
+          "ObjectName": "Texture2D'T_Flooring_LightWood'",
+          "ObjectPath": "/Game/ThumbnailGenerator/T_Flooring_LightWood.0"
+        }
+      },
+      "Industrial1": {
+        "Name_5_F7989B52486D8EFFB41A54B36BF0672D": {
+          "CultureInvariantString": null
+        },
+        "MI_3_4C0053B44D96AF6AE96EC3A48DCD9FA8": {
+          "ObjectName": "MaterialInstanceConstant'MI_Floor_06'",
+          "ObjectPath": "/Game/StorageHouse/Materials/MI_Floor_06.0"
+        },
+        "Image_8_3895A6C74E15D5C737B29CBFABAB0688": {
+          "ObjectName": "Texture2D'T_Flooring_Industrial1'",
+          "ObjectPath": "/Game/ThumbnailGenerator/T_Flooring_Industrial1.0"
+        }
+      },
+      "Industrial2": {
+        "Name_5_F7989B52486D8EFFB41A54B36BF0672D": {
+          "CultureInvariantString": null
+        },
+        "MI_3_4C0053B44D96AF6AE96EC3A48DCD9FA8": {
+          "ObjectName": "MaterialInstanceConstant'MI_Floor_01'",
+          "ObjectPath": "/Game/StorageHouse/Materials/MI_Floor_01.0"
+        },
+        "Image_8_3895A6C74E15D5C737B29CBFABAB0688": {
+          "ObjectName": "Texture2D'T_Flooring_Industrial2'",
+          "ObjectPath": "/Game/ThumbnailGenerator/T_Flooring_Industrial2.0"
+        }
+      },
+      "Industrial3": {
+        "Name_5_F7989B52486D8EFFB41A54B36BF0672D": {
+          "CultureInvariantString": null
+        },
+        "MI_3_4C0053B44D96AF6AE96EC3A48DCD9FA8": {
+          "ObjectName": "MaterialInstanceConstant'MI_Floor_07'",
+          "ObjectPath": "/Game/StorageHouse/Materials/MI_Floor_07.0"
+        },
+        "Image_8_3895A6C74E15D5C737B29CBFABAB0688": {
+          "ObjectName": "Texture2D'T_Flooring_Industrial3'",
+          "ObjectPath": "/Game/ThumbnailGenerator/T_Flooring_Industrial3.0"
+        }
+      }
+    }
+  }
+]

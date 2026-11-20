@@ -1,0 +1,293 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_Countries",
+    "Flags": "RF_Public | RF_Standalone | RF_Transactional | RF_WasLoaded | RF_LoadCompleted",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Core/Blueprints/Data/Criteria/Country/DT_Countries",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "UserDefinedStruct'F_Country'",
+        "ObjectPath": "/Game/Core/Blueprints/Data/Criteria/Country/F_Country.0"
+      }
+    },
+    "Rows": {
+      "Cristin": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Cristin",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Cristin",
+          "SourceString": "France",
+          "LocalizedString": "Cristin"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Cristin_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Cristin_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Cristin_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Cristin_Invalid1.0"
+          },
+          {
+            "ObjectName": "Texture2D'Cristin_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Cristin_Invalid2.0"
+          }
+        ]
+      },
+      "Impland": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Impland",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Impland",
+          "SourceString": "États-Unis",
+          "LocalizedString": "Impland"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Impland_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Impland_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Impland_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Impland_Invalid1.0"
+          },
+          {
+            "ObjectName": "Texture2D'Impland_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Impland_Invalid2.0"
+          }
+        ]
+      },
+      "Jonathia": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Jonathia",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Jonathia",
+          "SourceString": "Chine",
+          "LocalizedString": "Jonathia"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Jonathia_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Jonathia_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Jonathia_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Jonathia_Invalid1.0"
+          },
+          {
+            "ObjectName": "Texture2D'Jonathia_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Jonathia_Invalid2.0"
+          }
+        ]
+      },
+      "Kongradi": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Kongradi",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Kongradi",
+          "SourceString": "Russie",
+          "LocalizedString": "Kongradi"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Kongradi_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Kongradi_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Kongradi_Inalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Kongradi_Inalid2.0"
+          },
+          {
+            "ObjectName": "Texture2D'Kongradi_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Kongradi_Invalid1.0"
+          }
+        ]
+      },
+      "Ligbal": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Ligbal",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Ligbal",
+          "SourceString": "Japon",
+          "LocalizedString": "Ligbal"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Ligbal_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Ligbal_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Ligbal_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Ligbal_Invalid2.0"
+          },
+          {
+            "ObjectName": "Texture2D'Ligbal_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Ligbal_Invalid1.0"
+          }
+        ]
+      },
+      "Mahteen": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Mahteen",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Mahteen",
+          "SourceString": "Allemagne",
+          "LocalizedString": "Mahteen"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Mahteen_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Mahteen_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Mahteen_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Mahteen_Invalid2.0"
+          },
+          {
+            "ObjectName": "Texture2D'Mahteen_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Mahteen_Invalid1.0"
+          }
+        ]
+      },
+      "Molland": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Molland",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Molland",
+          "SourceString": "Royaume-Uni",
+          "LocalizedString": "Molland"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Molland_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Molland_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Molland_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Molland_Invalid1.0"
+          },
+          {
+            "ObjectName": "Texture2D'Molland_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Molland_Invalid2.0"
+          }
+        ]
+      },
+      "Pruania": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Pruania",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Pruania",
+          "SourceString": "Italie",
+          "LocalizedString": "Pruania"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Pruania_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Pruania_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Pruania_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Pruania_Invalid2.0"
+          },
+          {
+            "ObjectName": "Texture2D'Pruania_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Pruania_Invalid1.0"
+          }
+        ]
+      },
+      "Sowport": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Sowport",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Sowport",
+          "SourceString": "Inde",
+          "LocalizedString": "Sowport"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Sowport_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Sowport_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Sowport_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Sowport_Invalid2.0"
+          },
+          {
+            "ObjectName": "Texture2D'Sowport_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Sowport_Invalid1.0"
+          }
+        ]
+      },
+      "Strentom": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Strentom",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Strentom",
+          "SourceString": "Brésil",
+          "LocalizedString": "Strentom"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Strentom_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Strentom_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Strentom_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Strentom_Invalid2.0"
+          },
+          {
+            "ObjectName": "Texture2D'Strentom_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Strentom_Invalid1.0"
+          }
+        ]
+      },
+      "Vocua": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Vocua",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Vocua",
+          "SourceString": "Canada",
+          "LocalizedString": "Vocua"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Vocua_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Vocua_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Vocua_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Vocua_Invalid2.0"
+          },
+          {
+            "ObjectName": "Texture2D'Vocua_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Vocua_Invalid1.0"
+          }
+        ]
+      },
+      "Yatdanica": {
+        "Name_2_3D91FED44BB2124363ED53993A8C03D6": "Yatdanica",
+        "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
+          "Key": "CountryName_Yatdanica",
+          "SourceString": "Australie",
+          "LocalizedString": "Yatdanica"
+        },
+        "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
+          "ObjectName": "Texture2D'Yatdanica_Valid'",
+          "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Yatdanica_Valid.0"
+        },
+        "InvalidFlags_14_5A4BC9714839A6A89AB34B86969E197F": [
+          {
+            "ObjectName": "Texture2D'Yatdanica_Invalid1'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Yatdanica_Invalid1.0"
+          },
+          {
+            "ObjectName": "Texture2D'Yatdanica_Invalid2'",
+            "ObjectPath": "/Game/Core/Assets/Images/Criteria/Country/Flags/Yatdanica_Invalid2.0"
+          }
+        ]
+      }
+    }
+  }
+]

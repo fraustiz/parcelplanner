@@ -1,0 +1,28 @@
+{
+  "divisor": 12,
+  "shapes": {
+    "Flèche": [
+      {
+        "kind": "path",
+        "d": "M6 2L6 10",
+        "stroke": "white",
+        "strokeWidth": 1,
+        "cap": "round"
+      },
+      {
+        "kind": "path",
+        "d": "M6 2L8 4",
+        "stroke": "white",
+        "strokeWidth": 1,
+        "cap": "round"
+      },
+      {
+        "kind": "path",
+        "d": "M6 2L4 4",
+        "stroke": "white",
+        "strokeWidth": 1,
+        "cap": "round"
+      }
+    ]
+  }
+}

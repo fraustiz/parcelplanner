@@ -1,0 +1,37 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_RequiredLicenceForTier",
+    "Flags": "RF_Public | RF_Standalone | RF_Transactional | RF_WasLoaded | RF_LoadCompleted",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Core/Blueprints/Actors/WarehouseTile/DT_RequiredLicenceForTier",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "UserDefinedStruct'F_RequiredLicenceForTier'",
+        "ObjectPath": "/Game/Core/Blueprints/Actors/WarehouseTile/F_RequiredLicenceForTier.0"
+      }
+    },
+    "Rows": {
+      "NewRow": {
+        "RequiredLicenceForTier_5_1D8CA5A64646E4E4F5A23F8C3A87F037": [
+          {
+            "Key": "1",
+            "Value": "Weight"
+          },
+          {
+            "Key": "2",
+            "Value": "SerialNumber"
+          },
+          {
+            "Key": "4",
+            "Value": "ContentsProhibited"
+          },
+          {
+            "Key": "6",
+            "Value": "Stamp"
+          }
+        ]
+      }
+    }
+  }
+]

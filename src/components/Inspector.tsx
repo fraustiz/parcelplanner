@@ -1,0 +1,306 @@
+'use client';
+
+import { useMemo } from 'react';
+import { Ban } from 'lucide-react';
+import { tierPrice } from '@/core/cost';
+import { displayColumn, displayRow, warehouseDimensions } from '@/core/grid';
+import { getCatalogue } from '@/data/catalogue';
+import { COLOUR_NAMES, OBJECT_COLOURS, repaintableColourOf } from '@/data/colours';
+import { WAREHOUSES } from '@/data/warehouses';
+import { isZone, ZONE_PREFIX } from '@/core/zone';
+import { formatMoney, t } from '@/i18n';
+import { useEditor } from '@/store/editor';
+import { sizeOf } from './HoverCard';
+
+export default function Inspector() {
+  const plan = useEditor((s) => s.plan);
+  const editSelection = useEditor((s) => s.editSelection);
+  const locale = useEditor((s) => s.locale);
+  const selectedIds = useEditor((s) => s.selectedIds);
+  const select = useEditor((s) => s.select);
+  const deleteSelection = useEditor((s) => s.deleteSelection);
+  const floor = useEditor((s) => s.floor);
+
+  const catalogue = getCatalogue();
+
+  const selected = useMemo(
+    () => plan.placements.filter((p) => selectedIds.includes(p.id)),
+    [plan.placements, selectedIds],
+  );
+
+  /** The highest tier anything in the selection can reach, and the tier they
+   * are all on if they agree. `null` means they do not. */
+  const tierCeiling = useMemo(
+    () => selected.reduce((most, p) => Math.max(most, catalogue.get(p.objectId)?.maxTier ?? 1), 0),
+    [selected, catalogue],
+  );
+  const commonTier = useMemo(() => {
+    const first = selected[0]?.tier;
+    return first !== undefined && selected.every((p) => p.tier === first) ? first : null;
+  }, [selected]);
+
+  /**
+   * Clicking a row in either list picks out that type: the whole visible floor
+   * with nothing selected, or a narrowing of the current selection. Never
+   * reaches a floor or building that is not drawn.
+   */
+  const pickType = (objectId: string) => {
+    const pool = selected.length > 0
+      ? selected
+      : plan.placements.filter((p) => p.warehouse === plan.warehouse && p.floor === floor);
+    // Zones are one row whatever their size (see countByObject).
+    const ofType = (p: { objectId: string }) =>
+      objectId === ZONE_PREFIX ? isZone(p.objectId) : p.objectId === objectId;
+    select(pool.filter(ofType).map((p) => p.id));
+  };
+
+  const typeRow = ([objectId, { name, count }]: [string, { name: string; count: number }]) => (
+    <li key={objectId}>
+      <button
+        onClick={() => pickType(objectId)}
+        className="flex w-full items-baseline justify-between gap-2 rounded px-1 text-left hover:bg-[var(--tint-accent)]"
+      >
+        <span className="truncate">{name}</span>
+        <span className="shrink-0">×{count}</span>
+      </button>
+    </li>
+  );
+
+  // `tierPrice`, not `computeCost`, which adds plan-wide purchases no
+  // selection owns. `null` prices count 0 and are flagged below.
+  // `atMaxTier` is the same sum with every object at its own top tier.
+  const { total, atMaxTier, unpriced } = useMemo(() => {
+    let sum = 0;
+    let top = 0;
+    const missing: string[] = [];
+    for (const placement of selected) {
+      const entry = catalogue.get(placement.objectId);
+      if (!entry) continue;
+      if (entry.price === null) missing.push(entry.id);
+      sum += tierPrice(entry, placement.tier);
+      top += tierPrice(entry, entry.maxTier);
+    }
+    return { total: sum, atMaxTier: top, unpriced: missing.length > 0 };
+  }, [selected, catalogue]);
+
+  // Nothing selected: an inventory of the whole plan, both warehouses, to
+  // match the status bar's cost figure.
+  if (selected.length === 0) {
+    // The buildings only, not the workshop bench, unless the bench is on screen.
+    const onBench = plan.warehouse === 'workshop';
+    const scope = plan.placements.filter((p) => (p.warehouse === 'workshop') === onBench);
+    const inventory = countByObject(scope, catalogue, locale);
+    return (
+      <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
+        {scope.length === 0 ? (
+          <span className="text-[var(--text-faint)]">{t(locale, 'inspector.empty')}</span>
+        ) : (
+          <>
+            <h2 className="mb-2 font-semibold">{t(locale, 'inspector.onThePlan')}</h2>
+            <ul className="mb-3 space-y-0.5 text-[var(--text-faint)]">
+              {[...inventory].map(typeRow)}
+            </ul>
+            {/* Zones are listed but not counted: nothing was bought or built. */}
+            <div className="border-t border-[var(--line)] pt-2 font-mono text-[var(--text-faint)]">
+              {scope.filter((p) => !isZone(p.objectId)).length} {t(locale, 'inspector.objectsTotal')}
+            </div>
+          </>
+        )}
+      </aside>
+    );
+  }
+
+  // One object: the detail card. Several: the list, since no single rotation
+  // or tier describes a group.
+  const only = selected.length === 1 ? selected[0] : undefined;
+  const onlyEntry = only ? catalogue.get(only.objectId) : undefined;
+  const onlyZones = selected.every((p) => isZone(p.objectId));
+
+  /** Commits a zone's name on blur, so a name is one undo step, like the note
+   * box. A cleared name is removed rather than stored empty. */
+  const nameZone = (typed: string) => {
+    const name = typed.trim();
+    if (name === (only?.label ?? '')) return;
+    editSelection(({ label: _drop, ...rest }) => (name === '' ? rest : { ...rest, label: name }));
+  };
+
+  return (
+    <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
+      {only && onlyEntry?.category === 'zone' ? (
+        <>
+          <h2 className="mb-2 font-semibold">{only.label ?? onlyEntry.displayName[locale]}</h2>
+          <label htmlFor="inspector-zone-name" className="mb-1 block text-[var(--text-faint)]">
+            {t(locale, 'inspector.zoneName')}
+          </label>
+          {/* Uncontrolled, and keyed on the name, so an undo that changes the
+              name underneath it shows up here rather than being typed over. */}
+          <input
+            key={`${only.id}:${only.label ?? ''}`}
+            id="inspector-zone-name"
+            defaultValue={only.label ?? ''}
+            placeholder={t(locale, 'inspector.zoneNamePlaceholder')}
+            maxLength={60}
+            onBlur={(event) => nameZone(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+              if (event.key === 'Escape') {
+                event.currentTarget.value = only.label ?? '';
+                event.currentTarget.blur();
+              }
+            }}
+            className="mb-3 w-full rounded border border-[var(--line-field)] bg-[var(--panel)] px-1.5 py-0.5"
+          />
+          <dl className="mb-3 space-y-1 text-[var(--text-faint)]">
+            <div><dt className="inline">{t(locale, 'tooltip.footprint')}:</dt> <dd className="inline">{sizeOf(onlyEntry, only)}</dd></div>
+            <div>
+              <dt className="inline">{t(locale, 'inspector.cell')}:</dt>{' '}
+              <dd className="inline">
+                {displayColumn(only.cell.x)},{' '}
+                {displayRow(only.cell.y, warehouseDimensions(only.warehouse, WAREHOUSES))}
+              </dd>
+            </div>
+            <div><dt className="inline">{t(locale, 'warehouse.floor')}:</dt> <dd className="inline">{only.floor}</dd></div>
+          </dl>
+        </>
+      ) : only && onlyEntry ? (
+        <>
+          <h2 className="mb-2 font-semibold">{onlyEntry.displayName[locale]}</h2>
+          <dl className="mb-3 space-y-1 text-[var(--text-faint)]">
+            <div><dt className="inline">{t(locale, 'inspector.rotation')}:</dt> <dd className="inline">{only.rotation}°</dd></div>
+            {/* Counted up from the bottom-left, like the rulers and the hover
+                card (see displayRow). */}
+            <div>
+              <dt className="inline">{t(locale, 'inspector.cell')}:</dt>{' '}
+              <dd className="inline">
+                {displayColumn(only.cell.x)},{' '}
+                {displayRow(only.cell.y, warehouseDimensions(only.warehouse, WAREHOUSES))}
+              </dd>
+            </div>
+            {/* A second value of the rotation term, so it keeps its own line. */}
+            {only.mirrored && (
+              <div>
+                <dt className="sr-only">{t(locale, 'inspector.rotation')}</dt>
+                <dd>{t(locale, 'inspector.mirrored')}</dd>
+              </div>
+            )}
+            <div><dt className="inline">{t(locale, 'warehouse.floor')}:</dt> <dd className="inline">{only.floor}</dd></div>
+          </dl>
+        </>
+      ) : (
+        <>
+          <h2 className="mb-2 font-semibold">
+            {selected.length} {t(locale, 'inspector.selectedCount')}
+          </h2>
+          <ul className="mb-3 space-y-0.5 text-[var(--text-faint)]">
+            {[...countByObject(selected, catalogue, locale)].map(typeRow)}
+          </ul>
+        </>
+      )}
+
+      {/* The tier, for the whole selection, each object clamped to its own
+          ceiling. Hidden when nothing selected has a second tier. */}
+      {tierCeiling > 1 && (
+        <div className="mb-3 flex items-center gap-2">
+          <label htmlFor="inspector-tier" className="text-[var(--text-faint)]">
+            {t(locale, 'inspector.tier')}
+          </label>
+          <select translate="no"
+            id="inspector-tier"
+            value={commonTier ?? ''}
+            onChange={(event) => {
+              const wanted = Number(event.target.value);
+              editSelection((p) => {
+                const ceiling = catalogue.get(p.objectId)?.maxTier ?? 1;
+                return { ...p, tier: Math.min(wanted, ceiling) };
+              });
+            }}
+            className="rounded bg-[var(--panel)] px-1.5 py-0.5"
+          >
+            {/* Only shown while the selection disagrees, and unselectable:
+                it reports a state rather than offering one. */}
+            {commonTier === null && <option value="" disabled></option>}
+            {Array.from({ length: tierCeiling }, (_, i) => i + 1).map((tier) => (
+              <option key={tier} value={tier}>{tier}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* The colours, here as well as in the right-click menu, which is hard
+          to discover. Only when something selected can be painted (not
+          scanners). */}
+      {selected.some((p) => {
+        const entry = catalogue.get(p.objectId);
+        return entry !== undefined && repaintableColourOf(entry) !== null;
+      }) && (
+        <div className="mb-3">
+          <div className="mb-1 text-[var(--text-faint)]">{t(locale, 'menu.colour')}</div>
+          <div className="flex flex-wrap gap-1">
+            {OBJECT_COLOURS.map((colour) => (
+              <button
+                key={colour}
+                aria-label={t(locale, COLOUR_NAMES[colour]!)}
+                title={t(locale, COLOUR_NAMES[colour]!)}
+                onClick={() => editSelection((p) => ({ ...p, colour }))}
+                style={{ backgroundColor: colour }}
+                className="h-5 w-5 rounded border border-[var(--line-strong)] hover:border-[var(--text-strong)]"
+              />
+            ))}
+            <button
+              aria-label={t(locale, 'menu.colourNone')}
+              title={t(locale, 'menu.colourNone')}
+              onClick={() => editSelection(({ colour: _drop, ...rest }) => rest)}
+              className="flex h-5 w-5 items-center justify-center rounded border border-[var(--line-strong)] text-[var(--text-faint)] hover:border-[var(--text-strong)]"
+            >
+              {/* Same glyph as in the context menu, for the same action. */}
+              <Ban size={12} aria-hidden />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* No price for zones alone: "$0" would read as a missing price. */}
+      {!onlyZones && (
+      <div className="mb-3 border-t border-[var(--line)] pt-2 font-mono">
+        {t(locale, 'inspector.selectionCost')}: ${formatMoney(total, locale)}
+        {/* Only when it differs, as in the status bar. */}
+        {atMaxTier !== total && (
+          <div className="text-xs text-[var(--text-dim)]">
+            ${formatMoney(atMaxTier, locale)} {t(locale, 'cost.atMaxTier')}
+          </div>
+        )}
+        {unpriced && (
+          <div className="font-sans text-xs text-[var(--warning)]">{t(locale, 'cost.unpriced')}</div>
+        )}
+      </div>
+      )}
+
+      <button
+        onClick={() => { deleteSelection(); select([]); }}
+        className="self-start rounded border border-transparent bg-[var(--tint-danger)] px-2 py-1 text-[var(--danger)] hover:border-[var(--danger)] active:translate-y-px"
+      >
+        {t(locale, 'inspector.delete')}
+      </button>
+    </aside>
+  );
+}
+
+/**
+ * How many of each object, biggest group first. Keyed by object id, not
+ * display name: rows select by type, and names are translated and may collide.
+ */
+function countByObject(
+  selected: readonly { objectId: string }[],
+  catalogue: ReturnType<typeof getCatalogue>,
+  locale: 'en' | 'fr',
+): Map<string, { name: string; count: number }> {
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const placement of selected) {
+    const name = catalogue.get(placement.objectId)?.displayName[locale] ?? placement.objectId;
+    // Every zone is one row whatever its size: all are "Reserved area".
+    const key = isZone(placement.objectId) ? ZONE_PREFIX : placement.objectId;
+    const seen = counts.get(key);
+    counts.set(key, { name, count: (seen?.count ?? 0) + 1 });
+  }
+  return new Map([...counts].sort((a, b) => b[1].count - a[1].count));
+}

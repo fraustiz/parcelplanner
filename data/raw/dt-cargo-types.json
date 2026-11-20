@@ -1,0 +1,69 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_CargoTypes",
+    "Flags": "RF_Public | RF_Standalone | RF_Transactional | RF_WasLoaded | RF_LoadCompleted",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Core/Blueprints/Data/Criteria/CargoType/DT_CargoTypes",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "UserDefinedStruct'F_CargoTypeInfo'",
+        "ObjectPath": "/Game/Core/Blueprints/Data/Criteria/CargoType/F_CargoTypeInfo.0"
+      }
+    },
+    "Rows": {
+      "Road": {
+        "Enum_2_58CA72A445A28EAD6B229D8D5218B8F6": "E_CargoType::NewEnumerator1",
+        "FriendlyName_5_81DF9A72476596990786B0980EF86376": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_UI.STBL_UI",
+          "Key": "CargoTypeRoad",
+          "SourceString": "Road",
+          "LocalizedString": "Road"
+        },
+        "Icon_9_1EDDA2F440E8031666AE50AB0D6D8F6A": {
+          "ObjectName": "Texture2D'road-icon-1'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Icons/cargo-types/road-icon-1.0"
+        }
+      },
+      "Rail": {
+        "Enum_2_58CA72A445A28EAD6B229D8D5218B8F6": "E_CargoType::NewEnumerator4",
+        "FriendlyName_5_81DF9A72476596990786B0980EF86376": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_UI.STBL_UI",
+          "Key": "CargoTypeRail",
+          "SourceString": "Rail",
+          "LocalizedString": "Rail"
+        },
+        "Icon_9_1EDDA2F440E8031666AE50AB0D6D8F6A": {
+          "ObjectName": "Texture2D'rail-icon-1'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Icons/cargo-types/rail-icon-1.0"
+        }
+      },
+      "Air": {
+        "Enum_2_58CA72A445A28EAD6B229D8D5218B8F6": "E_CargoType::NewEnumerator0",
+        "FriendlyName_5_81DF9A72476596990786B0980EF86376": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_UI.STBL_UI",
+          "Key": "CargoTypeAir",
+          "SourceString": "Air",
+          "LocalizedString": "Air"
+        },
+        "Icon_9_1EDDA2F440E8031666AE50AB0D6D8F6A": {
+          "ObjectName": "Texture2D'air-icon-1'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Icons/cargo-types/air-icon-1.0"
+        }
+      },
+      "Maritime": {
+        "Enum_2_58CA72A445A28EAD6B229D8D5218B8F6": "E_CargoType::NewEnumerator2",
+        "FriendlyName_5_81DF9A72476596990786B0980EF86376": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_UI.STBL_UI",
+          "Key": "CargoTypeMaritime",
+          "SourceString": "Maritime",
+          "LocalizedString": "Maritime"
+        },
+        "Icon_9_1EDDA2F440E8031666AE50AB0D6D8F6A": {
+          "ObjectName": "Texture2D'maritime-icon-1'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Icons/cargo-types/maritime-icon-1.0"
+        }
+      }
+    }
+  }
+]
