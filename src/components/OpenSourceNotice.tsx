@@ -12,7 +12,7 @@ export const OPEN_SOURCE_SEEN_KEY = 'parcelplanner.openSourceSeen';
 export const REPOSITORY_URL = 'https://github.com/fraustiz/parcelplanner';
 
 /** How long after the announcement the notice is offered to newcomers. */
-export const NOTICE_DAYS = 60;
+export const NOTICE_DAYS = 90;
 
 /**
  * Whether the notice is still offered: from the day the code went public

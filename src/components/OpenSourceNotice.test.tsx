@@ -71,10 +71,10 @@ describe('the open source notice', () => {
 describe('how long the notice is offered', () => {
   const day = (iso: string) => new Date(`${iso}T12:00:00Z`);
 
-  it('runs for 60 days from the announcement', () => {
+  it('runs for 90 days from the announcement', () => {
     expect(noticeWindowOpen('2026-12-01', day('2026-12-01'))).toBe(true);
-    expect(noticeWindowOpen('2026-12-01', day('2027-01-29'))).toBe(true);
-    expect(noticeWindowOpen('2026-12-01', day('2027-01-30'))).toBe(false);
+    expect(noticeWindowOpen('2026-12-01', day('2027-02-28'))).toBe(true);
+    expect(noticeWindowOpen('2026-12-01', day('2027-03-01'))).toBe(false);
   });
 
   it('is not offered before the announcement', () => {
