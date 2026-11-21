@@ -10,6 +10,7 @@ import GridCanvas from './GridCanvas';
 import Inspector from './Inspector';
 import MobileEmptyState from './MobileEmptyState';
 import MobileNotice from './MobileNotice';
+import OpenSourceNotice from './OpenSourceNotice';
 import Palette from './Palette';
 import SharedPlanPrompt from './SharedPlanPrompt';
 import StatusBar from './StatusBar';
@@ -144,6 +145,7 @@ export default function Editor() {
       </div>
       <StatusBar />
       <SharedPlanPrompt />
+      <OpenSourceNotice />
     </div>
   );
 }

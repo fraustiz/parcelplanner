@@ -278,6 +278,10 @@ const fr: Record<keyof typeof en, string> = {
   "colour.magenta": "Magenta",
   "colour.lightGrey": "Gris clair",
   "colour.black": "Noir",
+  'openSource.title': "ParcelPlanner devient open source",
+  'openSource.why': "Je n'ai plus autant de temps ni de motivation pour maintenir ce projet, mais il me tient à cœur. Je rends donc son code ouvert : la communauté peut m'aider et ajouter directement les fonctionnalités qu'elle trouve utiles.",
+  'openSource.promise': "Je continue d'héberger le site et de payer son nom de domaine, sans date de fin. Je ne laisserai pas tomber le projet sans avoir trouvé une solution ou prévenu à l'avance.",
+  'openSource.link': "Voir le code sur GitHub",
 };
 
 export default fr;

@@ -278,6 +278,10 @@ const en = {
   "colour.magenta": "Magenta",
   "colour.lightGrey": "Light grey",
   "colour.black": "Black",
+  'openSource.title': "ParcelPlanner is going open source",
+  'openSource.why': "I no longer have as much time or drive to maintain this project, but it matters to me. So I am opening its code: the community can help me and add the features it finds useful directly.",
+  'openSource.promise': "I will keep hosting the site and paying for its domain, with no end date. I will not drop the project without finding a solution or warning in advance.",
+  'openSource.link': "See the code on GitHub",
 } as const;
 
 export default en;
