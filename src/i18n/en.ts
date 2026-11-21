@@ -130,6 +130,10 @@ const en = {
   'tooltip.ports': 'Ports',
   'tooltip.footprint': 'Size',
 
+  'panel.hidePalette': 'Hide the object list',
+  'panel.showPalette': 'Show the object list',
+  'panel.hideInspector': 'Hide the side panel',
+  'panel.showInspector': 'Show the side panel',
   'status.deadEnds': 'Exits leading nowhere',
   'status.deadEndsHint': 'Parcels leaving here would fall: no belt or door takes them. Click to show each one on the plan, marked with an orange triangle.',
   'issue.overlap': 'Overlaps another object',

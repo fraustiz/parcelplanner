@@ -130,6 +130,10 @@ const fr: Record<keyof typeof en, string> = {
   'tooltip.ports': 'Ports',
   'tooltip.footprint': 'Taille',
 
+  'panel.hidePalette': 'Masquer la liste des objets',
+  'panel.showPalette': 'Afficher la liste des objets',
+  'panel.hideInspector': 'Masquer le panneau de droite',
+  'panel.showInspector': 'Afficher le panneau de droite',
   'status.deadEnds': 'Sorties sans issue',
   'status.deadEndsHint': "Les colis qui sortent par là tomberaient : aucun tapis ni aucune porte ne les prend. Clique pour les montrer une à une sur le plan, repérées par un triangle orange.",
   'issue.overlap': 'Chevauche un autre objet',
