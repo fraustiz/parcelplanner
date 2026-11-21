@@ -19,16 +19,22 @@ export interface MovingParcel {
    * instead of stopping there.
    */
   wrapTo?: number;
-  /** Steps it has already waited. At a merge the longer wait goes first, so
-   * neither arm of a joiner is starved. */
+  /** How long it has already waited, in any unit. At a merge the longer wait
+   * goes first, so neither arm of a joiner is starved. */
   heldFor?: number;
 }
 
 const key = (cell: Cell & { slot?: string }): string => cell.slot ?? `${cell.x},${cell.y}`;
 
-export function advanceOneCell(parcels: readonly MovingParcel[]): number[] {
-  const next = parcels.map((p) => (
-    p.index < p.cells.length - 1 ? p.index + 1 : p.wrapTo ?? p.index
+/**
+ * `ready` says which parcels may move this step; one that may not keeps its
+ * cell, and blocks the queue behind it like any parcel standing still. All
+ * may move when it is left out.
+ */
+export function advanceOneCell(parcels: readonly MovingParcel[], ready?: readonly boolean[]): number[] {
+  const next = parcels.map((p, i) => (
+    ready !== undefined && !ready[i] ? p.index
+      : p.index < p.cells.length - 1 ? p.index + 1 : p.wrapTo ?? p.index
   ));
 
   // Then take moves away until consistent. Repeated because blocking travels

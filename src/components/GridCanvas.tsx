@@ -7,12 +7,16 @@ import { flippedShape, pastedAt, turnedShape } from '@/core/clipboard';
 import { clampedCell, floorBounds, pickedSelection, placementAt, steppedCursor } from '@/core/cursor';
 import { buildGraph, doorNodeId } from '@/core/graph';
 import { canPlace, shiftedSelection, type PlacementRejection } from '@/core/occupancy';
-import { advanceOneCell, isOnTheFloor, stillOnTheBelt } from '@/core/queueing';
-import { entryPoints, mostlyStraight, onwardOf, parcelPath, portIndexOf, routeSteps, storePullers, type RouteStep } from '@/core/simulate';
+import { EMPTY_SIM, stepSim, type Branch, type SimContext, type SimState, type Walk } from '@/core/live-sim';
+import { appliedSticker, drawLabels, sortingPort, type ParcelLabels } from '@/core/parcel-labels';
+import { isOnTheFloor } from '@/core/queueing';
+import { loadSeconds, scanSeconds, secondsPerCell, SPLITTER_RETRY_SECONDS, UNLOAD_SECONDS } from '@/core/sim-timing';
+import { entryPoints, inboundIndexOf, onwardOf, outLinks, parcelPath, portIndexOf, routeSteps, storePullers, type RouteStep } from '@/core/simulate';
 import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/core/transform';
 import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
+import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
 import { STAIRS } from '@/data/stairs';
@@ -20,7 +24,7 @@ import { repaintableColourOf } from '@/data/colours';
 import { CARGO_TYPE_ICONS, COUNTRY_DOOR_ICON, KEEP_OWN_COLOURS, OBJECT_ICONS, PARCEL_ICON } from '@/data/icons';
 import { shapesFor, SHAPE_DIVISOR } from '@/data/shapes';
 import { DOOR_ARROW, UI_SHAPE_DIVISOR } from '@/data/ui-shapes';
-import { ownedGeometry, ownedTiersOf } from '@/data/warehouse-tiers';
+import { ownedGeometry, ownedTiersOf, warehouseTierOf } from '@/data/warehouse-tiers';
 import { WAREHOUSES } from '@/data/warehouses';
 import { t, type TranslationKey } from '@/i18n';
 import { cameraShowing, cameraZoomedAt, CELL_PX, screenToCell, worldToScreen, type Camera } from '@/render/camera';
@@ -29,7 +33,7 @@ import { blackenIcon, toDraw2D } from '@/render/canvas-draw';
 import { cameraAfterTouch, MAX_ZOOM, MIN_ZOOM, type TouchPoint } from '@/render/touch-gestures';
 import { drawScene, DARK_SCENE, LIGHT_SCENE, type HighlightState } from '@/render/renderer';
 import { draggedPlacement, useEditor, type MarqueeState } from '@/store/editor';
-import { useSimStats } from '@/store/sim-stats';
+import { isPauserOpen, PAUSERS, useSimStats } from '@/store/sim-stats';
 import ContextMenu, { type MenuAnchor } from './ContextMenu';
 import HoverCard from './HoverCard';
 
@@ -37,65 +41,33 @@ import HoverCard from './HoverCard';
  * mouse and drag events. */
 interface ClientPoint { clientX: number; clientY: number }
 
-/**
- * One parcel on the belt, right now. `index` is a cell, not a distance: the
- * simulation steps whole cells so a cell holds one parcel. `from` is where it
- * stepped off, so the drawing can slide between the two.
- */
-interface LiveParcel {
-  cells: RouteStep[];
-  ending: 'delivered' | 'stored' | 'dropped' | 'looped' | 'exhausted';
-  index: number;
-  from: number;
-  /** Steps spent without moving. */
-  heldFor: number;
-  /** For a looping route: the cell it rejoins after the last one. */
-  wrapTo?: number;
-  /** The placement its route ends at: for a stored parcel, its rack. */
-  endsAt?: string;
-}
+/** Game seconds the preview advances per step. Each parcel keeps its own
+ * timing inside a step (see stepSim), so this only sets how often the belts
+ * are looked at, not how fast they run. */
+const TICK_SECONDS = 0.25;
 
-/** What has become of the parcels since play was pressed: counted as they
- * actually arrive or fall, not predicted from the routes. */
-interface SimTally { delivered: number; fell: number }
+/** The smart splitter, which picks its way on when a parcel gets there. */
+const SMART_SPLITTER = 'BP_ConveyorBelt_Splitter';
 
-const NO_TALLY: SimTally = { delivered: 0, fell: 0 };
+/** Seconds to cross a delivery or export door's own cell, outside the wall:
+ * a tier 1 belt's pace. */
+const DOOR_CELL_SECONDS = 2;
 
-/** Everything the preview keeps between steps: the parcels on the belts, what
- * has become of the others, and how many each rack holds, by placement id. */
-interface SimState { parcels: LiveParcel[]; tally: SimTally; racks: Record<string, number> }
-
-const NO_SIM: SimState = { parcels: [], tally: NO_TALLY, racks: {} };
-
-/** A route a parcel can be sent along, as built for one step. */
-interface Walk {
-  cells: RouteStep[]; ending: LiveParcel['ending']; wrapTo?: number; endsAt?: string;
-}
-
-/** How fast a parcel crosses a cell on screen. A viewing speed, set by what the
- * eye can follow: the game data has no belt speed. */
-const CELLS_PER_SECOND = 1;
+/** Where a scanner sends a parcel out of a side with no belt on it: no node
+ * at all, so the route ends there and the parcel falls. */
+const OFF_THE_SIDE = 'off-the-side';
 
 /**
- * One parcel per cell, released one per cell-step at every delivery door. Not
- * the game's cadence (a truck every 40 seconds): a solid stream makes a route
- * readable. A door cannot release onto an occupied cell, so no timer is needed.
+ * What each delivery door brings in the preview: a fully upgraded door, the
+ * most a layout has to cope with (src/data/deliveries.ts).
  */
+const PREVIEW_TRUCK = {
+  parcels: PARCELS_PER_TRUCK[PARCELS_PER_TRUCK.length - 1]!,
+  every: DOOR_TIMER_SECONDS[DOOR_TIMER_SECONDS.length - 1]!,
+};
 
-/** The sticker checker: the one branching object whose side outputs are
- * reject lines rather than a sorting of the flow. */
-const STICKER_CHECKER = 'BP_ConveyorBelt_Scanner2_Tier1';
-
-/** How often a parcel is refused at a checker. A viewing choice, not a
- * measurement: the game data has no failure rate. */
-const REFUSED_AT_A_CHECKER = 0.1;
-
-/**
- * How many steps a parcel may sit without moving before it falls off the belt
- * and frees its cell. Above a normal queue at a merge, but finite, or a looping
- * layout would fill solid and freeze.
- */
-const STUCK_HOLD_STEPS = 12;
+/** Playback speeds, cycled by a button. 1 is the game's own pace. */
+const SPEEDS = [1, 2, 4, 8] as const;
 
 /**
  * Whether the live parcel preview is offered: only when
@@ -103,14 +75,6 @@ const STUCK_HOLD_STEPS = 12;
  * vitest.config.ts), so the code behind it stays tested.
  */
 const LIVE_PREVIEW = process.env.NEXT_PUBLIC_LIVE_PREVIEW === 'on';
-
-/**
- * How many steps a parcel stays at the end of a line that leads nowhere
- * before it falls: long enough to see it ringed in red, short enough that
- * the line behind it keeps moving, as it does in the game, rather than
- * queueing until the whole line falls at once.
- */
-const DEAD_END_SHOW_STEPS = 2;
 
 /** A ceiling on parcels alive at once, so a pathological layout cannot grow
  * the list without bound. Far above what a warehouse ever holds. */
@@ -243,12 +207,14 @@ export default function GridCanvas() {
    * Every parcel in flight. A viewing aid: it never touches the plan (no
    * dispatch, no undo entry).
    */
-  const [sim, setSim] = useState<SimState>(NO_SIM);
+  const [sim, setSim] = useState<SimState>(EMPTY_SIM);
+  /** The racks' fill counts for the drawing (see rackFillNow). */
+  const rackFillRef = useRef<readonly { from: Cell; to: Cell; text: string }[]>([]);
   const parcels = sim.parcels;
   const floor = useEditor((s) => s.floor);
-  /** How far through the current cell-step the drawing is, 0 to 1. Only the
-   * drawing is continuous; the simulation moves in whole cells. */
-  const [phase, setPhase] = useState(0);
+  /** Game seconds the drawing is ahead of the last step, so parcels slide
+   * smoothly between steps. */
+  const [lead, setLead] = useState(0);
 
   /**
    * Where each parcel is right now, between cells. Three fates look different:
@@ -263,7 +229,9 @@ export default function GridCanvas() {
     // under the floor.
     const left = p.cells[p.from];
     const from = left !== undefined && left.floor === to.floor ? left : to;
-    const into = p.from === p.index ? 0 : phase;
+    const into = p.from === p.index || p.moveFor <= 0
+      ? 1
+      : Math.min(1, Math.max(0, (sim.now + lead - p.movedAt) / p.moveFor));
     return {
       at: { x: from.x + (to.x - from.x) * into, y: from.y + (to.y - from.y) * into },
       // Only a route that really stops marks a parcel as on the floor, not a
@@ -274,7 +242,7 @@ export default function GridCanvas() {
         arrived: p.ending !== 'dropped' && p.ending !== 'exhausted',
       }),
     };
-  }), [parcels, phase, floor]);
+  }), [parcels, sim.now, lead, floor]);
 
   /** Where the oldest parcel still on the belt has been. Every trail would
    * paint the whole layout. */
@@ -286,8 +254,8 @@ export default function GridCanvas() {
   /** Whether the parcel is advancing. Paused leaves it exactly where it is,
    * so a junction can be read before letting it go on. */
   const [playing, setPlaying] = useState(false);
-  /** 1, 2 or 4, cycled by a button rather than a slider. */
-  const [speed, setSpeed] = useState(1);
+  /** One of SPEEDS, cycled by a button rather than a slider. */
+  const [speed, setSpeed] = useState<number>(1);
   const clipboard = useEditor((s) => s.clipboard);
   const setClipboard = useEditor((s) => s.setClipboard);
   const rightRef = useRef<{
@@ -458,9 +426,8 @@ export default function GridCanvas() {
   /** Calls off a pending move; nothing was dispatched, so nothing moves. */
   const cancelMove = (): void => aimMove(null);
 
-  // The belt advances by elapsed time, so speed is independent of frame rate.
-  // The simulation moves in whole cells and the drawing slides between them,
-  // so two parcels meeting at a joiner block each other. Runs only while playing.
+  // The preview runs in game time: one real second is one game second at
+  // speed 1, whatever the frame rate. Runs only while playing.
   useEffect(() => {
     if (!playing) return;
     let frame = 0;
@@ -469,20 +436,19 @@ export default function GridCanvas() {
     let last: number | null = null;
     let waiting = 0;
     const tick = (now: number) => {
-      const seconds = last === null ? 0 : (now - last) / 1000;
+      const seconds = last === null ? 0 : Math.max(0, (now - last) / 1000);
       last = now;
-      const perCell = 1 / (CELLS_PER_SECOND * speed);
-      waiting += seconds;
+      waiting += seconds * speed;
       // A while, not an if: a slow frame catches up. Capped so a background
       // tab does not return and run thousands of steps at once.
       let steps = 0;
-      while (waiting >= perCell && steps < 8) {
-        waiting -= perCell;
+      while (waiting >= TICK_SECONDS && steps < 32) {
+        waiting -= TICK_SECONDS;
         steps++;
         stepRef.current();
       }
-      if (waiting >= perCell) waiting = 0;
-      setPhase(Math.min(1, waiting / perCell));
+      if (waiting >= TICK_SECONDS) waiting = 0;
+      setLead(waiting);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -627,6 +593,9 @@ export default function GridCanvas() {
         doorArrow: DOOR_ARROW, doorArrowDivisor: UI_SHAPE_DIVISOR, stairs: STAIRS,
         parcels: parcelsNow,
         trail: trailNow,
+        // Through a ref: worked out further down, and redrawn with every
+        // parcel frame anyway.
+        rackFill: rackFillRef.current,
         repaintableColourOf,
       });
     });
@@ -902,13 +871,10 @@ export default function GridCanvas() {
     // A rack keeps parcels (in port, no out port), so it is not a dead end.
     const storeIds = new Set(
       plan.placements
-        .filter((p) => (catalogue.get(p.objectId)?.ports ?? []).every((port) => port.dir !== 'out'))
+        .filter((p) => p.warehouse === plan.warehouse
+          && (catalogue.get(p.objectId)?.ports ?? []).every((port) => port.dir !== 'out'))
         .map((p) => p.id),
     );
-    const byCell = new Map<string, Cell>([
-      ...plan.placements.map((p) => [p.id, p.cell] as const),
-      ...here.map((d) => [doorNodeId(d), d.cell] as const),
-    ]);
     const byId = new Map(plan.placements.map((p) => [p.id, p]));
 
     // Which object covers each cell, on every floor, so an unloader can find
@@ -938,154 +904,174 @@ export default function GridCanvas() {
       ...entries.map((id) => ({ from: id, slot: firstSlot(id), rack: undefined as string | undefined })),
       ...pullers.map(({ puller, store }) => ({ from: puller, slot: firstSlot(puller), rack: store as string | undefined })),
     ].filter((source): source is { from: string; slot: string; rack: string | undefined } => source.slot !== undefined);
-    return { exitIds, storeIds, byCell, byId, onward, portIndex, entries, sources, capacity };
+    const inbound = inboundIndexOf(portIndex);
+    return { exitIds, storeIds, byId, onward, portIndex, inbound, entries, sources, capacity };
   }, [plan, catalogue]);
 
-  const buildWalks = (): {
-    sources: { slot: string; rack?: string; walk: () => Walk }[];
-    capacity: Map<string, number>;
-  } => {
-    const {
-      exitIds, storeIds, byCell, byId, onward, portIndex, sources, capacity,
-    } = simLayout;
-    /**
-     * Which way a parcel goes at a choice. At a sticker checker it mostly
-     * passes straight on; at splitters and diverters a fair toss is right.
-     */
-    const chooseBranch = (options: readonly string[], at: string): string => {
-      const roll = Math.random();
-      const fair = () => options[Math.min(options.length - 1, Math.floor(roll * options.length))]!;
+  /**
+   * Everything the preview engine needs from this layout (see SimContext):
+   * routes that carry each parcel's labels through scanners and sticker
+   * appliers, smart splitters deciding on arrival, and the game's timings.
+   */
+  const simContext = useMemo((): SimContext => {
+    const { exitIds, storeIds, byId, onward, portIndex, inbound, sources, capacity } = simLayout;
+    const warehouseTier = warehouseTierOf(plan);
+    const objectOf = (node: string) => byId.get(node)?.objectId;
 
-      const here = byId.get(at);
-      const entry = here && catalogue.get(here.objectId);
-      if (!here || !entry || here.objectId !== STICKER_CHECKER) return fair();
-
-      // Straight ahead is opposite the feeding cell, read off the placed ports,
-      // since the checker can be turned or mirrored.
-      const inStep = portFacings(entry, here.rotation, here.mirrored ?? false)
-        .find((facing) => facing.dir === 'in')?.step;
-      const ahead = inStep === undefined
-        ? undefined
-        : options.find((option) => {
-          const cell = byCell.get(option);
-          return cell !== undefined
-            && cell.x === here.cell.x - inStep.dx
-            && cell.y === here.cell.y - inStep.dy;
-        });
-
-      return mostlyStraight(options, ahead, roll, REFUSED_AT_A_CHECKER);
+    const linksCache = new Map<string, { port: number; to: string }[]>();
+    const linksOf = (node: string) => {
+      let links = linksCache.get(node);
+      if (links === undefined) {
+        links = outLinks(node, portIndex, inbound);
+        linksCache.set(node, links);
+      }
+      return links;
     };
 
-    const walkFrom = (id: string): Walk => {
-      const walked = parcelPath(onward, id, chooseBranch, {
-        exits: exitIds,
-        stores: storeIds,
-      });
+    /** A smart splitter with a real choice: it decides when the parcel arrives. */
+    const decidesOnArrival = (node: string) =>
+      objectOf(node) === SMART_SPLITTER && (onward.get(node)?.length ?? 0) > 1;
+
+    /**
+     * Where the parcel goes at a branch: a scanner or the sticker verifier
+     * reads its labels, and sends it off its unwired side to the floor if
+     * that is where it belongs. Anything else (diverters set up in the game)
+     * is a fair toss.
+     */
+    const chooser = (labels: ParcelLabels) => (options: readonly string[], at: string): string => {
+      const objectId = objectOf(at);
+      const port = objectId === undefined ? undefined : sortingPort(objectId, labels);
+      if (port !== undefined) return linksOf(at).find((link) => link.port === port)?.to ?? OFF_THE_SIDE;
+      return options[Math.min(options.length - 1, Math.floor(Math.random() * options.length))]!;
+    };
+
+    const walkOptions = (labels: ParcelLabels) => ({
+      exits: exitIds,
+      stores: storeIds,
+      stopAt: decidesOnArrival,
+      alwaysAsk: (node: string) => {
+        const objectId = objectOf(node);
+        return objectId !== undefined && sortingPort(objectId, labels) !== undefined;
+      },
+      onVisit: (node: string) => {
+        const objectId = objectOf(node);
+        const sticker = objectId === undefined ? undefined : appliedSticker(objectId);
+        if (sticker !== undefined) labels.sticker = sticker;
+      },
+    });
+
+    /** A route from `start`, walked as `labels` decides; `before` is the
+     * node the parcel comes from, whose own cells are left out. */
+    const walkFrom = (start: string, labels: ParcelLabels, before?: string): Walk => {
+      const walked = parcelPath(onward, start, chooser(labels), walkOptions(labels));
+      const path = before === undefined ? walked.path : [before, ...walked.path];
+      const offset = before === undefined ? 0 : 1;
       const goesBackTo = walked.loopsBackTo === undefined ? undefined : walked.path[walked.loopsBackTo];
-      const { steps, startOf } = routeSteps(walked.path, portIndex, goesBackTo);
-      const wrapTo = walked.loopsBackTo === undefined ? undefined : startOf[walked.loopsBackTo];
-      const last = walked.path[walked.path.length - 1];
+      const { steps, startOf } = routeSteps(path, portIndex, goesBackTo);
+      const skip = startOf[offset] ?? 0;
+      const wrapTo = walked.loopsBackTo === undefined ? undefined : startOf[walked.loopsBackTo + offset]! - skip;
       return {
-        cells: steps,
+        cells: steps.slice(skip),
         ending: walked.ending,
-        endsAt: last,
+        endsAt: walked.path[walked.path.length - 1],
         ...(wrapTo !== undefined ? { wrapTo } : {}),
       };
     };
 
-    return {
-      sources: sources.map(({ from, slot, rack }) => ({ slot, rack, walk: () => walkFrom(from) })),
-      capacity,
-    };
-  };
-
-  /**
-   * One step of the belt: everything moves a cell, arrivals leave, and each
-   * door releases a parcel if its first cell is free, which keeps parcels one
-   * cell apart.
-   */
-  const stepParcels = (): void => {
-    const { sources, capacity } = buildWalksRef.current();
-    setSim(({ parcels: live, tally, racks: held }) => {
-      const done = { ...tally };
-      const racks = { ...held };
-      // Move first, then judge who is still on the belt by whether it moved.
-      const moved = advanceOneCell(live);
-      const stepped: LiveParcel[] = [];
-      for (let i = 0; i < live.length; i++) {
-        const p = live[i]!;
-        const index = moved[i]!;
-        const going = index !== p.index;
-        const heldFor = going ? 0 : p.heldFor + 1;
-        // Only these two leave on arrival; a looping parcel goes round again,
-        // a stopped one stays until the stall rule retires it. Judged on where
-        // it stood before this step, so the slide into the door or rack is
-        // drawn before it goes. A full rack takes nothing: the parcel waits.
-        const atEnd = p.index >= p.cells.length - 1;
-        const rack = p.ending === 'stored' ? p.endsAt : undefined;
-        const roomInRack = rack !== undefined
-          && (racks[rack] ?? 0) < (capacity.get(rack) ?? 0);
-        const arrived = atEnd && (p.ending === 'delivered' || roomInRack);
-        const deadEnd = index >= p.cells.length - 1
-          && (p.ending === 'dropped' || p.ending === 'exhausted');
-        // A parcel on its way to a door or a rack never falls for waiting: a
-        // queue behind a full rack or a busy merge is the layout's answer, not
-        // a jam. Only loops and dead ends drop parcels.
-        const hold = deadEnd ? DEAD_END_SHOW_STEPS
-          : p.ending === 'delivered' || p.ending === 'stored' ? Infinity
-            : STUCK_HOLD_STEPS;
-        if (!stillOnTheBelt({ arrived, moving: going, heldFor }, hold)) {
-          if (!arrived) done.fell++;
-          else if (rack !== undefined) racks[rack] = (racks[rack] ?? 0) + 1;
-          else done.delivered++;
-          continue;
-        }
-        stepped.push({ ...p, from: p.index, index, heldFor });
-      }
-
-      // Each release re-rolls its branch choices, so a splitter visibly sends
-      // parcels both ways.
-      const taken = new Set(stepped.map((p) => p.cells[p.index]!.slot));
-      for (const { slot: at, rack, walk: walkNow } of sources) {
-        if (taken.has(at)) continue; // the belt at that door is still full
-        if (rack !== undefined && (racks[rack] ?? 0) === 0) continue; // nothing in it to take
-        // Walked only now, once it is sure to leave.
-        const walk = walkNow();
-        if (walk.cells.length === 0) continue;
-        if (rack !== undefined) racks[rack] = racks[rack]! - 1;
-        taken.add(at);
-        stepped.push({
-          cells: walk.cells, ending: walk.ending, index: 0, from: 0, heldFor: 0,
-          wrapTo: walk.wrapTo, endsAt: walk.endsAt,
+    const branchesCache = new Map<string, Branch[]>();
+    const branches = (splitter: string): Branch[] => {
+      let ways = branchesCache.get(splitter);
+      if (ways === undefined) {
+        ways = linksOf(splitter).flatMap(({ to }) => {
+          const { steps, startOf } = routeSteps([splitter, to], portIndex);
+          const slot = steps[startOf[1] ?? steps.length]?.slot;
+          return slot === undefined ? [] : [{ slot, walk: (labels: ParcelLabels) => walkFrom(to, labels, splitter) }];
         });
+        branchesCache.set(splitter, ways);
       }
+      return ways;
+    };
 
-      return {
-        parcels: stepped.length > MAX_PARCELS ? stepped.slice(-MAX_PARCELS) : stepped,
-        tally: done,
-        racks,
-      };
+    const slideSeconds = (cell: RouteStep, previous: RouteStep | undefined): number => {
+      const here = byId.get(cell.node);
+      if (here === undefined) return DOOR_CELL_SECONDS;
+      if (storeIds.has(cell.node)) {
+        const loader = previous === undefined ? undefined : byId.get(previous.node);
+        return loadSeconds(loader?.tier ?? 1);
+      }
+      return secondsPerCell(here.objectId, here.tier);
+    };
+
+    return {
+      sources: sources.map(({ from, slot, rack }) => ({
+        key: from, slot,
+        ...(rack !== undefined ? { rack } : { truck: PREVIEW_TRUCK }),
+        walk: (labels: ParcelLabels) => walkFrom(from, labels),
+      })),
+      capacity,
+      draw: () => drawLabels(Math.random, warehouseTier),
+      branches,
+      slideSeconds,
+      stopSeconds: (cell) => {
+        const here = byId.get(cell.node);
+        return here === undefined ? 0 : scanSeconds(here.objectId, here.tier);
+      },
+      isClosed: (node) => {
+        const here = byId.get(node);
+        if (here === undefined || !PAUSERS.has(here.objectId)) return false;
+        return !isPauserOpen(useSimStats.getState().pausers, node, here.objectId);
+      },
+      unloadSeconds: UNLOAD_SECONDS,
+      retrySeconds: SPLITTER_RETRY_SECONDS,
+      maxParcels: MAX_PARCELS,
+    };
+  }, [simLayout, plan]);
+
+  /** How full each rack on this floor is, while the preview has parcels to show. */
+  const rackFillNow = useMemo(() => {
+    if (sim.parcels.length === 0 && Object.keys(sim.racks).length === 0) return [];
+    const { byId, capacity } = simLayout;
+    return [...capacity].flatMap(([id, holds]) => {
+      const rack = byId.get(id);
+      const entry = rack && catalogue.get(rack.objectId);
+      const held = sim.racks[id]?.length ?? 0;
+      if (!rack || !entry || rack.floor !== floor) return [];
+      const cells = coveredCells(rack, entry);
+      const xs = cells.map((c) => c.x);
+      const ys = cells.map((c) => c.y);
+      return [{
+        from: { x: Math.min(...xs), y: Math.min(...ys) },
+        to: { x: Math.max(...xs), y: Math.max(...ys) },
+        text: `${held}/${holds}`,
+      }];
     });
+  }, [sim.racks, sim.parcels.length, simLayout, catalogue, floor]);
+  rackFillRef.current = rackFillNow;
+
+  /** One step of the preview, TICK_SECONDS of game time. */
+  const stepParcels = (): void => {
+    const ctx = contextRef.current;
+    setSim((state) => stepSim(state, ctx, TICK_SECONDS));
   };
 
   // Reached by the animation clock through refs, reassigned each render, so
   // the next parcel uses the current layout without restarting the clock.
-  const buildWalksRef = useRef(buildWalks);
-  buildWalksRef.current = buildWalks;
+  const contextRef = useRef(simContext);
+  contextRef.current = simContext;
   const stepRef = useRef(stepParcels);
   stepRef.current = stepParcels;
 
   /** Clears the parcels and resets the clock, for both Escape and Stop. */
   const stopParcels = (): void => {
-    setSim(NO_SIM);
-    setPhase(0);
+    setSim(EMPTY_SIM);
+    setLead(0);
     setPlaying(false);
   };
 
   const sendParcels = (): void => {
     if (simLayout.entries.length === 0) return; // nothing is wired up; say nothing
-    setSim(NO_SIM);
-    setPhase(0);
+    setSim(EMPTY_SIM);
+    setLead(0);
     setPlaying(true);
   };
 
@@ -1649,11 +1635,13 @@ export default function GridCanvas() {
   /** What has become of the parcels so far, counted as they arrive or fall,
    * shown in the inspector. */
   useEffect(() => {
-    const stats = parcels.length === 0 ? null : {
+    const stored = Object.values(sim.racks).reduce((sum, held) => sum + held.length, 0);
+    const stats = parcels.length === 0 && stored === 0 ? null : {
       onBelt: parcels.length,
-      delivered: sim.tally.delivered,
-      stored: Object.values(sim.racks).reduce((sum, n) => sum + n, 0),
-      fell: sim.tally.fell,
+      delivered: sim.delivered,
+      stored,
+      fell: sim.fell,
+      seconds: sim.now,
     };
     useSimStats.setState({ stats });
   }, [parcels, sim]);
@@ -1726,7 +1714,7 @@ export default function GridCanvas() {
           <Square size={16} aria-hidden />
         </button>
         <button
-          onClick={() => setSpeed((s) => (s === 1 ? 2 : s === 2 ? 4 : 1))}
+          onClick={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s as typeof SPEEDS[number]) + 1) % SPEEDS.length]!)}
           aria-label={t(locale, 'sim.speed')}
           title={t(locale, 'sim.speed')}
           className="flex min-h-11 items-center gap-1 rounded px-2 py-1 font-mono text-xs leading-none text-[var(--text-faint)] hover:bg-[var(--raised)] hover:text-[var(--text-strong)] active:bg-[var(--raised-hover)] md:min-h-0"

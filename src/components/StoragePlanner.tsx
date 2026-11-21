@@ -12,7 +12,7 @@ import {
 } from '@/data/deliveries';
 import { COUNTRIES } from '@/data/countries';
 import { DOORS } from '@/data/doors';
-import { WAREHOUSE_TIERS } from '@/data/warehouse-tiers';
+import { warehouseTierOf } from '@/data/warehouse-tiers';
 import { t, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
 import { useDialog } from './use-dialog';
@@ -39,13 +39,6 @@ function sortedBy(warehouse: WarehouseId, warehouseTier: number): {
 }
 const WEEK = 7;
 
-/**
- * The game's warehouse tier, which decides the cargo types drawn: the highest
- * expansion the plan owns. Absent means all owned, as everywhere else.
- */
-function warehouseTierOf(ownedTiers: readonly number[] | undefined): number {
-  return ownedTiers === undefined ? WAREHOUSE_TIERS.length : Math.max(0, ...ownedTiers);
-}
 
 /**
  * How many racks a delivery schedule demands. The player gives the schedule;
@@ -61,7 +54,7 @@ export default function StoragePlanner() {
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   useDialog(panel, open, { onClose: () => setOpen(false) });
-  const warehouseTier = warehouseTierOf(plan.ownedTiers);
+  const warehouseTier = warehouseTierOf(plan);
   const axis = useMemo(() => sortedBy(warehouse, warehouseTier), [warehouse, warehouseTier]);
   const [sizeLevel, setSizeLevel] = useState(0);
   const [speedLevel, setSpeedLevel] = useState(0);

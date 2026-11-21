@@ -10,41 +10,78 @@ import { WAREHOUSES } from '@/data/warehouses';
 import { isZone, ZONE_PREFIX } from '@/core/zone';
 import { formatMoney, t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
-import { useSimStats } from '@/store/sim-stats';
+import { isPauserOpen, PAUSERS, useSimStats } from '@/store/sim-stats';
 import { sizeOf } from './HoverCard';
+
+/** Game time as minutes and seconds, as the game's clock would show it. */
+function gameTime(seconds: number): string {
+  const whole = Math.floor(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
 
 /** The parcel preview's counts, at the top of the panel while parcels run. */
 function SimStatsPanel({ locale }: { locale: Locale }) {
   const stats = useSimStats((s) => s.stats);
   if (!stats) return null;
   // A share of the parcels that have finished, delivered or fallen. A rack
-  // only holds a parcel until an unloader takes it out, so it is no end. Not a
-  // rate per minute: the game data has no belt speed to turn steps into time.
+  // only holds a parcel until an unloader takes it out, so it is no end.
   const finished = stats.delivered + stats.fell;
   const share = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
-  const rows: ReadonlyArray<readonly [TranslationKey, number, boolean]> = [
-    ['sim.onBelt', stats.onBelt, false],
-    ['sim.delivered', stats.delivered, true],
-    ['sim.stored', stats.stored, false],
-    ['sim.fell', stats.fell, true],
+  // Per game minute, which the preview runs at the game's own pace.
+  const minutes = stats.seconds / 60;
+  const perMinute = new Intl.NumberFormat(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+  const rows: ReadonlyArray<readonly [TranslationKey, string, string | null]> = [
+    ['sim.time', gameTime(stats.seconds), null],
+    ['sim.onBelt', String(stats.onBelt), null],
+    ['sim.delivered', String(stats.delivered), finished > 0 ? share.format(stats.delivered / finished) : null],
+    ['sim.stored', String(stats.stored), null],
+    ['sim.fell', String(stats.fell), finished > 0 ? share.format(stats.fell / finished) : null],
   ];
+  const rates: ReadonlyArray<readonly [TranslationKey, number]> = minutes > 0
+    ? [['sim.deliveredPerMinute', stats.delivered / minutes], ['sim.fellPerMinute', stats.fell / minutes]]
+    : [];
   return (
     <section aria-label={t(locale, 'sim.title')} className="mb-3 border-b border-[var(--line)] pb-3">
       <h2 className="mb-2 font-semibold">{t(locale, 'sim.title')}</h2>
       <dl className="space-y-0.5">
-        {rows.map(([key, value, shared]) => (
+        {rows.map(([key, value, part]) => (
           <div key={key} className="flex items-baseline justify-between gap-2 px-1">
             <dt className="text-[var(--text-faint)]">{t(locale, key)}</dt>
             <dd className="font-mono tabular-nums">
-              {shared && finished > 0 && (
-                <span className="mr-2 text-[var(--text-faint)]">{share.format(value / finished)}</span>
-              )}
+              {part !== null && <span className="mr-2 text-[var(--text-faint)]">{part}</span>}
               {value}
             </dd>
           </div>
         ))}
+        {rates.map(([key, value]) => (
+          <div key={key} className="flex items-baseline justify-between gap-2 px-1">
+            <dt className="text-[var(--text-faint)]">{t(locale, key)}</dt>
+            <dd className="font-mono tabular-nums">{perMinute.format(value)}</dd>
+          </div>
+        ))}
       </dl>
+      <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-faint)]">{t(locale, 'sim.doorPace')}</p>
     </section>
+  );
+}
+
+/**
+ * Opens or closes a pauser for the parcel preview. Not saved with the plan:
+ * in the game an Auto Pauser follows the days it is set to, which the plan
+ * does not know.
+ */
+function PauserToggle({ id, objectId, locale }: { id: string; objectId: string; locale: Locale }) {
+  const pausers = useSimStats((s) => s.pausers);
+  const setPauserOpen = useSimStats((s) => s.setPauserOpen);
+  const open = isPauserOpen(pausers, id, objectId);
+  return (
+    <div className="mb-3">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={open} onChange={(event) => setPauserOpen(id, event.target.checked)} />
+        {t(locale, 'sim.pauserOpen')}
+      </label>
+      <p className="mt-1 text-xs leading-relaxed text-[var(--text-faint)]">{t(locale, 'sim.pauserHint')}</p>
+    </div>
   );
 }
 
@@ -223,6 +260,7 @@ export default function Inspector() {
             )}
             <div><dt className="inline">{t(locale, 'warehouse.floor')}:</dt> <dd className="inline">{only.floor}</dd></div>
           </dl>
+          {PAUSERS.has(only.objectId) && <PauserToggle id={only.id} objectId={only.objectId} locale={locale} />}
         </>
       ) : (
         <>

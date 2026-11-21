@@ -124,3 +124,12 @@ export function ownedTiersOf(plan: { ownedTiers?: number[] }): ReadonlySet<numbe
   if (plan.ownedTiers === undefined) return ALL_TIERS;
   return new Set([...plan.ownedTiers, ...MANDATORY_TIERS]);
 }
+
+/**
+ * The game's warehouse tier, which decides the cargo types and the stickers
+ * parcels arrive with: the highest expansion the plan owns. Absent means all
+ * owned, as everywhere else.
+ */
+export function warehouseTierOf(plan: { ownedTiers?: number[] }): number {
+  return plan.ownedTiers === undefined ? WAREHOUSE_TIERS.length : Math.max(0, ...plan.ownedTiers);
+}

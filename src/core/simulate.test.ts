@@ -1,11 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { entryPoints, feedingDoors, mostlyStraight, parcelPath, routeSteps, storePullers } from './simulate';
+import { entryPoints, feedingDoors, inboundIndexOf, outLinks, parcelPath, portIndexOf, routeSteps, storePullers } from './simulate';
 import type { Edge, ResolvedPort } from './graph';
 
-/**
- * One parcel walked along the flow graph. Not a sorting simulation: scanner
- * verdicts are a coin toss (see src/core/simulate.ts).
- */
+/** One parcel walked along the flow graph (see src/core/simulate.ts). */
 const edges = (...pairs: [string, string][]): Edge[] =>
   pairs.map(([from, to]) => ({ from, to }));
 
@@ -169,32 +166,6 @@ describe('a parcel that reaches somewhere it belongs', () => {
   });
 });
 
-describe('choosing a branch at a checker', () => {
-  const opts = ['straight', 'left', 'right'] as const;
-
-  it('sends the parcel straight on nearly every time', () => {
-    // A sticker checker has three outputs and only one is "carry on"; a fair
-    // toss would send two parcels in three to a reject line.
-    expect(mostlyStraight([...opts], 'straight', 0.5, 0.1)).toBe('straight');
-    expect(mostlyStraight([...opts], 'straight', 0.11, 0.1)).toBe('straight');
-  });
-
-  it('still refuses some, and shares them between the reject lines', () => {
-    expect(mostlyStraight([...opts], 'straight', 0.0, 0.1)).toBe('left');
-    expect(mostlyStraight([...opts], 'straight', 0.09, 0.1)).toBe('right');
-  });
-
-  it('falls back to a fair pick when nothing lies straight ahead', () => {
-    // The straight output leads nowhere, so every parcel goes sideways.
-    expect(mostlyStraight(['left', 'right'], undefined, 0.0, 0.1)).toBe('left');
-    expect(mostlyStraight(['left', 'right'], undefined, 0.9, 0.1)).toBe('right');
-  });
-
-  it('sends everything straight when that is the only way out', () => {
-    expect(mostlyStraight(['straight'], 'straight', 0.0, 0.1)).toBe('straight');
-  });
-});
-
 describe('where a loop closes', () => {
   const edges = (...pairs: [string, string][]) => pairs.map(([from, to]) => ({ from, to }));
   const first = (o: readonly string[]) => o[0]!;
@@ -309,5 +280,51 @@ describe('storePullers: what empties a rack', () => {
 
   it('ignores one that a belt already feeds', () => {
     expect(storePullers(ports, [{ from: 'belt', to: 'unloader' }], owner, (id) => id === 'rack')).toEqual([]);
+  });
+});
+
+describe('walking a parcel that carries labels', () => {
+  it('stops at a node decided on arrival, but not where it starts', () => {
+    const graph = edges(['a', 's'], ['s', 'b'], ['s', 'c']);
+    const atSplitter = (node: string) => node === 's';
+    expect(parcelPath(graph, 'a', first, { stopAt: atSplitter })).toMatchObject({ path: ['a', 's'], ending: 'pending' });
+    // Walking on from the splitter itself is not stopped by it.
+    expect(parcelPath(graph, 's', first, { stopAt: atSplitter }).path).toEqual(['s', 'b']);
+  });
+
+  it('tells of every node entered, in order, before the next choice', () => {
+    const seen: string[] = [];
+    let marked = false;
+    const choose = (options: readonly string[]) => (marked ? options[1]! : options[0]!);
+    parcelPath(edges(['a', 'x'], ['x', 'm'], ['m', 'p'], ['m', 'q']), 'a', choose, {
+      onVisit: (node) => { seen.push(node); if (node === 'x') marked = true; },
+    });
+    expect(seen).toEqual(['a', 'x', 'm', 'q']);
+  });
+
+  it('asks about a node with one way on when told to, so a scanner can send a parcel off its empty side', () => {
+    const asked: string[] = [];
+    const r = parcelPath(edges(['scan', 'right']), 'scan', (_options, at) => { asked.push(at); return 'nowhere'; }, {
+      alwaysAsk: (node) => node === 'scan',
+    });
+    expect(asked).toEqual(['scan']);
+    expect(r).toMatchObject({ path: ['scan', 'nowhere'], ending: 'dropped' });
+  });
+});
+
+describe('outLinks: where each out port leads', () => {
+  const port = (placementId: string, x: number, y: number, side: 'N' | 'S' | 'E' | 'W', dir: 'in' | 'out'): ResolvedPort =>
+    ({ placementId, cell: { x, y }, floor: 0, side, dir, targetFloor: 0 });
+
+  it('lists the ways on in the port order, skipping a port that feeds nothing', () => {
+    // A splitter at (0,0): in on N, out on S, E and W. Only E and W are wired.
+    const ports = portIndexOf([
+      port('split', 0, 0, 'N', 'in'), port('split', 0, 0, 'S', 'out'),
+      port('split', 0, 0, 'E', 'out'), port('split', 0, 0, 'W', 'out'),
+      port('east', 1, 0, 'W', 'in'), port('west', -1, 0, 'E', 'in'),
+    ]);
+    expect(outLinks('split', ports, inboundIndexOf(ports))).toEqual([
+      { port: 2, to: 'east' }, { port: 3, to: 'west' },
+    ]);
   });
 });

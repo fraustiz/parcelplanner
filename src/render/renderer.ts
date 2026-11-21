@@ -124,12 +124,14 @@ export interface DrawOptions {
    * selection outline. */
   cursor?: Cell | null;
   /**
-   * A parcel being followed through the layout, if any, and where it has been. A viewing aid, not
-   * a simulation: routing by the day's criteria is not modelled (see src/core/simulate.ts).
+   * The parcels of the live preview (see src/core/live-sim.ts) and where the oldest has been.
+   * `at` is fractional, so a position of 4.5 draws halfway between cells and the parcel glides.
    */
-  /** `at` is fractional, so a position of 4.5 draws halfway between cells and the parcel glides. */
   parcels?: readonly { at: Cell; dropped: boolean }[];
   trail?: readonly Cell[];
+  /** How full each rack is during the preview, written in its bottom-right corner: `from` and
+   * `to` are the corners of its footprint on the floor shown. */
+  rackFill?: readonly { from: Cell; to: Cell; text: string }[];
   /** The artwork colour a chosen colour replaces, or null for a family that cannot be painted. */
   repaintableColourOf: (entry: CatalogEntry) => string | null;
   /** Staircases between floors, from src/data/stairs.ts. */
@@ -199,6 +201,9 @@ export const DARK_SCENE = {
   parcel: '#f2f4f7',
   parcelDropped: '#e8604c',
   parcelTrail: 'rgba(242, 244, 247, 0.22)',
+  /** A rack's fill count during the preview: ink on a dark tab, readable over the red rack. */
+  rackFillBg: 'rgba(11, 13, 16, 0.82)',
+  rackFillInk: '#f2f4f7',
 } as const;
 
 /**
@@ -229,6 +234,8 @@ export const LIGHT_SCENE: ScenePalette = {
   parcel: '#1b2430',
   parcelDropped: '#c0342a',
   parcelTrail: 'rgba(27, 36, 48, 0.20)',
+  rackFillBg: 'rgba(255, 255, 255, 0.88)',
+  rackFillInk: '#1b2430',
   deckEdge: 'rgba(90, 98, 108, 0.7)',
   stairs: 'rgba(90, 98, 108, 0.18)',
   stairsStep: 'rgba(90, 98, 108, 0.45)',
@@ -1070,6 +1077,26 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
       ctx.fillPath(
         `M ${px + size - mark} ${py} L ${px + size} ${py} L ${px + size} ${py + mark} Z`,
       );
+    }
+  }
+
+  // How full each rack is, while the preview runs: a small tab in the rack's bottom-right
+  // corner, held / capacity.
+  if (o.rackFill && o.rackFill.length > 0 && size >= MIN_CELL_SIZE_FOR_ICON) {
+    const fontPx = Math.round(Math.max(8, Math.min(12, size * 0.28)));
+    ctx.font = `${fontPx}px sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    for (const rack of o.rackFill) {
+      const corner = worldToScreen(camera, rack.to);
+      const right = corner.px + size - 1;
+      const bottom = corner.py + size - 1;
+      const w = fontPx * 0.6 * rack.text.length + 4;
+      const h = fontPx + 2;
+      ctx.fillStyle = colours.rackFillBg;
+      ctx.fillRect(right - w, bottom - h, w, h);
+      ctx.fillStyle = colours.rackFillInk;
+      ctx.fillText(rack.text, right - 2, bottom);
     }
   }
 

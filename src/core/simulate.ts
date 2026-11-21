@@ -5,10 +5,10 @@ import type { Cell } from './types';
 /**
  * One parcel walked along the flow graph, to show where a layout sends things.
  *
- * Not a sorting simulation: a scanner's verdict is a coin toss, since deciding
- * it properly would mean rebuilding the game. `choose` is injected (random in
- * the app, deterministic in tests), and every hop that consulted it is recorded
- * in `guessedAt` so those branches can be marked as arbitrary.
+ * `choose` is injected: in the app it reads the parcel's labels where a
+ * scanner decides (src/core/parcel-labels.ts) and tosses a coin elsewhere; in
+ * tests it is deterministic. Every hop that consulted it is recorded in
+ * `guessedAt`.
  */
 export type ChooseNext = (options: readonly string[], at: string) => string;
 
@@ -18,9 +18,10 @@ export interface ParcelWalk {
   /**
    * Why it stopped. `dropped`: nothing carries the parcel on (a line ending in
    * mid-air). `looped`: it came back to somewhere it had been. `exhausted`: the
-   * hop limit, so a malformed graph cannot hang the editor.
+   * hop limit, so a malformed graph cannot hang the editor. `pending`: it
+   * reached a node `stopAt` names, whose way on is only decided on arrival.
    */
-  ending: 'delivered' | 'stored' | 'dropped' | 'looped' | 'exhausted';
+  ending: 'delivered' | 'stored' | 'dropped' | 'looped' | 'exhausted' | 'pending';
   /** Nodes where more than one way out existed and one was picked. */
   guessedAt: string[];
   /**
@@ -43,6 +44,17 @@ export interface WalkOptions {
   stores?: ReadonlySet<string>;
   /** Hop limit, so a malformed graph cannot hang the editor. */
   maxHops?: number;
+  /**
+   * Nodes the walk stops at, other than where it starts: a smart splitter
+   * picks its way on when the parcel gets there, from which belt has room.
+   */
+  stopAt?: (node: string) => boolean;
+  /** Told of every node the walk enters, in order, `start` included: a
+   * sticker applier changes the parcel before the next choice is made. */
+  onVisit?: (node: string) => void;
+  /** Nodes `choose` is asked about even with one way on: a scanner may send a
+   * parcel to its other side, where nothing is wired. */
+  alwaysAsk?: (node: string) => boolean;
 }
 
 /** Where each node leads, built once from the edges so that many walks over
@@ -63,60 +75,37 @@ export function parcelPath(
   edges: readonly Edge[] | Onward,
   start: string,
   choose: ChooseNext,
-  { exits, stores, maxHops = 2000 }: WalkOptions = {},
+  { exits, stores, maxHops = 2000, stopAt, onVisit, alwaysAsk }: WalkOptions = {},
 ): ParcelWalk {
   const onward: Onward = edges instanceof Map ? (edges as Onward) : onwardOf(edges as readonly Edge[]);
 
   const path = [start];
   const seen = new Set([start]);
   const guessedAt: string[] = [];
+  onVisit?.(start);
 
   for (let hop = 0; hop < maxHops; hop++) {
     const at = path[path.length - 1]!;
     // Checked before looking for a way onward: an export door has none either.
     if (exits?.has(at)) return { path, ending: 'delivered', guessedAt };
     if (stores?.has(at)) return { path, ending: 'stored', guessedAt };
+    if (path.length > 1 && stopAt?.(at)) return { path, ending: 'pending', guessedAt };
 
     const options = onward.get(at) ?? [];
     if (options.length === 0) return { path, ending: 'dropped', guessedAt };
 
     // Only consulted where there is a real choice, so `guessedAt` lists true branches.
-    const next = options.length === 1 ? options[0]! : (guessedAt.push(at), choose(options, at));
+    const next = options.length === 1 && !alwaysAsk?.(at)
+      ? options[0]!
+      : (guessedAt.push(at), choose(options, at));
 
     if (seen.has(next)) return { path, ending: 'looped', guessedAt, loopsBackTo: path.indexOf(next) };
     seen.add(next);
     path.push(next);
+    onVisit?.(next);
   }
 
   return { path, ending: 'exhausted', guessedAt };
-}
-
-/**
- * Picks a branch that mostly carries on straight ahead. A sticker checker has
- * three outputs and only one means "fine, carry on"; a fair toss would send two
- * parcels in three to reject lines.
- *
- * `sideShare` is how often a parcel is refused: a viewing choice, not a
- * measurement (game data says nothing about it). `roll` is passed in so tests
- * can pin the outcome.
- */
-export function mostlyStraight(
-  options: readonly string[],
-  straightAhead: string | undefined,
-  roll: number,
-  sideShare: number,
-): string {
-  // Nothing straight ahead: every parcel goes sideways, so pick fairly.
-  if (straightAhead === undefined || !options.includes(straightAhead)) {
-    return options[Math.min(options.length - 1, Math.floor(roll * options.length))]!;
-  }
-
-  const sides = options.filter((o) => o !== straightAhead);
-  if (sides.length === 0 || roll >= sideShare) return straightAhead;
-
-  // Spread refused parcels evenly across the reject lines.
-  const across = roll / sideShare;
-  return sides[Math.min(sides.length - 1, Math.floor(across * sides.length))]!;
 }
 
 /**
@@ -276,6 +265,39 @@ export function routeSteps(
   }
 
   return { steps, startOf };
+}
+
+/** Which node an in port belongs to, by floor, cell and side, built once per
+ * layout so that `outLinks` need not search every port. */
+export type InboundIndex = ReadonlyMap<string, string>;
+
+const inboundKey = (floor: number, x: number, y: number, side: string): string =>
+  `${floor}:${x},${y}:${side}`;
+
+export function inboundIndexOf(ports: PortIndex): InboundIndex {
+  const index = new Map<string, string>();
+  for (const [node, list] of ports) {
+    for (const port of list) {
+      if (port.dir === 'in') index.set(inboundKey(port.targetFloor, port.cell.x, port.cell.y, port.side), node);
+    }
+  }
+  return index;
+}
+
+/**
+ * Where each out port of `node` leads, in the node's own port order: the
+ * order a splitter takes its turns in, and the numbering `sortingPort` uses
+ * (src/core/parcel-labels.ts). A port that feeds nothing is left out.
+ */
+export function outLinks(node: string, ports: PortIndex, inbound: InboundIndex): { port: number; to: string }[] {
+  const links: { port: number; to: string }[] = [];
+  (ports.get(node) ?? []).forEach((out, port) => {
+    if (out.dir !== 'out') return;
+    const step = SIDE_STEP[out.side];
+    const to = inbound.get(inboundKey(out.targetFloor, out.cell.x + step.dx, out.cell.y + step.dy, OPPOSITE[out.side]));
+    if (to !== undefined && to !== node) links.push({ port, to });
+  });
+  return links;
 }
 
 /**

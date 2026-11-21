@@ -2360,8 +2360,8 @@ describe('GridCanvas splitting off an existing line', () => {
   });
 });
 
-// The transport controls send a parcel in at every delivery door and walk it
-// through the layout. A viewing aid, not a simulation: a branch is a coin toss.
+// The transport controls send parcels in at every delivery door and run them
+// through the layout at the game's pace (see src/core/live-sim.ts).
 describe('GridCanvas following parcels', () => {
   const STRAIGHT = 'BP_ConveyorBelt_Straight_Tier1';
 
@@ -2444,6 +2444,8 @@ describe('GridCanvas following parcels', () => {
     expect(speed.textContent).toContain('2');
     fireEvent.click(speed);
     expect(speed.textContent).toContain('4');
+    fireEvent.click(speed);
+    expect(speed.textContent).toContain('8');
     fireEvent.click(speed);
     expect(speed.textContent).toContain('1');
   });
@@ -2531,8 +2533,8 @@ describe('GridCanvas following parcels', () => {
       useEditor.setState((s) => ({ plan: { ...s.plan, placements: doorToDoor() } }));
       const { container } = render(<GridCanvas />);
       play();
-      // Long enough for the first parcel to cross the 20-cell line.
-      runClock(frames, 120);
+      // A tier 1 belt takes 2 s a cell, as in the game: 21 cells take 42 s.
+      runClock(frames, 200);
 
       expect(simStats()?.delivered).toBeGreaterThan(0);
       expect(simStats()?.fell).toBe(0);
@@ -2552,11 +2554,10 @@ describe('GridCanvas following parcels', () => {
       play();
       // The count must grow: the clock asking for frames alone proves nothing.
       const delivered = () => simStats()?.delivered ?? 0;
-      // Long enough for the first parcel to cross the 20-cell line.
-      runClock(frames, 120);
+      // A tier 1 belt takes 2 s a cell, as in the game: 21 cells take 42 s.
+      runClock(frames, 200);
       const afterOne = delivered();
-      // The helper restarts its clock at 0, so the first 30 s of this run only catch up.
-      runClock(frames, 250);
+      runClock(frames, 120);
 
       expect(afterOne).toBeGreaterThan(0);
       expect(delivered()).toBeGreaterThan(afterOne);
