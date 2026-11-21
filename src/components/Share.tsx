@@ -22,6 +22,8 @@ import { useDialog } from './use-dialog';
 
 /** How long the "Link copied" confirmation stays up. */
 const CONFIRM_MS = 2000;
+/** The largest .xlsx file read at all; the real template is about 60 KB. */
+const MAX_TEMPLATE_FILE_BYTES = 20 * 1024 * 1024;
 /** A clipboard write that has not settled by then is treated as refused: some
  * browsers leave it pending behind a permission prompt. */
 const CLIPBOARD_MS = 3000;
@@ -58,6 +60,10 @@ async function shorten(payload: string): Promise<string | null> {
  * src/core never imports src/data (see `Door` in src/core/types.ts).
  */
 async function readTemplate(file: File): Promise<ImportOutcome> {
+  // The real template is about 60 KB; anything this large is not one, and
+  // reading it whole would only cost memory before the unzipper refuses it.
+  if (file.size > MAX_TEMPLATE_FILE_BYTES) return { kind: 'unreadable' };
+
   let book;
   try {
     book = await readWorkbook(await file.arrayBuffer());

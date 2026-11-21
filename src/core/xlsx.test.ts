@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
-import { cellKey, columnNumber, readWorkbook } from './xlsx';
+import { cellKey, columnNumber, inflateRaw, MAX_PART_BYTES, readWorkbook } from './xlsx';
 
 describe('columnNumber', () => {
   it('reads Excel\'s bijective base-26 names', () => {
@@ -132,5 +132,134 @@ describe('rejecting what is not a workbook', () => {
   it('says so for bytes that are not a zip', async () => {
     await expect(readWorkbook(new TextEncoder().encode('hello there').buffer))
       .rejects.toThrow(/zip/i);
+  });
+});
+
+/** deflate-raw, as Excel compresses its parts. */
+async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+interface Part {
+  name: string;
+  /** Already compressed when `method` is 8. */
+  data: Uint8Array;
+  method: 0 | 8;
+  /** A compressed size to claim instead of the real one. */
+  claimedSize?: number;
+}
+
+/** A minimal zip archive. `readZip` checks no CRC, so none is written. */
+function zip(parts: Part[]): ArrayBuffer {
+  const encoder = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+  for (const part of parts) {
+    const name = encoder.encode(part.name);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(8, part.method, true);
+    local.setUint32(18, part.data.length, true);
+    local.setUint16(26, name.length, true);
+    chunks.push(new Uint8Array(local.buffer), name, part.data);
+
+    const entry = new DataView(new ArrayBuffer(46));
+    entry.setUint32(0, 0x02014b50, true);
+    entry.setUint16(10, part.method, true);
+    entry.setUint32(20, part.claimedSize ?? part.data.length, true);
+    entry.setUint16(28, name.length, true);
+    entry.setUint32(42, offset, true);
+    central.push(new Uint8Array(entry.buffer), name);
+    offset += 30 + name.length + part.data.length;
+  }
+  const centralSize = central.reduce((n, c) => n + c.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, parts.length, true);
+  end.setUint16(10, parts.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, offset, true);
+  chunks.push(...central, new Uint8Array(end.buffer));
+
+  const out = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const chunk of chunks) { out.set(chunk, at); at += chunk.length; }
+  return out.buffer;
+}
+
+const stored = (name: string, text: string): Part =>
+  ({ name, data: new TextEncoder().encode(text), method: 0 });
+
+const BOOK = '<workbook><sheets><sheet name="One" sheetId="1" r:id="rId1"/></sheets></workbook>';
+const RELS = '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>';
+
+describe('a booby-trapped workbook', () => {
+  it('reads a minimal workbook built here, so the tests below test the traps', async () => {
+    const book = await readWorkbook(zip([
+      stored('xl/workbook.xml', BOOK),
+      stored('xl/_rels/workbook.xml.rels', RELS),
+      stored('xl/worksheets/sheet1.xml', '<sheetData><row><c r="A1" t="inlineStr"><is><t>hi</t></is></c><c r="B1"><v>7</v></c></row></sheetData>'),
+    ]));
+    expect(book.sheets).toHaveLength(1);
+    expect(book.sheets[0].cells.get(cellKey(1, 1))).toBe('hi');
+    expect(book.sheets[0].cells.get(cellKey(2, 1))).toBe('7');
+  });
+
+  it('stops inflating a part once it passes the cap', async () => {
+    const bomb = await deflate(new Uint8Array(4096));
+    await expect(inflateRaw(bomb, 4095)).rejects.toThrow(/too large/);
+    expect((await inflateRaw(bomb, 4096)).length).toBe(4096);
+  });
+
+  it('refuses a sheet that inflates past the per-part cap', async () => {
+    // A few KB of deflate that would expand to more than MAX_PART_BYTES.
+    const bomb = await deflate(new Uint8Array(MAX_PART_BYTES + 1));
+    await expect(readWorkbook(zip([
+      stored('xl/workbook.xml', BOOK),
+      stored('xl/_rels/workbook.xml.rels', RELS),
+      { name: 'xl/worksheets/sheet1.xml', data: bomb, method: 8 },
+    ]))).rejects.toThrow(/too large/);
+  });
+
+  it('never inflates a part it does not read', async () => {
+    const bomb = await deflate(new Uint8Array(MAX_PART_BYTES + 1));
+    const book = await readWorkbook(zip([
+      stored('xl/workbook.xml', BOOK),
+      { name: 'xl/media/image1.png', data: bomb, method: 8 },
+    ]));
+    expect(book.sheets).toHaveLength(1);
+  });
+
+  it('refuses an entry whose size points past the end of the file', async () => {
+    await expect(readWorkbook(zip([
+      { ...stored('xl/workbook.xml', BOOK), claimedSize: 1_000_000 },
+    ]))).rejects.toThrow(/damaged/);
+  });
+
+  it('reads one huge relationship tag without a target in linear time', async () => {
+    // Was quadratic: 42 KB took 30 s.
+    // Every `Id="` is a fresh start for the old pattern, which then scanned the rest of the tag.
+    const rels = `<Relationships><Relationship ${'Id="x" '.repeat(30 * 1024)}/></Relationships>`;
+    expect(rels.length).toBeGreaterThan(200 * 1024);
+    const archive = zip([stored('xl/workbook.xml', BOOK), stored('xl/_rels/workbook.xml.rels', rels)]);
+    const started = performance.now();
+    const book = await readWorkbook(archive);
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(book.sheets[0].cells.size).toBe(0);
+  });
+
+  it('reads a sheet with an unclosed cell in linear time', async () => {
+    const sheet = `<sheetData><row>${'<c r="A1">'.repeat(110 * 1024)}</row></sheetData>`;
+    expect(sheet.length).toBeGreaterThan(1024 * 1024);
+    const archive = zip([
+      stored('xl/workbook.xml', BOOK),
+      stored('xl/_rels/workbook.xml.rels', RELS),
+      stored('xl/worksheets/sheet1.xml', sheet),
+    ]);
+    const started = performance.now();
+    await readWorkbook(archive);
+    expect(performance.now() - started).toBeLessThan(200);
   });
 });
