@@ -33,13 +33,15 @@ export const SAVE_GRIDS: Readonly<Record<string, SaveGrid>> = {
  * game's models and this app's artwork do not face the same way at 0.
  * Everything not listed is `SAVE_DEFAULT_TURN`.
  *
- * Measured: unloader (499 placed), sticker appliers (17), content inspection
- * diverter (11), the large rack (305, set by its footprint: it has no output).
+ * Measured: sticker appliers (17), content inspection diverter (11), the
+ * large rack (305, set by its footprint: it has no output). The unloader takes
+ * the default: turned 0 it also lines up, but pushes into its rack instead of
+ * pulling out of it, and its belt then leads nowhere (country diverters feed
+ * racks whose unloaders reach no door).
  * The medium and large racks are assumed to match it. The 3-way and T joiners
  * and the launcher were not in any save and take the default.
  */
 export const SAVE_TURNS: Readonly<Record<string, number>> = {
-  BP_ConveyorBelt_Unloader: 0,
   BP_ConveyorBelt_StickerApplier_Approve: 0,
   BP_ConveyorBelt_StickerApplier_Deny: 0,
   BP_ConveyorBelt_Splitter_2Way: 0,
