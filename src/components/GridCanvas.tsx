@@ -294,6 +294,17 @@ export default function GridCanvas() {
   const [doorMenu, setDoorMenu] = useState<{ door: Door; at: { x: number; y: number } } | null>(null);
   // The country door whose bay is under the pointer: lit up, with a hand cursor.
   const [overDoor, setOverDoor] = useState<string | null>(null);
+  // Whether a mouse or trackpad can click a door. Touch is view-only (see the touch effect
+  // below), so on a phone the doors carry no drop-down chip that a tap would not open.
+  const [finePointer, setFinePointer] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia?.('(hover: hover) and (pointer: fine)');
+    if (!query) return;
+    const update = () => setFinePointer(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   // The keyboard cursor: UI state only, never in the plan or the undo history.
   // It keeps its cell while hidden, so focus coming back resumes where it was.
   const [cursor, setCursor] = useState<Cell | null>(null);
@@ -582,7 +593,7 @@ export default function GridCanvas() {
         floor, highlight, selectedIds,
         geometry: WAREHOUSES, unlocked,
         shapes, shapeDivisor: SHAPE_DIVISOR,
-        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, hoveredDoorId: overDoor ?? undefined, doorChips: true, parcelIcon: PARCEL_ICON,
+        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, hoveredDoorId: overDoor ?? undefined, doorChips: finePointer, parcelIcon: PARCEL_ICON,
         notes: plan.notes,
         doors: DOORS, marquee: marquee ?? area,
         cursor: showCursor ? cursor : null,
@@ -598,7 +609,7 @@ export default function GridCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getImage is a
     // closure over a ref; imageTick is the deliberate "icon loaded, redraw"
     // trigger and must stay though it is unread.
-  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, overDoor, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
+  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, overDoor, finePointer, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
 
   // A box describes cells on one floor of one building; see `area`.
   useEffect(() => setArea(null), [floor, plan.warehouse]);

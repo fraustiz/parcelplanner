@@ -14,7 +14,9 @@ import { useDialog } from './use-dialog';
 const MENU_W = 200;
 const MENU_H = 440;
 
-const ROW = 'flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-[var(--tint-accent)] focus-visible:bg-[var(--tint-accent)]';
+// Hover and focus share a tint; the focus also gets the accent outline, since the tint alone is
+// too close to the panel to find while moving with the arrow keys. Pressed is the warm tint.
+const ROW = 'flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-[var(--tint-accent)] focus-visible:bg-[var(--tint-accent)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] active:bg-[var(--tint-warm)]';
 
 /**
  * The country of one country door, picked on the plan: opened by clicking the door's bay

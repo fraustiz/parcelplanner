@@ -543,8 +543,13 @@ function drawPickChip(ctx: Draw2D, field: { x: number; y: number; w: number; h: 
   const x = field.x + field.w - w - inset;
   const y = field.y + inset;
   const r = h * 0.3;
+  const outline = `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
   ctx.fillStyle = colours.doorChip;
-  ctx.fillPath(`M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`);
+  ctx.fillPath(outline);
+  // White on the exit green is under 3:1, so a dark edge keeps the chip's shape readable.
+  ctx.strokeStyle = colours.doorGlyph;
+  ctx.lineWidth = 1;
+  ctx.strokePath(outline);
   const cx = x + w / 2;
   const cy = y + h / 2;
   const c = h * 0.22;
