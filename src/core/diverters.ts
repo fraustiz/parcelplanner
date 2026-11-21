@@ -1,6 +1,6 @@
 import type { ResolvedPort } from './graph';
-import { SIDE_STEP } from './grid';
-import type { CargoChoice, DiverterSides, Placement } from './types';
+import { placedPort, portCell, rotatedFootprint, SIDE_STEP } from './grid';
+import type { CargoChoice, CatalogEntry, Cell, DiverterSides, Placement, Side } from './types';
 
 /**
  * The two diverters the player sets up in the game, read from their
@@ -30,7 +30,10 @@ export type Way = 'left' | 'forward' | 'right';
  * from, counted from the entry, and its way in the direction parcels travel.
  * `entry` is the diverter's in port, `out` the exit's out port.
  */
-export function exitWay(entry: ResolvedPort | undefined, out: ResolvedPort): { cell: number; way: Way } {
+export function exitWay(
+  entry: Pick<ResolvedPort, 'cell' | 'side'> | undefined,
+  out: Pick<ResolvedPort, 'cell' | 'side'>,
+): { cell: number; way: Way } {
   // Parcels travel away from the side they come in by.
   const inward = entry === undefined ? { dx: 0, dy: -1 } : SIDE_STEP[entry.side];
   const travel = { dx: -inward.dx, dy: -inward.dy };
@@ -45,6 +48,36 @@ export function exitWay(entry: ResolvedPort | undefined, out: ResolvedPort): { c
 
 /** Cells a country diverter is long, so how many pairs of screens it has. */
 export const COUNTRY_DIVERTER_CELLS = 3;
+
+/**
+ * Where each screen of a country diverter that is set to a country stands on
+ * the grid: the cell, the side it looks out of, and the country. Ports are
+ * placed as the flow graph places them, and read through `exitWay`, so the
+ * flag drawn on a side is the one the parcel preview sorts by.
+ */
+export function countryScreens(
+  placement: Placement,
+  entry: CatalogEntry,
+): { cell: Cell; side: Side; country: string }[] {
+  if (placement.objectId !== COUNTRY_DIVERTER || !placement.diverterCountries) return [];
+  const { w, h } = rotatedFootprint(entry.footprint, placement.rotation);
+  const place = (port: { side: Side; offset: number }) => {
+    const { side, offset } = placedPort(port, placement.rotation, placement.mirrored ?? false, entry.footprint);
+    return { side, cell: portCell(placement.cell, side, offset, w, h) };
+  };
+  const inPort = entry.ports.find((port) => port.dir === 'in');
+  const way = inPort === undefined ? undefined : place(inPort);
+  const screens: { cell: Cell; side: Side; country: string }[] = [];
+  for (const port of entry.ports) {
+    if (port.dir !== 'out') continue;
+    const out = place(port);
+    const at = exitWay(way, out);
+    if (at.way === 'forward') continue;
+    const country = placement.diverterCountries[at.cell]?.[at.way];
+    if (country !== undefined) screens.push({ cell: out.cell, side: out.side, country });
+  }
+  return screens;
+}
 
 /**
  * The exits a parcel with `country` and `cargo` may take at `placement`, as

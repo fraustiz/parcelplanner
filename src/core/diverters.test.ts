@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARGO_DIVERTER, cleanDiverterSettings, COUNTRY_DIVERTER, diverterChoice, exitWay, type Way } from './diverters';
+import { CARGO_DIVERTER, cleanDiverterSettings, COUNTRY_DIVERTER, countryScreens, diverterChoice, exitWay, type Way } from './diverters';
 import { buildGraph } from './graph';
 import { getCatalogue } from '@/data/catalogue';
 import { decodePlan, encodePlan, planFromJson, planToJson } from './serialize';
@@ -142,5 +142,41 @@ describe("where a real country diverter's exits sit", () => {
     const up = { placementId: 'd', cell: { x: 0, y: 1 }, floor: 0, side: 'N' as const, dir: 'in' as const, targetFloor: 0 };
     const east = { ...up, cell: { x: 0, y: 0 }, side: 'E' as const, dir: 'out' as const };
     expect(exitWay(up, east)).toEqual({ cell: 1, way: 'right' });
+  });
+});
+
+describe('where a country diverter shows its flags', () => {
+  const entry = getCatalogue().get(COUNTRY_DIVERTER)!;
+  const plan = (placement: Placement): Plan => ({ gameVersion: 'test', warehouse: 'second', placements: [placement] });
+
+  /** The exit a parcel for `country` actually takes, as the sim resolves it: its out port's cell and side. */
+  const sortedTo = (placement: Placement, country: string) => {
+    const ports = buildGraph(plan(placement), getCatalogue(), []).ports;
+    const inPort = ports.find((port) => port.dir === 'in');
+    const outs = ports.filter((port) => port.dir === 'out');
+    const choice = diverterChoice(placement, outs.map((out) => exitWay(inPort, out)), { country, cargo: 'Road' })!;
+    const out = outs[choice.wanted[0]!]!;
+    return { cell: out.cell, side: out.side };
+  };
+
+  it('puts each flag on the side a parcel for that country leaves by, however it is turned', () => {
+    for (const rotation of [0, 90, 180, 270] as const) {
+      for (const mirrored of [false, true]) {
+        const diverter = place(COUNTRY_DIVERTER, {
+          cell: { x: 10, y: 10 }, rotation, mirrored,
+          diverterCountries: [{ left: 'Cristin' }, { right: 'Molland' }, { left: 'Vocua', right: 'Ligbal' }],
+        });
+        const screens = countryScreens(diverter, entry);
+        expect(screens).toHaveLength(4);
+        for (const screen of screens) {
+          expect({ cell: screen.cell, side: screen.side }).toEqual(sortedTo(diverter, screen.country));
+        }
+      }
+    }
+  });
+
+  it('shows nothing for screens left unset, or on any other object', () => {
+    expect(countryScreens(place(COUNTRY_DIVERTER), entry)).toEqual([]);
+    expect(countryScreens(place(CARGO_DIVERTER, { diverterCountries: [{ left: 'Cristin' }] }), entry)).toEqual([]);
   });
 });
