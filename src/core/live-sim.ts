@@ -54,10 +54,15 @@ export interface SimState {
   truckLeft: Record<string, number>;
   /** Each smart splitter's next way to try, as an index into its branches. */
   turn: Record<string, number>;
+  /**
+   * Each export door's truck, by door node: parcels in it, and until when the
+   * door is shut while a full truck leaves. A door not listed is open and empty.
+   */
+  exports: Record<string, { load: number; shutUntil: number }>;
 }
 
 export const EMPTY_SIM: SimState = {
-  now: 0, parcels: [], delivered: 0, misSorted: 0, fell: 0, racks: {}, nextRelease: {}, truckLeft: {}, turn: {},
+  now: 0, parcels: [], delivered: 0, misSorted: 0, fell: 0, racks: {}, nextRelease: {}, truckLeft: {}, turn: {}, exports: {},
 };
 
 /** Where parcels come in: a delivery door, or an unloader emptying a rack. */
@@ -106,6 +111,14 @@ export interface SimContext {
   stopSeconds: (cell: RouteStep) => number;
   /** Whether a pauser at `node` is holding parcels back. */
   isClosed: (node: string) => boolean;
+  /**
+   * Export doors fill a truck (see EXPORT_TRUCK_PARCELS): once it holds
+   * `parcels`, parcels for that door wait on the belt. With `automatic`
+   * (the Automatic Exports upgrade) the truck leaves at once and the door is
+   * shut for `shutSeconds`; without it the door stays full, as in the game
+   * until the player presses its button. Absent: doors take everything.
+   */
+  exportTrucks?: { parcels: number; shutSeconds: number; automatic: boolean };
   unloadSeconds: number;
   retrySeconds: number;
   /** A ceiling on parcels alive at once, so a pathological layout cannot grow without bound. */
@@ -169,7 +182,28 @@ export function stepSim(state: SimState, ctx: SimContext, dt: number): SimState 
   const turn = { ...state.turn };
   const nextRelease = { ...state.nextRelease };
   const truckLeft = { ...state.truckLeft };
+  const exports = { ...(state.exports ?? {}) };
   let { delivered, misSorted, fell } = state;
+  // A door whose truck has left and reopened takes parcels again, from empty.
+  for (const [door, truck] of Object.entries(exports)) {
+    if (truck.shutUntil > 0 && truck.shutUntil <= now) exports[door] = { load: 0, shutUntil: 0 };
+  }
+  /** Whether the export door `door` takes a parcel now: open, with room in its truck. */
+  const doorTakes = (door: string): boolean => {
+    const trucks = ctx.exportTrucks;
+    if (trucks === undefined) return true;
+    const truck = exports[door] ?? { load: 0, shutUntil: 0 };
+    return truck.shutUntil <= now && truck.load < trucks.parcels;
+  };
+  /** Puts a parcel in `door`'s truck, and sends the truck off when that fills it. */
+  const loadDoor = (door: string): void => {
+    const trucks = ctx.exportTrucks;
+    if (trucks === undefined) return;
+    const load = (exports[door]?.load ?? 0) + 1;
+    exports[door] = load >= trucks.parcels && trucks.automatic
+      ? { load, shutUntil: now + trucks.shutSeconds }
+      : { load, shutUntil: 0 };
+  };
 
   // Splitters decide first, on what stands where right now.
   const taken = new Set(state.parcels.map(slotOf));
@@ -191,9 +225,12 @@ export function stepSim(state: SimState, ctx: SimContext, dt: number): SimState 
   for (const p of live) {
     const atEnd = p.index >= p.cells.length - 1 && p.wrapTo === undefined;
     if (atEnd && p.due <= now) {
-      if (p.ending === 'delivered') {
+      if (p.ending === 'delivered' && (p.endsAt === undefined || doorTakes(p.endsAt))) {
         delivered++;
-        if (p.endsAt !== undefined && ctx.misSorted(p.endsAt, p.labels)) misSorted++;
+        if (p.endsAt !== undefined) {
+          loadDoor(p.endsAt);
+          if (ctx.misSorted(p.endsAt, p.labels)) misSorted++;
+        }
         continue;
       }
       if (p.ending === 'stored' && p.endsAt !== undefined) {
@@ -281,5 +318,6 @@ export function stepSim(state: SimState, ctx: SimContext, dt: number): SimState 
     nextRelease,
     truckLeft,
     turn,
+    exports,
   };
 }

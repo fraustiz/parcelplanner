@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { ALL_UNLOCKED, type Criterion } from '@/core/parcel-labels';
-import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { DOOR_TIMER_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 
 /** What the parcel preview has counted since play was pressed. */
 export interface SimStats {
@@ -30,6 +30,10 @@ export interface SimSettings {
   sizeLevel: number;
   /** Delivery Speed level, 0-based into DOOR_TIMER_SECONDS. */
   speedLevel: number;
+  /** Export Size level, 0-based into EXPORT_TRUCK_PARCELS. */
+  exportLevel: number;
+  /** The Automatic Exports upgrade: a full export truck leaves on its own. */
+  automaticExports: boolean;
   unlocked: ReadonlySet<Criterion>;
 }
 
@@ -37,6 +41,8 @@ export interface SimSettings {
 export const DEFAULT_SIM_SETTINGS: SimSettings = {
   sizeLevel: PARCELS_PER_TRUCK.length - 1,
   speedLevel: DOOR_TIMER_SECONDS.length - 1,
+  exportLevel: EXPORT_TRUCK_PARCELS.length - 1,
+  automaticExports: true,
   unlocked: ALL_UNLOCKED,
 };
 

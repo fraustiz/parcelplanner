@@ -17,6 +17,22 @@ export const PARCELS_PER_TRUCK: readonly number[] = [3, 5, 7];
 /** Seconds on the door's timer between trucks, by Delivery Speed level (`MaxTier` 3). */
 export const DOOR_TIMER_SECONDS: readonly number[] = [40, 30, 20, 10];
 
+/**
+ * Parcels an export truck holds, by Export Size level (`AC_MoneyManager.GetUpgradeExportSize`:
+ * 8, 12, 16). Once a door holds that many, the game pauses the belts into it
+ * (`BP_ExportManagerRoot.Handle Max Capacity Reached`) until the truck leaves.
+ */
+export const EXPORT_TRUCK_PARCELS: readonly number[] = [8, 12, 16];
+
+/**
+ * Seconds an export door stays shut once its truck is sent: `PaymentDelay` (3) before the
+ * parcels are paid and taken, then `DoorReopenDelay` (8) before it opens on an empty truck
+ * (`BP_ExportManagerRoot`, no door of the level overrides them). The truck is sent by the
+ * export button, which the Automatic Exports upgrade presses as soon as the truck is full
+ * (`WBP_SubmissionsScreen.UpdateCountsFromExportDoorCapacity`).
+ */
+export const EXPORT_DOOR_SHUT_SECONDS = 3 + 8;
+
 /** Seconds a working day lasts for deliveries: 9:00 to 17:00 at one game minute a second. */
 const WORKING_DAY_SECONDS = 480;
 

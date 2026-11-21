@@ -18,7 +18,7 @@ import type { CatalogEntry, Cell, Door, Placement, Rotation } from '@/core/types
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
 import { countryDoorAt, countryDoorNear, countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
-import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { DOOR_TIMER_SECONDS, EXPORT_DOOR_SHUT_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
 import { STAIRS } from '@/data/stairs';
@@ -1110,6 +1110,11 @@ export default function GridCanvas() {
         if (here === undefined || !PAUSERS.has(here.objectId)) return false;
         return !isPauserOpen(useSimStats.getState().pausers, node, here.objectId);
       },
+      exportTrucks: {
+        parcels: EXPORT_TRUCK_PARCELS[simSettings.exportLevel] ?? EXPORT_TRUCK_PARCELS[0]!,
+        shutSeconds: EXPORT_DOOR_SHUT_SECONDS,
+        automatic: simSettings.automaticExports,
+      },
       unloadSeconds: UNLOAD_SECONDS,
       retrySeconds: SPLITTER_RETRY_SECONDS,
       maxParcels: MAX_PARCELS,
@@ -1133,8 +1138,17 @@ export default function GridCanvas() {
         to: { x: Math.max(...xs), y: Math.max(...ys) },
         text: `${held}/${holds}`,
       }];
-    });
-  }, [sim.racks, sim.parcels.length, simLayout, catalogue, floor]);
+    }).concat(
+      // Each export door's truck: how full, or how long it stays shut.
+      DOORS.filter((d) => d.warehouse === plan.warehouse && d.floor === floor && sim.exports[doorNodeId(d)] !== undefined)
+        .map((d) => {
+          const truck = sim.exports[doorNodeId(d)]!;
+          const shut = truck.shutUntil > sim.now;
+          const holds = EXPORT_TRUCK_PARCELS[simSettings.exportLevel] ?? EXPORT_TRUCK_PARCELS[0]!;
+          return { from: d.cell, to: d.cell, text: shut ? `${Math.ceil(truck.shutUntil - sim.now)} s` : `${truck.load}/${holds}` };
+        }),
+    );
+  }, [sim.racks, sim.parcels.length, sim.exports, sim.now, simLayout, catalogue, floor, plan.warehouse, simSettings.exportLevel]);
   rackFillRef.current = rackFillNow;
 
   /** One step of the preview, TICK_SECONDS of game time. */
