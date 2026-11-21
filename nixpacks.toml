@@ -1,6 +1,10 @@
 # Node 22.23.4 : corrige la faille Brotli (CVE-2026-111497). Le nixpkgs par défaut de Nixpacks
 # fournit Node 24.10.0, et aucune branche de nixpkgs n'a encore 24.22.1 (2026-10-25) : repasser en
 # 24 quand elle y sera.
+# Node seulement : scripts/game-extract contient un .csproj (outil manuel de dev) ; sans cette
+# ligne, Nixpacks détecte .NET et lance `dotnet restore`, qui échoue.
+providers = ["node"]
+
 [variables]
 NIXPACKS_NODE_VERSION = "22"
 
