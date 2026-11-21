@@ -14,6 +14,14 @@ const DEFAULT_PLACEMENT_WAREHOUSE = 'main';
 /** Beyond this, share by file download instead of a URL fragment. */
 export const MAX_FRAGMENT_LENGTH = 8000;
 
+/**
+ * The most a shared plan may inflate to. Deflate expands up to about 1000:1, so 8000 characters
+ * could otherwise decode to a million placements and exhaust the server drawing their preview.
+ * Measured on 2026-11-21: every cell of all three buildings filled inflates to 57 599 bytes, and
+ * the old text format's largest link to 184 442; this is four times the first, to a power of two.
+ */
+export const MAX_DECODED_BYTES = 262_144;
+
 export function planToJson(plan: Plan): string {
   return JSON.stringify(plan);
 }
@@ -143,6 +151,33 @@ const fromBase64Url = (text: string): Uint8Array<ArrayBuffer> => {
 async function through(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
   const buffer = await new Response(stream).arrayBuffer();
   return new Uint8Array(buffer);
+}
+
+/** Like `through`, but stops inflating once the output passes `maxBytes`, so a small hostile
+ * payload never gets to expand in memory. */
+async function throughCapped(
+  stream: ReadableStream<Uint8Array>, maxBytes: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error('plan too large');
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return bytes;
 }
 
 const SHARE_VERSION = 2;
@@ -663,7 +698,7 @@ export async function encodePlan(plan: Plan): Promise<string> {
 
 export async function decodePlan(encoded: string): Promise<Plan> {
   const source = new Blob([fromBase64Url(encoded)]).stream();
-  const bytes = await through(source.pipeThrough(new DecompressionStream('deflate-raw')));
+  const bytes = await throughCapped(source.pipeThrough(new DecompressionStream('deflate-raw')), MAX_DECODED_BYTES);
 
   if (bytes[0] === SHARE_VERSION_BINARY) return unpackPlanBinary(bytes);
 
