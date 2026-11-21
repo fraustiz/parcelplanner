@@ -95,6 +95,25 @@ describe('receiving a suggestion', () => {
   });
 });
 
+describe('suggestions from another site', () => {
+  it('refuses a post another site’s page sent, and files nothing', async () => {
+    const response = await handleSuggestion(
+      post('Add a dark mode', { origin: 'https://evil.example' }),
+      { book, limiter: open() },
+    );
+    expect(response.status).toBe(403);
+    expect(await stored()).toEqual([]);
+  });
+
+  it('accepts the same post from this app’s own page', async () => {
+    const response = await handleSuggestion(
+      post('Add a dark mode', { origin: 'http://localhost' }),
+      { book, limiter: open() },
+    );
+    expect(response.status).toBe(200);
+  });
+});
+
 describe('forwarding a suggestion to Discord', () => {
   const webhook = 'https://discord.com/api/webhooks/test';
 

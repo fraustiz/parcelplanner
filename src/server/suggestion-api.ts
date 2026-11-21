@@ -1,6 +1,7 @@
 import { cleanSuggestion, MAX_SUGGESTION_LENGTH } from '@/core/suggestion';
 import { readTextCapped } from './body';
 import { callerOf } from './caller';
+import { isCrossSite } from './same-origin';
 import { isAdminKey } from './admin';
 import { SuggestionBookFull, type SuggestionBook } from './suggestion-store';
 import type { createRateLimiter } from './rate-limit';
@@ -28,6 +29,11 @@ export async function handleSuggestion(
       status: 429,
       headers: { 'retry-after': '60' },
     });
+  }
+
+  // A text/plain POST needs no preflight, so another site's page could post through its visitors.
+  if (isCrossSite(request)) {
+    return new Response('cross-site requests are not accepted', { status: 403 });
   }
 
   // Capped while reading, so a chunked body with no declared length cannot be buffered whole.
@@ -69,8 +75,9 @@ export async function handleSuggestion(
 /**
  * Marks a suggestion as dealt with, which removes it.
  *
- * A plain form POST, so the page needs no JavaScript. The key travels in the form body, not the
- * query string, so it does not enter the history. Answers 404 without the key, like the page.
+ * A plain form POST, so the page needs no JavaScript. The key travels in the form body, so the
+ * submission's own URL does not carry it; the 303 back to the page puts it in the URL again, like
+ * the first visit. Answers 404 without the key, like the page.
  */
 export async function handleSuggestionDone(
   request: Request,

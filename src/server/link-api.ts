@@ -1,6 +1,7 @@
 import { isFragmentPayload } from '@/core/short-link';
 import { readTextCapped } from './body';
 import { callerOf } from './caller';
+import { isCrossSite } from './same-origin';
 import { MAX_FRAGMENT_LENGTH } from '@/core/serialize';
 import { LinkStoreFull, type LinkStore } from './link-store';
 import type { createRateLimiter } from './rate-limit';
@@ -22,6 +23,11 @@ export async function handleShare(
       status: 429,
       headers: { 'retry-after': '60' },
     });
+  }
+
+  // A text/plain POST needs no preflight, so another site's page could post through its visitors.
+  if (isCrossSite(request)) {
+    return new Response('cross-site requests are not accepted', { status: 403 });
   }
 
   // Capped while reading, so a chunked body with no declared length cannot be buffered whole.

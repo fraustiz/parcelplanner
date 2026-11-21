@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MAX_FRAGMENT_LENGTH } from '@/core/serialize';
@@ -103,6 +103,25 @@ describe('sharing a plan to the server', () => {
     const spoofB = { 'x-forwarded-for': '6.6.6.2, 9.9.9.9' };
     expect((await handleShare(post('AAAA', spoofA), { store, limiter })).status).toBe(200);
     expect((await handleShare(post('BBBB', spoofB), { store, limiter })).status).toBe(429);
+  });
+});
+
+describe('sharing from another site', () => {
+  it('refuses a post another site’s page sent, and stores nothing', async () => {
+    const response = await handleShare(
+      post('AwHVAQIDBAU', { 'sec-fetch-site': 'cross-site' }),
+      { store, limiter: open() },
+    );
+    expect(response.status).toBe(403);
+    expect(await readdir(directory, { recursive: true })).toEqual([]);
+  });
+
+  it('accepts the same post from this app’s own page', async () => {
+    const response = await handleShare(
+      post('AwHVAQIDBAU', { 'sec-fetch-site': 'same-origin' }),
+      { store, limiter: open() },
+    );
+    expect(response.status).toBe(200);
   });
 });
 
