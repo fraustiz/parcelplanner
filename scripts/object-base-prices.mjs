@@ -6,9 +6,4 @@
  * agree. Remove an entry once a re-extraction carries it; `catalogue.test.ts`
  * fails when an override equals the raw data.
  */
-export const OBJECT_BASE_PRICES = {
-  // Dev patch notes, 2026-07-30: "Reduced the tier you unlock Auto Pauser
-  // Conveyors to Tier 15, and reduced their price to $30k". The extraction
-  // still carries the old 50000.
-  BP_ConveyorBelt_AutoPauser: 30000,
-};
+export const OBJECT_BASE_PRICES = {};

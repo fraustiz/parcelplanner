@@ -9,8 +9,9 @@ import type { Cell } from './types';
  * moves up in one step, as a belt does. Pure: returns new indexes.
  */
 export interface MovingParcel {
-  /** The cells this parcel follows, in order. */
-  cells: readonly Cell[];
+  /** The cells this parcel follows, in order. A cell with a `slot` is told
+   * apart by it instead of its position (see RouteStep in simulate.ts). */
+  cells: readonly (Cell & { slot?: string })[];
   /** Where it is now, as an index into `cells`. */
   index: number;
   /**
@@ -18,13 +19,22 @@ export interface MovingParcel {
    * instead of stopping there.
    */
   wrapTo?: number;
+  /** How long it has already waited, in any unit. At a merge the longer wait
+   * goes first, so neither arm of a joiner is starved. */
+  heldFor?: number;
 }
 
-const key = (cell: Cell): string => `${cell.x},${cell.y}`;
+const key = (cell: Cell & { slot?: string }): string => cell.slot ?? `${cell.x},${cell.y}`;
 
-export function advanceOneCell(parcels: readonly MovingParcel[]): number[] {
-  const next = parcels.map((p) => (
-    p.index < p.cells.length - 1 ? p.index + 1 : p.wrapTo ?? p.index
+/**
+ * `ready` says which parcels may move this step; one that may not keeps its
+ * cell, and blocks the queue behind it like any parcel standing still. All
+ * may move when it is left out.
+ */
+export function advanceOneCell(parcels: readonly MovingParcel[], ready?: readonly boolean[]): number[] {
+  const next = parcels.map((p, i) => (
+    ready !== undefined && !ready[i] ? p.index
+      : p.index < p.cells.length - 1 ? p.index + 1 : p.wrapTo ?? p.index
   ));
 
   // Then take moves away until consistent. Repeated because blocking travels
@@ -42,9 +52,14 @@ export function advanceOneCell(parcels: readonly MovingParcel[]): number[] {
         continue;
       }
       // Two parcels want the same cell: the one standing on it keeps it (so a
-      // parked parcel holds a crossing). Otherwise the earlier one in the list
-      // wins; the caller decides the order.
-      const stays = parcels[already]!.index === next[already] ? already : i;
+      // parked parcel holds a crossing). Otherwise the one that has waited
+      // longer goes, so a merge takes from each arm in turn; on a tie the
+      // later one in the list, as before.
+      const standing = (k: number) => parcels[k]!.index === next[k];
+      const waited = (k: number) => parcels[k]!.heldFor ?? 0;
+      const stays = standing(already) ? already
+        : standing(i) ? i
+          : waited(already) > waited(i) ? already : i;
       const gives = stays === already ? i : already;
       taken.set(at, stays);
       if (next[gives] !== parcels[gives]!.index) {

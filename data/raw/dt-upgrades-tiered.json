@@ -100,6 +100,28 @@
           "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/upgrade-export-size.0"
         }
       },
+      "StorageRackSigns": {
+        "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator8",
+        "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 1,
+        "DisplayName_10_9A30F1E143C7A7223482728B194ADF5A": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeStorageRackSigns",
+          "SourceString": "Storage Rack Signs",
+          "LocalizedString": "Storage Rack Signs"
+        },
+        "DisplayDescription_12_1166DB1E4BE9EC7B1B0B49A28B2A84AD": {
+          "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Purchasables.STBL_Purchasables",
+          "Key": "UpgradeStorageRackSignsDescription",
+          "SourceString": "Adds signs to storage racks.",
+          "LocalizedString": "Adds signs to storage racks."
+        },
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 8,
+        "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 1500,
+        "Image_22_FDB69F5346302E51E35D32847B966EA6": {
+          "ObjectName": "Texture2D'storage-rack-signs-upgrade-image'",
+          "ObjectPath": "/Game/Core/Assets/Images/ui/Dashboard/Upgrades/storage-rack-signs-upgrade-image.0"
+        }
+      },
       "AutomaticExports": {
         "Upgrade_3_5EED6CC442DADD338B8E9487A5D01491": "E_TieredUpgrade::NewEnumerator2",
         "MaxTier_6_6C69ACDE428F2A875661DF8F379F3362": 1,
@@ -137,7 +159,7 @@
           "SourceString": "Allows conveyors to be placed directly while holding a pallet.",
           "LocalizedString": "Allows conveyors to be placed directly while holding a pallet."
         },
-        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 13,
+        "BaseRequiredWarehouseTier_16_9EDC3996428CDDF50EB5DDB19E9723D6": 11,
         "BasePrice_19_3CED8FA64F18AB8D7558EFB2898402E9": 5000,
         "Image_22_FDB69F5346302E51E35D32847B966EA6": {
           "ObjectName": "Texture2D'upgrade-image-pallet-build-mode'",

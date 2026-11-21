@@ -17,7 +17,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Cristin",
-          "SourceString": "France",
+          "SourceString": "Cristin",
           "LocalizedString": "Cristin"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -40,7 +40,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Impland",
-          "SourceString": "États-Unis",
+          "SourceString": "Impland",
           "LocalizedString": "Impland"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -63,7 +63,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Jonathia",
-          "SourceString": "Chine",
+          "SourceString": "Jonathia",
           "LocalizedString": "Jonathia"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -86,7 +86,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Kongradi",
-          "SourceString": "Russie",
+          "SourceString": "Kongradi",
           "LocalizedString": "Kongradi"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -109,7 +109,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Ligbal",
-          "SourceString": "Japon",
+          "SourceString": "Ligbal",
           "LocalizedString": "Ligbal"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -132,7 +132,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Mahteen",
-          "SourceString": "Allemagne",
+          "SourceString": "Mahteen",
           "LocalizedString": "Mahteen"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -155,7 +155,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Molland",
-          "SourceString": "Royaume-Uni",
+          "SourceString": "Molland",
           "LocalizedString": "Molland"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -178,7 +178,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Pruania",
-          "SourceString": "Italie",
+          "SourceString": "Pruania",
           "LocalizedString": "Pruania"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -201,7 +201,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Sowport",
-          "SourceString": "Inde",
+          "SourceString": "Sowport",
           "LocalizedString": "Sowport"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -224,7 +224,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Strentom",
-          "SourceString": "Brésil",
+          "SourceString": "Strentom",
           "LocalizedString": "Strentom"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -247,7 +247,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Vocua",
-          "SourceString": "Canada",
+          "SourceString": "Vocua",
           "LocalizedString": "Vocua"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {
@@ -270,7 +270,7 @@
         "Description_11_A1269A9A4999008F6BC5838A7D49DD8B": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_CN_ONLY_Countries.STBL_CN_ONLY_Countries",
           "Key": "CountryName_Yatdanica",
-          "SourceString": "Australie",
+          "SourceString": "Yatdanica",
           "LocalizedString": "Yatdanica"
         },
         "Flag_13_4346AE324B9F7D60B8866E97AE55450E": {

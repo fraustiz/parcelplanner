@@ -264,8 +264,19 @@
         "inheritsFrom":  null
     },
     {
-        "id":  "BP_ConveyorBelt_Splitter",
+        "id":  "BP_ConveyorBelt_Joiner_2WayT",
         "shopOrder":  25,
+        "assetPath":  "/Game/Core/Blueprints/Actors/ConveyorBelt/Joiner/BP_ConveyorBelt_Joiner_2WayT",
+        "displayName":  "T-Joiner Conveyor",
+        "description":  "Joins two conveyor belts into one.",
+        "price":  650,
+        "upgradePrice":  null,
+        "speed":  null,
+        "inheritsFrom":  null
+    },
+    {
+        "id":  "BP_ConveyorBelt_Splitter",
+        "shopOrder":  26,
         "assetPath":  "/Game/Core/Blueprints/Actors/ConveyorBelt/Splitter/BP_ConveyorBelt_Splitter",
         "displayName":  "Smart Splitter Conveyor",
         "description":  "Splits parcels into three streams. Prioritises empty routes.",
@@ -276,7 +287,7 @@
     },
     {
         "id":  "BP_ConveyorBelt_Launcher",
-        "shopOrder":  26,
+        "shopOrder":  27,
         "assetPath":  "/Game/Core/Blueprints/Actors/ConveyorBelt/Launcher/BP_ConveyorBelt_Launcher",
         "displayName":  "Launcher Conveyor",
         "description":  "Launches parcels.",
@@ -287,7 +298,7 @@
     },
     {
         "id":  "BP_ConveyorBelt_CountryDiverter2",
-        "shopOrder":  27,
+        "shopOrder":  28,
         "assetPath":  "/Game/Core/Blueprints/Actors/ConveyorBelt/CountryDiverter/BP_ConveyorBelt_CountryDiverter2",
         "displayName":  "Country Diverter Conveyor",
         "description":  "Directs parcels to different exits based on country.",
@@ -298,7 +309,7 @@
     },
     {
         "id":  "BP_ConveyorBelt_Elevator",
-        "shopOrder":  28,
+        "shopOrder":  29,
         "assetPath":  "/Game/Core/Blueprints/Actors/ConveyorBelt/Chute/BP_ConveyorBelt_Elevator",
         "displayName":  "Vertical Elevator Conveyor",
         "description":  "Moves parcels vertically up or down to different warehouse levels.",
@@ -309,7 +320,7 @@
     },
     {
         "id":  "BP_ConveyorBelt_Speedway",
-        "shopOrder":  29,
+        "shopOrder":  30,
         "assetPath":  "/Game/Core/Blueprints/Actors/ConveyorBelt/Speedway/BP_ConveyorBelt_Speedway",
         "displayName":  "Speedway Conveyor",
         "description":  "A longer straight conveyor four times as fast a typical conveyor.",
@@ -320,18 +331,18 @@
     },
     {
         "id":  "BP_ConveyorBelt_AutoPauser",
-        "shopOrder":  30,
+        "shopOrder":  31,
         "assetPath":  "/Game/Core/Blueprints/Actors/ConveyorBelt/Pauser/AutoPauser/BP_ConveyorBelt_AutoPauser",
         "displayName":  "Auto Pauser Conveyor",
         "description":  "Automatically pauses and unpauses the flow of parcels on set days.",
-        "price":  50000,
+        "price":  30000,
         "upgradePrice":  null,
         "speed":  null,
         "inheritsFrom":  null
     },
     {
         "id":  "BP_Pallet",
-        "shopOrder":  31,
+        "shopOrder":  32,
         "assetPath":  "/Game/Core/Blueprints/Actors/Pallet/BP_Pallet",
         "displayName":  "Pallet (Small)",
         "description":  "Carry up to 6 parcels or shop deliveries at once.",
@@ -342,7 +353,7 @@
     },
     {
         "id":  "BP_PalletMedium",
-        "shopOrder":  32,
+        "shopOrder":  33,
         "assetPath":  "/Game/Core/Blueprints/Actors/Pallet/PalletMedium/BP_PalletMedium",
         "displayName":  "Pallet (Medium)",
         "description":  "Carry up to 12 parcels or shop deliveries at once.",
@@ -353,7 +364,7 @@
     },
     {
         "id":  "BP_PalletLarge",
-        "shopOrder":  33,
+        "shopOrder":  34,
         "assetPath":  "/Game/Core/Blueprints/Actors/Pallet/PalletLarge/BP_PalletLarge",
         "displayName":  "Pallet (Large)",
         "description":  "Carry up to 30 parcels or shop deliveries at once.",
@@ -364,7 +375,7 @@
     },
     {
         "id":  "BP_StorageRack_Medium",
-        "shopOrder":  34,
+        "shopOrder":  35,
         "assetPath":  "/Game/Core/Blueprints/Actors/Storage/Medium/BP_StorageRack_Medium",
         "displayName":  "Storage Rack (Small)",
         "description":  "Store up to 8 parcels at a time. Combine with conveyors to automate submission systems.",
@@ -375,7 +386,7 @@
     },
     {
         "id":  "BP_StorageRack_Large",
-        "shopOrder":  35,
+        "shopOrder":  36,
         "assetPath":  "/Game/Core/Blueprints/Actors/Storage/BP_StorageRack_Large",
         "displayName":  "Storage Rack (Medium)",
         "description":  "Store up to 12 parcels at a time. Combine with conveyors to automate submission systems.",
@@ -386,7 +397,7 @@
     },
     {
         "id":  "BP_StorageRack_ExtraLarge",
-        "shopOrder":  36,
+        "shopOrder":  37,
         "assetPath":  "/Game/Core/Blueprints/Actors/Storage/BP_StorageRack_ExtraLarge",
         "displayName":  "Storage Rack (Large)",
         "description":  "Store up to 16 parcels at a time. Combine with conveyors to automate submission systems.",
@@ -397,7 +408,7 @@
     },
     {
         "id":  "BP_Basketball",
-        "shopOrder":  37,
+        "shopOrder":  38,
         "assetPath":  "/Game/Core/Blueprints/Actors/Basketball/BP_Basketball",
         "displayName":  "Basketball",
         "description":  "Designed for dribbling, shooting, and passing on the court.",
@@ -408,7 +419,7 @@
     },
     {
         "id":  "BP_BasketballHoop",
-        "shopOrder":  38,
+        "shopOrder":  39,
         "assetPath":  "/Game/Core/Blueprints/Actors/Basketball/BP_BasketballHoop",
         "displayName":  "Basketball hoop",
         "description":  "Shoot some hoops.",
@@ -419,7 +430,7 @@
     },
     {
         "id":  "BP_DD_PlantA",
-        "shopOrder":  39,
+        "shopOrder":  40,
         "assetPath":  "/Game/Core/Blueprints/Actors/DeskDecoration/BP_DD_PlantA",
         "displayName":  "Decorative Plant",
         "description":  "Bring your warehouse to life.",
@@ -430,7 +441,7 @@
     },
     {
         "id":  "BP_DD_PlantB",
-        "shopOrder":  40,
+        "shopOrder":  41,
         "assetPath":  "/Game/Core/Blueprints/Actors/DeskDecoration/BP_DD_PlantB",
         "displayName":  "Decorative Plant",
         "description":  "Bring your warehouse to life.",
@@ -441,7 +452,7 @@
     },
     {
         "id":  "BP_DD_PlantC",
-        "shopOrder":  41,
+        "shopOrder":  42,
         "assetPath":  "/Game/Core/Blueprints/Actors/DeskDecoration/BP_DD_PlantC",
         "displayName":  "Decorative Plant",
         "description":  "Bring your warehouse to life.",
@@ -452,7 +463,7 @@
     },
     {
         "id":  "BP_DD_PlantD",
-        "shopOrder":  42,
+        "shopOrder":  43,
         "assetPath":  "/Game/Core/Blueprints/Actors/DeskDecoration/BP_DD_PlantD",
         "displayName":  "Decorative Plant",
         "description":  "Bring your warehouse to life.",
@@ -463,7 +474,7 @@
     },
     {
         "id":  "BP_Wallpaper_Frame",
-        "shopOrder":  43,
+        "shopOrder":  44,
         "assetPath":  "/Game/Core/Blueprints/Actors/SprayPaint/Wallpaper/Frame/BP_Wallpaper_Frame",
         "displayName":  "Wall Paint",
         "description":  "Paint internal or external warehouse walls (6 uses).",
@@ -474,7 +485,7 @@
     },
     {
         "id":  "BP_Wallpaper_Slate",
-        "shopOrder":  44,
+        "shopOrder":  45,
         "assetPath":  "/Game/Core/Blueprints/Actors/SprayPaint/Wallpaper/Slate/BP_Wallpaper_Slate",
         "displayName":  "Wall Paint",
         "description":  "Paint internal or external warehouse walls (6 uses).",
@@ -485,7 +496,7 @@
     },
     {
         "id":  "BP_ConveyorPaint",
-        "shopOrder":  45,
+        "shopOrder":  46,
         "assetPath":  "/Game/Core/Blueprints/Actors/SprayPaint/Wallpaper/BP_ConveyorPaint",
         "displayName":  "Conveyor Paint",
         "description":  "Paints up to 10 conveyors.",
@@ -496,7 +507,7 @@
     },
     {
         "id":  "BP_InspectTable_ColourG",
-        "shopOrder":  46,
+        "shopOrder":  47,
         "assetPath":  "/Game/Core/Blueprints/Actors/InspectTable/BP_InspectTable_ColourG",
         "displayName":  "Basic Wooden Inspection Table",
         "description":  "An inspection table.",
@@ -507,7 +518,7 @@
     },
     {
         "id":  "BP_InspectTable_ColourD",
-        "shopOrder":  47,
+        "shopOrder":  48,
         "assetPath":  "/Game/Core/Blueprints/Actors/InspectTable/BP_InspectTable_ColourD",
         "displayName":  "Dark Inspection Table",
         "description":  "An inspection table.",
@@ -518,7 +529,7 @@
     },
     {
         "id":  "BP_InspectTable_ColourE",
-        "shopOrder":  48,
+        "shopOrder":  49,
         "assetPath":  "/Game/Core/Blueprints/Actors/InspectTable/BP_InspectTable_ColourE",
         "displayName":  "Modern Inspection Table",
         "description":  "An inspection table.",
@@ -529,7 +540,7 @@
     },
     {
         "id":  "BP_InspectTable_ColourF",
-        "shopOrder":  49,
+        "shopOrder":  50,
         "assetPath":  "/Game/Core/Blueprints/Actors/InspectTable/BP_InspectTable_ColourF",
         "displayName":  "Rounded Inspection Table",
         "description":  "An inspection table.",
@@ -540,7 +551,7 @@
     },
     {
         "id":  "BP_Divider",
-        "shopOrder":  50,
+        "shopOrder":  51,
         "assetPath":  "/Game/Core/Blueprints/Actors/Divider/BP_Divider",
         "displayName":  "Divider",
         "description":  "A divider wall.",

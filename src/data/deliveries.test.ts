@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dailyIntakePerDoor, PARCELS_PER_TRUCK, trucksPerDay } from './deliveries';
+import { cargoShare, dailyIntakePerDoor, PARCELS_PER_TRUCK, trucksPerDay } from './deliveries';
 
 describe('what a delivery door brings in', () => {
   it('carries 3, 5 then 7 parcels a truck', () => {
@@ -52,6 +52,11 @@ describe('trucks a day, at every speed level', () => {
     expect(trucksPerDay(3)).toBe(26);
   });
 
+  it('counts no truck at 17:00 itself', () => {
+    // 480 s split by a 40 s gap would be 12, but the twelfth lands on 17:00, when the door is shut.
+    expect(trucksPerDay(0)).toBe(11);
+  });
+
   it('stops climbing once the floor is reached', () => {
     expect(trucksPerDay(9)).toBe(trucksPerDay(3));
   });
@@ -59,5 +64,30 @@ describe('trucks a day, at every speed level', () => {
   it("lands on the guide's own daily total", () => {
     // 5 doors x 26 openings x 7 parcels = 910 a day, the figure the community guide is built on.
     expect(5 * dailyIntakePerDoor(2, 3)).toBe(910);
+  });
+});
+
+describe("the game's cargo weighting", () => {
+  const percent = (tier: number) =>
+    Object.fromEntries([...cargoShare(tier)].map(([type, share]) => [type, Math.round(share * 1000) / 10]));
+
+  it('draws only Road and Rail before the first expansion', () => {
+    expect(percent(0)).toEqual({ Road: 50, Rail: 50, Air: 0, Maritime: 0 });
+  });
+
+  it('adds Air from tier 1 to tier 3', () => {
+    expect(percent(1)).toEqual({ Road: 40, Rail: 40, Air: 20, Maritime: 0 });
+    expect(percent(3)).toEqual(percent(1));
+  });
+
+  it('adds Maritime from tier 4', () => {
+    expect(percent(4)).toEqual({ Road: 36.4, Rail: 36.4, Air: 18.2, Maritime: 9.1 });
+    expect(percent(18)).toEqual(percent(4));
+  });
+
+  it('always sums to one', () => {
+    for (const tier of [0, 2, 9]) {
+      expect([...cargoShare(tier).values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+    }
   });
 });

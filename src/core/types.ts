@@ -31,6 +31,13 @@ export interface Port {
   dir: 'in' | 'out';
   /** Floor the port opens onto, relative to the placement. Default 0. */
   floorDelta?: number;
+  /**
+   * The piece can run the other way: when a belt feeds one of its `out`
+   * ports, every side a belt feeds takes parcels in and every other side
+   * sends them out (see buildGraph). A splitter then merges, a straight piece
+   * runs backwards. Set on every port of such a piece.
+   */
+  reversible?: boolean;
 }
 
 export interface CatalogEntry {
@@ -92,8 +99,27 @@ export interface Placement {
    * carry one. Absent means unnamed.
    */
   label?: string;
+  /**
+   * A country diverter's screens, as set in the game: for each of its three
+   * cells from the entry, the country sent off to the left and to the right
+   * (the game's country ids). Absent or unset means no country, so parcels
+   * carry straight on. See src/core/diverters.ts.
+   */
+  diverterCountries?: readonly DiverterSides<string>[];
+  /**
+   * A cargo type diverter's three screens: the cargo type sent left, straight
+   * on and right. Absent means "any", the game's default.
+   */
+  diverterCargo?: DiverterSides<CargoChoice> & { forward?: CargoChoice };
   tier: number;
 }
+
+/** What a diverter screen sends one way, for each side it has. */
+export interface DiverterSides<T> { left?: T; right?: T }
+
+/** A cargo diverter screen's setting: one cargo type, or every type no other
+ * screen of the same diverter takes. "Any" is the absence of a setting. */
+export type CargoChoice = 'Road' | 'Rail' | 'Air' | 'Maritime' | 'Other';
 
 /**
  * A note left on the grid. It belongs to the plan, so it survives a reload,
@@ -119,6 +145,13 @@ export interface Plan {
    * would grey out all but a 10x20 corner.
    */
   ownedTiers?: number[];
+  /**
+   * Which country each country export door of the second warehouse takes, by door id
+   * ('second-country-0-a') to the game's country id ('Cristin'), never a display name.
+   * The game deals them at random, so the player says. A door absent from the map is
+   * unassigned, and the field is absent when none is.
+   */
+  doorCountries?: Record<string, string>;
 }
 
 /**
@@ -143,7 +176,8 @@ export interface Door {
    * 'export': a permanent `in` port sorted by cargo type (see `cargoTypes`).
    * 'country-export': a permanent `in` port sorted by destination country. Kept
    * separate because an 'export' door with no cargo types is a reject bin. The
-   * country each one serves is unknown, so none is modelled.
+   * game deals each one its country at random, so the door itself names none; the
+   * player's assignment lives in `Plan.doorCountries`.
    */
   kind: 'delivery' | 'export' | 'country-export';
   /** Cargo types this 'export' door accepts; empty or absent means any (a

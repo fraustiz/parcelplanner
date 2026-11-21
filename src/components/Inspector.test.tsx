@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, screen } from '@testing-library/react';
 import Inspector from './Inspector';
 import { useEditor } from '@/store/editor';
+import { DEFAULT_SIM_SETTINGS, useSimStats } from '@/store/sim-stats';
 import { getCatalogue } from '@/data/catalogue';
 import type { Placement } from '@/core/types';
 
@@ -25,7 +26,10 @@ const withPlacements = (placements: Placement[], selectedIds: string[] = []) =>
     locale: 'en',
   });
 
-beforeEach(() => withPlacements([]));
+beforeEach(() => {
+  withPlacements([]);
+  useSimStats.setState({ stats: null, pausers: {}, settings: DEFAULT_SIM_SETTINGS });
+});
 
 describe('the inspector with nothing selected', () => {
   it('counts every object on the plan, most numerous first', () => {
@@ -325,5 +329,98 @@ describe('Inspector semantics', () => {
       expect(row.querySelector('dt')).not.toBeNull();
       expect(row.querySelector('dd')).not.toBeNull();
     }
+  });
+});
+
+describe('the parcel preview counts', () => {
+  it('shows what the running preview has counted, selected or not', () => {
+    useSimStats.setState({ stats: { onBelt: 385, delivered: 2, misSorted: 1, stored: 53, fell: 111, seconds: 600 } });
+    for (const selectedIds of [[], ['a']]) {
+      withPlacements([belt('a', 0)], selectedIds);
+      render(<Inspector />);
+      const rows = [...screen.getByRole('region', { name: 'Parcels' }).querySelectorAll('dl > div')].map((row) => row.textContent);
+      expect(rows).toEqual([
+        'Game time10:00', 'On the belts385', 'Delivered2%2', 'of which mis-sorted50%1', 'In racks53', 'Fell off98%111',
+        'Delivered per minute0.2', 'Fell off per minute11.1',
+      ]);
+      cleanup();
+    }
+  });
+
+  it('gives no share before any parcel has finished', () => {
+    useSimStats.setState({ stats: { onBelt: 4, delivered: 0, misSorted: 0, stored: 1, fell: 0, seconds: 30 } });
+    withPlacements([belt('a', 0)]);
+    render(<Inspector />);
+    const rows = [...screen.getByRole('region', { name: 'Parcels' }).querySelectorAll('dl > div')].map((row) => row.textContent);
+    expect(rows).toEqual([
+      'Game time0:30', 'On the belts4', 'Delivered0', 'of which mis-sorted0', 'In racks1', 'Fell off0',
+      'Delivered per minute0.0', 'Fell off per minute0.0',
+    ]);
+  });
+
+  it('shows nothing while no parcel runs', () => {
+    withPlacements([belt('a', 0)]);
+    render(<Inspector />);
+    expect(screen.queryByText('Parcels')).toBeNull();
+  });
+});
+
+describe('a pauser in the parcel preview', () => {
+  const pauser = (id: string, objectId: string): Placement => ({ ...belt(id, 0), objectId });
+  const box = () => screen.getByRole('checkbox', { name: 'Open in the preview' }) as HTMLInputElement;
+
+  it('starts an Auto Pauser closed, since that is what fills the racks', () => {
+    withPlacements([pauser('p', 'BP_ConveyorBelt_AutoPauser')], ['p']);
+    render(<Inspector />);
+    expect(box().checked).toBe(false);
+  });
+
+  it('starts a plain pauser open', () => {
+    withPlacements([pauser('p', 'BP_ConveyorBelt_Pauser')], ['p']);
+    render(<Inspector />);
+    expect(box().checked).toBe(true);
+  });
+
+  it('opens it for the preview without touching the plan', () => {
+    withPlacements([pauser('p', 'BP_ConveyorBelt_AutoPauser')], ['p']);
+    const before = JSON.stringify(useEditor.getState().plan);
+    render(<Inspector />);
+    fireEvent.click(box());
+    expect(useSimStats.getState().pausers).toEqual({ p: true });
+    expect(JSON.stringify(useEditor.getState().plan)).toBe(before);
+  });
+
+  it('offers nothing on an ordinary belt', () => {
+    withPlacements([belt('a', 0)], ['a']);
+    render(<Inspector />);
+    expect(screen.queryByRole('checkbox', { name: 'Open in the preview' })).toBeNull();
+  });
+});
+
+describe('the preview settings', () => {
+  it('starts fully upgraded with every criterion unlocked', () => {
+    render(<Inspector />);
+    expect((screen.getByRole('combobox', { name: 'Parcels per truck' }) as HTMLSelectElement).value).toBe('2');
+    expect((screen.getByRole('combobox', { name: 'Door timer' }) as HTMLSelectElement).value).toBe('3');
+    expect((screen.getByRole('checkbox', { name: 'Stamp' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("offers the game's own truck sizes and door timers", () => {
+    render(<Inspector />);
+    const options = (name: string) => [...screen.getByRole('combobox', { name }).querySelectorAll('option')].map((o) => o.textContent);
+    expect(options('Parcels per truck')).toEqual(['3', '5', '7']);
+    expect(options('Door timer')).toEqual(['40 s', '30 s', '20 s', '10 s']);
+  });
+
+  it('passes what the player sets to the preview, not to the plan', () => {
+    const before = JSON.stringify(useEditor.getState().plan);
+    render(<Inspector />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Parcels per truck' }), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Serial number' }));
+    const { settings } = useSimStats.getState();
+    expect(settings.sizeLevel).toBe(0);
+    expect(settings.unlocked.has('serial')).toBe(false);
+    expect(settings.unlocked.has('stamp')).toBe(true);
+    expect(JSON.stringify(useEditor.getState().plan)).toBe(before);
   });
 });

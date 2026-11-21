@@ -5,11 +5,12 @@ import { X } from 'lucide-react';
 import { decodePlan, planFromJson } from '@/core/serialize';
 import { parseSharedLocation } from '@/core/short-link';
 import { t } from '@/i18n';
-import { openingLocale, STORAGE_KEY, useEditor } from '@/store/editor';
+import { openingLocale, savedRealCountries, STORAGE_KEY, useEditor } from '@/store/editor';
 import GridCanvas from './GridCanvas';
 import Inspector from './Inspector';
 import MobileEmptyState from './MobileEmptyState';
 import MobileNotice from './MobileNotice';
+import OpenSourceNotice from './OpenSourceNotice';
 import Palette from './Palette';
 import SharedPlanPrompt from './SharedPlanPrompt';
 import StatusBar from './StatusBar';
@@ -34,6 +35,8 @@ export default function Editor() {
     // ThemeScript already set the theme on <html> before paint; this syncs the store.
     const applied = document.documentElement.dataset.theme;
     if (applied === 'light' || applied === 'dark') setTheme(applied);
+    // Read, not set through setRealCountries, so a visit that never chose writes nothing.
+    useEditor.setState({ realCountries: savedRealCountries() });
   }, [setLocale, setTheme]);
 
   // A shared link wins over localStorage. Corrupt data is dropped rather than
@@ -142,6 +145,7 @@ export default function Editor() {
       </div>
       <StatusBar />
       <SharedPlanPrompt />
+      <OpenSourceNotice />
     </div>
   );
 }

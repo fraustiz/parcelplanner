@@ -79,10 +79,10 @@ html[data-theme='light'] { color-scheme: light; }
 /* Tailwind 4 leaves every control on the default arrow. */
 @layer base {
   button:not(:disabled), select:not(:disabled), summary, [role='menuitem']:not([aria-disabled='true']),
-  label[for], a[href] {
+  label[for], a[href], input[type='checkbox']:not(:disabled), label:has(> input[type='checkbox']:not(:disabled)) {
     cursor: pointer;
   }
-  button:disabled, select:disabled, [role='menuitem'][aria-disabled='true'] {
+  button:disabled, select:disabled, input[type='checkbox']:disabled, [role='menuitem'][aria-disabled='true'] {
     cursor: not-allowed;
   }
 }

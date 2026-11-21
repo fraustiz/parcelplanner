@@ -157,13 +157,13 @@
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
           "Key": "UpgradeLargerExportsTier1Name",
           "SourceString": null,
-          "LocalizedString": null
+          "LocalizedString": ""
         },
         "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
           "Key": "UpgradeLargerExportsTier1Description",
           "SourceString": null,
-          "LocalizedString": null
+          "LocalizedString": ""
         },
         "Image_7_99A7A18F41D84F8BC78B56871F5E3212": null,
         "Price_10_6422EF1142479E9EE2A2C8A463600240": 0,
@@ -177,13 +177,13 @@
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
           "Key": "UpgradeLargerExportsTier2Name",
           "SourceString": null,
-          "LocalizedString": null
+          "LocalizedString": ""
         },
         "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
           "Key": "UpgradeLargerExportsTier2Description",
           "SourceString": null,
-          "LocalizedString": null
+          "LocalizedString": ""
         },
         "Image_7_99A7A18F41D84F8BC78B56871F5E3212": null,
         "Price_10_6422EF1142479E9EE2A2C8A463600240": 0,
@@ -197,13 +197,13 @@
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
           "Key": "UpgradeAutomaticExportsName",
           "SourceString": null,
-          "LocalizedString": null
+          "LocalizedString": ""
         },
         "Description_4_91EE44AD41562FEA33C7E89B8E6E9DD0": {
           "TableId": "/Game/Core/Blueprints/Data/Localisation/STBL_Licences.STBL_Licences",
           "Key": "UpgradeAutomaticExportsDescription",
           "SourceString": null,
-          "LocalizedString": null
+          "LocalizedString": ""
         },
         "Image_7_99A7A18F41D84F8BC78B56871F5E3212": {
           "ObjectName": "Texture2D'upgrade-automated-exports'",

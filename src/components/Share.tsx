@@ -92,6 +92,7 @@ export default function Share() {
   const loadPlan = useEditor((s) => s.loadPlan);
   const floor = useEditor((s) => s.floor);
   const theme = useEditor((s) => s.theme);
+  const realCountries = useEditor((s) => s.realCountries);
   const [state, setState] = useState<
     'idle' | 'busy' | 'copied' | 'refused' | 'too-big' | 'bad-file'
   >('idle');
@@ -255,7 +256,7 @@ export default function Share() {
         <button
           onClick={() => {
             setMenuOpen(false);
-            void exportImage(plan, floor, locale, theme === 'light' ? 'light' : 'dark');
+            void exportImage(plan, floor, locale, theme === 'light' ? 'light' : 'dark', realCountries);
           }}
           className={TEXT_BUTTON}
         >

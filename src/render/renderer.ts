@@ -110,6 +110,11 @@ export interface DrawOptions {
   cargoIcons: ReadonlyMap<string, string>;
   /** The flag stamped on a country export door's bay, since those sort by destination. Undefined leaves it unlabelled. */
   countryIcon?: string;
+  /**
+   * Flag image by country id (`countryFlags()` in src/data/countries.ts). A country door the
+   * plan assigns (`plan.doorCountries`) shows its country's flag in place of `countryIcon`.
+   */
+  countryFlags?: ReadonlyMap<string, string>;
   /** Notes on the grid (`plan.notes`). Only those on the drawn floor and warehouse appear. */
   notes?: readonly PlanNote[];
   /** The parcel drawing (`PARCEL_ICON`). Without it a parcel draws no sprite, never a substitute shape. */
@@ -124,12 +129,14 @@ export interface DrawOptions {
    * selection outline. */
   cursor?: Cell | null;
   /**
-   * A parcel being followed through the layout, if any, and where it has been. A viewing aid, not
-   * a simulation: routing by the day's criteria is not modelled (see src/core/simulate.ts).
+   * The parcels of the live preview (see src/core/live-sim.ts) and where the oldest has been.
+   * `at` is fractional, so a position of 4.5 draws halfway between cells and the parcel glides.
    */
-  /** `at` is fractional, so a position of 4.5 draws halfway between cells and the parcel glides. */
   parcels?: readonly { at: Cell; dropped: boolean }[];
   trail?: readonly Cell[];
+  /** How full each rack is during the preview, written in its bottom-right corner: `from` and
+   * `to` are the corners of its footprint on the floor shown. */
+  rackFill?: readonly { from: Cell; to: Cell; text: string }[];
   /** The artwork colour a chosen colour replaces, or null for a family that cannot be painted. */
   repaintableColourOf: (entry: CatalogEntry) => string | null;
   /** Staircases between floors, from src/data/stairs.ts. */
@@ -199,6 +206,9 @@ export const DARK_SCENE = {
   parcel: '#f2f4f7',
   parcelDropped: '#e8604c',
   parcelTrail: 'rgba(242, 244, 247, 0.22)',
+  /** A rack's fill count during the preview: ink on a dark tab, readable over the red rack. */
+  rackFillBg: 'rgba(11, 13, 16, 0.82)',
+  rackFillInk: '#f2f4f7',
 } as const;
 
 /**
@@ -229,6 +239,8 @@ export const LIGHT_SCENE: ScenePalette = {
   parcel: '#1b2430',
   parcelDropped: '#c0342a',
   parcelTrail: 'rgba(27, 36, 48, 0.20)',
+  rackFillBg: 'rgba(255, 255, 255, 0.88)',
+  rackFillInk: '#1b2430',
   deckEdge: 'rgba(90, 98, 108, 0.7)',
   stairs: 'rgba(90, 98, 108, 0.18)',
   stairsStep: 'rgba(90, 98, 108, 0.45)',
@@ -439,6 +451,8 @@ function drawDoors(
   countryIcon: string | undefined,
   arrow: readonly Shape[],
   arrowDivisor: number,
+  doorCountries: Plan['doorCountries'],
+  countryFlags: ReadonlyMap<string, string> | undefined,
 ): void {
   for (const door of doors) {
     if (door.warehouse !== warehouse || door.floor !== floor) continue;
@@ -459,7 +473,11 @@ function drawDoors(
     if (size >= MIN_CELL_SIZE_FOR_ICON) {
       // Glyphs go beyond the portal, so a cargo logo never sits under the arrow.
       const field = doorGlyphRect(px, py, size, door.side);
-      if (look === 'reject') {
+      const country = look === 'country' ? doorCountries?.[door.id] : undefined;
+      const flag = country === undefined ? undefined : countryFlags?.get(country);
+      if (flag !== undefined) {
+        drawFlag(ctx, field, size, flag);
+      } else if (look === 'reject') {
         const [centre] = glyphCentres(field, size, 1);
         if (centre) drawRejectCross(ctx, centre.cx, centre.cy, size);
       } else if (look === 'export' || look === 'country') {
@@ -491,6 +509,28 @@ function drawDoors(
       );
     }
   }
+}
+
+/** The game's flags are 1000 x 600. */
+const FLAG_ASPECT = 5 / 3;
+/** A flag's width in cells: wider than a glyph, since a flag is read by its pattern. */
+const FLAG_WIDTH = 1.8;
+
+/** A country's flag, centred in the bay beyond the portal, with a thin dark edge so a white
+ * flag still reads against the green bay. */
+function drawFlag(
+  ctx: Draw2D,
+  field: { x: number; y: number; w: number; h: number },
+  size: number,
+  path: string,
+): void {
+  const w = Math.min(size * FLAG_WIDTH, field.w * 0.9, field.h * 0.9 * FLAG_ASPECT);
+  const h = w / FLAG_ASPECT;
+  const x = field.x + (field.w - w) / 2;
+  const y = field.y + (field.h - h) / 2;
+  ctx.fillStyle = colours.doorGlyph;
+  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.drawImage(path, x, y, w, h);
 }
 
 /** Below this on-screen cell size an icon would be a few pixels of noise, so it is skipped. */
@@ -891,7 +931,7 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
 
   drawDoors(
     ctx, camera, size, o.doors, o.plan.warehouse, o.floor, o.cargoIcons, o.countryIcon,
-    o.doorArrow, o.doorArrowDivisor,
+    o.doorArrow, o.doorArrowDivisor, o.plan.doorCountries, o.countryFlags,
   );
 
   // Rulers are chrome, drawn early; the drag/drop highlight stays last.
@@ -1070,6 +1110,26 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
       ctx.fillPath(
         `M ${px + size - mark} ${py} L ${px + size} ${py} L ${px + size} ${py + mark} Z`,
       );
+    }
+  }
+
+  // How full each rack is, while the preview runs: a small tab in the rack's bottom-right
+  // corner, held / capacity.
+  if (o.rackFill && o.rackFill.length > 0 && size >= MIN_CELL_SIZE_FOR_ICON) {
+    const fontPx = Math.round(Math.max(8, Math.min(12, size * 0.28)));
+    ctx.font = `${fontPx}px sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    for (const rack of o.rackFill) {
+      const corner = worldToScreen(camera, rack.to);
+      const right = corner.px + size - 1;
+      const bottom = corner.py + size - 1;
+      const w = fontPx * 0.6 * rack.text.length + 4;
+      const h = fontPx + 2;
+      ctx.fillStyle = colours.rackFillBg;
+      ctx.fillRect(right - w, bottom - h, w, h);
+      ctx.fillStyle = colours.rackFillInk;
+      ctx.fillText(rack.text, right - 2, bottom);
     }
   }
 

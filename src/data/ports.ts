@@ -12,8 +12,9 @@ import type { Port } from '@/core/types';
  * `N` and out through `S` (see `straightThrough`). Every table here uses that reference.
  * Ports, graph tests and renderer agree, so do not "fix" the maths in graph.ts to match the compass.
  *
- * Unverified: the corner, joiner, splitter and diverter layouts were authored from the game's
- * icons, not checked in game. If one connects mirrored, re-derive it from `STEP`, not the label.
+ * The criteria scanners, both splitters and the racks were checked against a real layout of
+ * about 3700 objects (see their tables). The others were authored from the game's icons, not
+ * checked in game. If one connects mirrored, re-derive it from `STEP`, not the label.
  */
 
 /** Objects that override BPI_GridPlaceable.IsWidePlaceable. Everything else occupies one cell. */
@@ -36,18 +37,36 @@ const cornerLeft: Port[] = [
   { side: 'W', offset: 0, dir: 'out' },
 ];
 
-const oneInTwoOut: Port[] = [
-  { side: 'N', offset: 0, dir: 'in' },
-  { side: 'S', offset: 0, dir: 'out' },
+/**
+ * The content inspection diverter (`BP_ConveyorBelt_Splitter_2Way`) runs down the screen in its
+ * reference orientation, towards the yellow edge of its artwork: fed through `S`, out through
+ * `N` and `E`. In a real layout all 16 of its placements were fed and both arms connected with
+ * this table; with the up-running one other splitters use, none was fed.
+ */
+const twoWaySplitter: Port[] = [
+  { side: 'S', offset: 0, dir: 'in' },
+  { side: 'N', offset: 0, dir: 'out' },
   { side: 'E', offset: 0, dir: 'out' },
 ];
 
+/**
+ * Also the smart splitter (`BP_ConveyorBelt_Splitter`), whose artwork points both ways: in a
+ * real layout of 335 of them, every one fed its straight output and exactly one side arm, 209
+ * on the left and 126 on the right. A side arm with nothing in front of it is never chosen.
+ */
 const oneInThreeOut: Port[] = [
   { side: 'N', offset: 0, dir: 'in' },
   { side: 'S', offset: 0, dir: 'out' },
   { side: 'E', offset: 0, dir: 'out' },
   { side: 'W', offset: 0, dir: 'out' },
 ];
+
+/**
+ * The smart splitter also merges: in the same layout, belts feed some of them through their
+ * side arms, as well as from behind, and one belt leaves through the remaining side. The graph
+ * rewires such a splitter (see `reversible`).
+ */
+const smartSplitter: Port[] = oneInThreeOut.map((port) => ({ ...port, reversible: true }));
 
 const twoInOneOut: Port[] = [
   { side: 'N', offset: 0, dir: 'in' },
@@ -72,17 +91,37 @@ const threeInOneOut: Port[] = [
   { side: 'S', offset: 0, dir: 'out' },
 ];
 
+/**
+ * The country diverter, three cells long: in at one end, straight out at the other, and a side
+ * exit on both sides of every one of its three cells, one per country lane. In a real layout
+ * belts left it from all six sides; with one exit a side, 16 of them were never fed.
+ */
+const countryDiverter: Port[] = [
+  { side: 'N', offset: 0, dir: 'in' },
+  { side: 'S', offset: 0, dir: 'out' },
+  ...[0, 1, 2].flatMap((offset): Port[] => [
+    { side: 'E', offset, dir: 'out' },
+    { side: 'W', offset, dir: 'out' },
+  ]),
+];
+
 /** Takes a parcel in on floor 0 and delivers it on the floor above. */
 const elevator: Port[] = [
   { side: 'N', offset: 0, dir: 'in', floorDelta: 0 },
   { side: 'S', offset: 0, dir: 'out', floorDelta: 1 },
 ];
 
-/** Racks accept parcels but do not pass them on. */
-const sinkOnly: Port[] = [{ side: 'N', offset: 0, dir: 'in' }];
+/**
+ * Racks accept parcels but do not pass them on. A loader can feed either short end: a real
+ * layout puts one at each end of every rack, as many on one end as on the other.
+ */
+const sinkOnly: Port[] = [
+  { side: 'N', offset: 0, dir: 'in' },
+  { side: 'S', offset: 0, dir: 'in' },
+];
 
 /**
- * The Sticker Verification Conveyor (`BP_ConveyorBelt_Scanner2_Tier1`), the only sorting object:
+ * The Sticker Verification Conveyor (`BP_ConveyorBelt_Scanner2_Tier1`):
  * right = approved sticker, left = refused sticker, straight ahead = no sticker.
  * With flow running up the screen, straight ahead is `S`, right is `E` and left is `W`.
  */
@@ -91,6 +130,30 @@ const stickerVerifier: Port[] = [
   { side: 'S', offset: 0, dir: 'out' }, // straight ahead: no sticker
   { side: 'E', offset: 0, dir: 'out' }, // right: approved sticker
   { side: 'W', offset: 0, dir: 'out' }, // left: refused sticker
+];
+
+/**
+ * The criteria scanners (`BP_ConveyorBelt_CriteriaScanner_*`): right = the parcel meets the day's
+ * criterion, left = it does not, and nothing straight ahead. Read off the artwork (green right
+ * edge, red left edge, no yellow front edge unlike the sticker verifier) and off a real layout,
+ * where every one of them feeds a belt on each side and none in front.
+ */
+const criteriaScanner: Port[] = [
+  { side: 'N', offset: 0, dir: 'in' }, // entry, from below
+  { side: 'E', offset: 0, dir: 'out' }, // right: meets the criterion
+  { side: 'W', offset: 0, dir: 'out' }, // left: does not
+];
+
+/**
+ * The sticker appliers run down the screen in their reference orientation: fed through `S`, out
+ * through `N`, which is how three of the four in a real layout connect. One way only: in the
+ * game the applier carries parcels on exactly the straight belt's spline (same start, same
+ * direction), so one fed from its far end does not pass them on. The fourth applier of that
+ * layout, at 59/41 in the second warehouse, is turned the wrong way.
+ */
+const stickerApplier: Port[] = [
+  { side: 'S', offset: 0, dir: 'in' },
+  { side: 'N', offset: 0, dir: 'out' },
 ];
 
 export const PORTS: Record<string, Port[]> = {
@@ -103,24 +166,22 @@ export const PORTS: Record<string, Port[]> = {
   BP_ConveyorBelt_Speedway: straightThrough,
   BP_ConveyorBelt_Loader: straightThrough,
   BP_ConveyorBelt_Unloader: straightThrough,
-  // The only sorting object (see `stickerVerifier`). The CriteriaScanner_* entries below
-  // inspect but do not sort.
   BP_ConveyorBelt_Scanner2_Tier1: stickerVerifier,
-  BP_ConveyorBelt_CriteriaScanner_Weight: straightThrough,
-  BP_ConveyorBelt_CriteriaScanner_SerialNumber: straightThrough,
-  BP_ConveyorBelt_CriteriaScanner_Country: straightThrough,
-  BP_ConveyorBelt_CriteriaScanner_CargoType: straightThrough,
-  BP_ConveyorBelt_CriteriaScanner_Stamp: straightThrough,
-  BP_ConveyorBelt_CriteriaScanner_ContentsProhibited: straightThrough,
-  BP_ConveyorBelt_StickerApplier_Approve: straightThrough,
-  BP_ConveyorBelt_StickerApplier_Deny: straightThrough,
+  BP_ConveyorBelt_CriteriaScanner_Weight: criteriaScanner,
+  BP_ConveyorBelt_CriteriaScanner_SerialNumber: criteriaScanner,
+  BP_ConveyorBelt_CriteriaScanner_Country: criteriaScanner,
+  BP_ConveyorBelt_CriteriaScanner_CargoType: criteriaScanner,
+  BP_ConveyorBelt_CriteriaScanner_Stamp: criteriaScanner,
+  BP_ConveyorBelt_CriteriaScanner_ContentsProhibited: criteriaScanner,
+  BP_ConveyorBelt_StickerApplier_Approve: stickerApplier,
+  BP_ConveyorBelt_StickerApplier_Deny: stickerApplier,
   BP_ConveyorBelt_Joiner: twoInOneOut,
   BP_ConveyorBelt_Joiner_3Way: threeInOneOut,
   BP_ConveyorBelt_Joiner_2WayT: twoOpposedInOneOut,
-  BP_ConveyorBelt_Splitter: oneInTwoOut,
-  BP_ConveyorBelt_Splitter_2Way: oneInTwoOut,
+  BP_ConveyorBelt_Splitter: smartSplitter,
+  BP_ConveyorBelt_Splitter_2Way: twoWaySplitter,
   BP_ConveyorBelt_Diverter: oneInThreeOut,
-  BP_ConveyorBelt_CountryDiverter2: oneInThreeOut,
+  BP_ConveyorBelt_CountryDiverter2: countryDiverter,
   BP_ConveyorBelt_Elevator: elevator,
   BP_StorageRack_Medium: sinkOnly,
   BP_StorageRack_Large: sinkOnly,

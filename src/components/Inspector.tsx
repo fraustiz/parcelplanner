@@ -8,9 +8,153 @@ import { getCatalogue } from '@/data/catalogue';
 import { COLOUR_NAMES, OBJECT_COLOURS, repaintableColourOf } from '@/data/colours';
 import { WAREHOUSES } from '@/data/warehouses';
 import { isZone, ZONE_PREFIX } from '@/core/zone';
-import { formatMoney, t } from '@/i18n';
+import { formatMoney, t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
+import { UNLOCKABLE_CRITERIA, type Criterion } from '@/core/parcel-labels';
+import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
+import DiverterScreens from './DiverterScreens';
 import { sizeOf } from './HoverCard';
+
+/** Game time as minutes and seconds, as the game's clock would show it. */
+function gameTime(seconds: number): string {
+  const whole = Math.floor(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+/** The parcel preview's counts, at the top of the panel while parcels run. */
+function SimStatsPanel({ locale }: { locale: Locale }) {
+  const stats = useSimStats((s) => s.stats);
+  if (!stats) return null;
+  // A share of the parcels that have finished, delivered or fallen. A rack
+  // only holds a parcel until an unloader takes it out, so it is no end.
+  const finished = stats.delivered + stats.fell;
+  const share = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
+  // Per game minute, which the preview runs at the game's own pace.
+  const minutes = stats.seconds / 60;
+  const perMinute = new Intl.NumberFormat(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+  const rows: ReadonlyArray<readonly [TranslationKey, string, string | null]> = [
+    ['sim.time', gameTime(stats.seconds), null],
+    ['sim.onBelt', String(stats.onBelt), null],
+    ['sim.delivered', String(stats.delivered), finished > 0 ? share.format(stats.delivered / finished) : null],
+    // Out of the delivered ones: what reached a door that should have refused it.
+    ['sim.misSorted', String(stats.misSorted), stats.delivered > 0 ? share.format(stats.misSorted / stats.delivered) : null],
+    ['sim.stored', String(stats.stored), null],
+    ['sim.fell', String(stats.fell), finished > 0 ? share.format(stats.fell / finished) : null],
+  ];
+  const rates: ReadonlyArray<readonly [TranslationKey, number]> = minutes > 0
+    ? [['sim.deliveredPerMinute', stats.delivered / minutes], ['sim.fellPerMinute', stats.fell / minutes]]
+    : [];
+  return (
+    <section aria-label={t(locale, 'sim.title')} className="mb-3 border-b border-[var(--line)] pb-3">
+      <h2 className="mb-2 font-semibold">{t(locale, 'sim.title')}</h2>
+      <dl className="space-y-0.5">
+        {rows.map(([key, value, part]) => (
+          <div key={key} className="flex items-baseline justify-between gap-2 px-1">
+            <dt className="text-[var(--text-faint)]">{t(locale, key)}</dt>
+            <dd className="font-mono tabular-nums">
+              {part !== null && <span className="mr-2 text-[var(--text-faint)]">{part}</span>}
+              {value}
+            </dd>
+          </div>
+        ))}
+        {rates.map(([key, value]) => (
+          <div key={key} className="flex items-baseline justify-between gap-2 px-1">
+            <dt className="text-[var(--text-faint)]">{t(locale, key)}</dt>
+            <dd className="font-mono tabular-nums">{perMinute.format(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/** The names of the criteria a player unlocks, as the inspector lists them. */
+const CRITERION_NAME: Readonly<Record<Criterion, TranslationKey>> = {
+  country: 'criterion.country',
+  weight: 'criterion.weight',
+  serial: 'criterion.serial',
+  contents: 'criterion.contents',
+  stamp: 'criterion.stamp',
+  prohibited: 'criterion.prohibited',
+};
+
+/**
+ * What the preview should assume about the player's game: delivery upgrades
+ * and the criteria unlocked so far. Folded away, since the defaults (fully
+ * upgraded, everything unlocked) suit most layouts.
+ */
+function SimSettingsPanel({ locale }: { locale: Locale }) {
+  const settings = useSimStats((s) => s.settings);
+  const setSettings = useSimStats((s) => s.setSettings);
+  const toggle = (criterion: Criterion, on: boolean) => {
+    const unlocked = new Set(settings.unlocked);
+    if (on) unlocked.add(criterion);
+    else unlocked.delete(criterion);
+    setSettings({ unlocked });
+  };
+  return (
+    <details className="mb-3 border-b border-[var(--line)] pb-3">
+      <summary className="font-semibold">{t(locale, 'simSettings.title')}</summary>
+      <div className="mt-2 space-y-2 px-1">
+        <label className="flex items-center justify-between gap-2">
+          <span className="text-[var(--text-faint)]">{t(locale, 'planner.size')}</span>
+          <select
+            value={settings.sizeLevel}
+            onChange={(event) => setSettings({ sizeLevel: Number(event.target.value) })}
+            className="rounded bg-[var(--raised)] px-1.5 py-0.5"
+          >
+            {PARCELS_PER_TRUCK.map((n, level) => <option key={level} value={level}>{n}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-2">
+          <span className="text-[var(--text-faint)]">{t(locale, 'simSettings.doorTimer')}</span>
+          <select
+            value={settings.speedLevel}
+            onChange={(event) => setSettings({ speedLevel: Number(event.target.value) })}
+            className="rounded bg-[var(--raised)] px-1.5 py-0.5"
+          >
+            {DOOR_TIMER_SECONDS.map((seconds, level) => <option key={level} value={level}>{seconds} s</option>)}
+          </select>
+        </label>
+        <fieldset>
+          <legend className="mb-1 text-[var(--text-faint)]">{t(locale, 'simSettings.unlocked')}</legend>
+          <p className="mb-1 text-xs text-[var(--text-faint)]">{t(locale, 'simSettings.alwaysOn')}</p>
+          {UNLOCKABLE_CRITERIA.map((criterion) => (
+            <label key={criterion} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.unlocked.has(criterion)}
+                onChange={(event) => toggle(criterion, event.target.checked)}
+              />
+              {t(locale, CRITERION_NAME[criterion])}
+            </label>
+          ))}
+        </fieldset>
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Opens or closes a pauser for the parcel preview. Not saved with the plan:
+ * in the game an Auto Pauser follows the days it is set to, which the plan
+ * does not know.
+ */
+function PauserToggle({ id, objectId, locale }: { id: string; objectId: string; locale: Locale }) {
+  const pausers = useSimStats((s) => s.pausers);
+  const setPauserOpen = useSimStats((s) => s.setPauserOpen);
+  const open = isPauserOpen(pausers, id, objectId);
+  return (
+    <div className="mb-3">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={open} onChange={(event) => setPauserOpen(id, event.target.checked)} />
+        {t(locale, 'sim.pauserOpen')}
+      </label>
+      <p className="mt-1 text-xs leading-relaxed text-[var(--text-faint)]">{t(locale, 'sim.pauserHint')}</p>
+    </div>
+  );
+}
 
 export default function Inspector() {
   const plan = useEditor((s) => s.plan);
@@ -92,6 +236,8 @@ export default function Inspector() {
     const inventory = countByObject(scope, catalogue, locale);
     return (
       <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
+        <SimStatsPanel locale={locale} />
+      {LIVE_PREVIEW && <SimSettingsPanel locale={locale} />}
         {scope.length === 0 ? (
           <span className="text-[var(--text-faint)]">{t(locale, 'inspector.empty')}</span>
         ) : (
@@ -126,6 +272,8 @@ export default function Inspector() {
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
+      <SimStatsPanel locale={locale} />
+      {LIVE_PREVIEW && <SimSettingsPanel locale={locale} />}
       {only && onlyEntry?.category === 'zone' ? (
         <>
           <h2 className="mb-2 font-semibold">{only.label ?? onlyEntry.displayName[locale]}</h2>
@@ -185,6 +333,8 @@ export default function Inspector() {
             )}
             <div><dt className="inline">{t(locale, 'warehouse.floor')}:</dt> <dd className="inline">{only.floor}</dd></div>
           </dl>
+          {PAUSERS.has(only.objectId) && <PauserToggle id={only.id} objectId={only.objectId} locale={locale} />}
+          <DiverterScreens placement={only} locale={locale} />
         </>
       ) : (
         <>

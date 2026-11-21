@@ -41,6 +41,26 @@ export const SHARE_OBJECT_IDS: readonly string[] = [
   'BP_ConveyorBelt_Joiner_2WayT',
 ];
 
+/**
+ * The frozen country-door order for share links (`Plan.doorCountries`). Append only, like
+ * the list above: a link stores a door as its index here. share-object-ids.test.ts checks it
+ * names every country door in src/data/doors.ts.
+ */
+export const SHARE_COUNTRY_DOOR_IDS: readonly string[] = [
+  'second-country-0-a',
+  'second-country-0-b',
+  'second-country-0-c',
+  'second-country-0-d',
+  'second-country-0-e',
+  'second-country-0-f',
+  'second-country-1-b',
+  'second-country-1-c',
+  'second-country-1-d',
+  'second-country-1-e',
+  'second-country-1-f',
+  'second-country-1-g',
+];
+
 /** Index of `objectId` in the frozen order, or -1 if it is not there. */
 export const shareIndexOf = (objectId: string): number => SHARE_OBJECT_IDS.indexOf(objectId);
 

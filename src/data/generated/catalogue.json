@@ -48,22 +48,6 @@
     "maxTier": 3
   },
   {
-    "id": "BP_ConveyorBelt_Joiner_2WayT",
-    "displayName": {
-      "en": "T-Joiner Conveyor",
-      "fr": "Convoyeur à 3 branches (en T)"
-    },
-    "category": "router",
-    "footprint": {
-      "w": 1,
-      "h": 1
-    },
-    "price": 650,
-    "upgradePrice": 50,
-    "ports": [],
-    "maxTier": 3
-  },
-  {
     "id": "BP_ConveyorBelt_Bridger",
     "displayName": {
       "en": "Bridger Conveyor",
@@ -321,6 +305,22 @@
       "h": 1
     },
     "price": 850,
+    "upgradePrice": 50,
+    "ports": [],
+    "maxTier": 3
+  },
+  {
+    "id": "BP_ConveyorBelt_Joiner_2WayT",
+    "displayName": {
+      "en": "T-Joiner Conveyor",
+      "fr": "Convoyeur à 3 branches (en T)"
+    },
+    "category": "router",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "price": 650,
     "upgradePrice": 50,
     "ports": [],
     "maxTier": 3

@@ -148,3 +148,28 @@ describe('a route that loops', () => {
     expect(advanceOneCell([{ cells, index: 1 }])).toEqual([1]);
   });
 });
+
+describe('slots', () => {
+  it('lets a parcel on a bridge pass over one on the belt beneath', () => {
+    // Same cell, different objects: they do not block each other.
+    const over = [{ x: 0, y: 1, slot: 'bridge|0' }, { x: 0, y: 0, slot: 'bridge|1' }];
+    const under = [{ x: 1, y: 0, slot: 'belt|a' }, { x: 0, y: 0, slot: 'belt|b' }];
+    expect(advanceOneCell([{ cells: over, index: 0 }, { cells: under, index: 0 }])).toEqual([1, 1]);
+  });
+});
+
+describe('a merge', () => {
+  it('lets the parcel that waited longer through, so neither arm starves', () => {
+    const west = [...route('a5 b5'), ...route('c5 d5')];
+    const north = [...route('c3 c4'), ...route('c5 d5')];
+    // Both want c5; the north one has already been held back once.
+    expect(advanceOneCell([
+      { cells: west, index: 1, heldFor: 0 },
+      { cells: north, index: 1, heldFor: 1 },
+    ])).toEqual([1, 2]);
+    expect(advanceOneCell([
+      { cells: west, index: 1, heldFor: 1 },
+      { cells: north, index: 1, heldFor: 0 },
+    ])).toEqual([2, 1]);
+  });
+});

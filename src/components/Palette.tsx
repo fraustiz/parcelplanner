@@ -7,6 +7,7 @@ import { shapesFor, SHAPE_DIVISOR } from '@/data/shapes';
 import type { Category } from '@/core/types';
 import { t } from '@/i18n';
 import { useEditor } from '@/store/editor';
+import CountryDoors from './CountryDoors';
 import Expansions from './Expansions';
 import ObjectIcon from './ObjectIcon';
 import ScrollingLabel from './ScrollingLabel';
@@ -73,6 +74,8 @@ export default function Palette() {
       {/* Above the objects, since what you own decides where you may build.
           Collapsed by default: it is set once. */}
       <Expansions />
+      {/* Set once per save, like the expansions: the game deals them at random. */}
+      <CountryDoors />
 
       <input
         value={query}

@@ -7,7 +7,8 @@ import type { Door } from '@/core/types';
  * `src/data/ports.ts`). Do not recompute them from raw world coordinates.
  *
  * All fixed doors: 11 delivery, 10 cargo-side (6 by cargo type, 4 reject bins), 12 country exports.
- * Country exports carry no country: the level data has no static assignment, so none is invented.
+ * Country exports carry no country: the game deals them at random, so the player sets them in
+ * `Plan.doorCountries` (see COUNTRY_DOORS in src/data/countries.ts).
  * Every cell is buildable per `src/data/warehouses.ts`, asserted in doors.test.ts.
  */
 export const DOORS: readonly Door[] = [

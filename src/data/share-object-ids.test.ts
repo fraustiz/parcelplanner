@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CATALOGUE_GAME_VERSION } from '@/core/version';
 import { getCatalogue } from './catalogue';
-import { SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from './share-object-ids';
+import { COUNTRY_DOORS } from './countries';
+import { SHARE_COUNTRY_DOOR_IDS, SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from './share-object-ids';
 
 describe('SHARE_OBJECT_IDS', () => {
   it('covers every object in the catalogue, and nothing that is not there', () => {
@@ -40,5 +41,18 @@ describe('SHARE_GAME_VERSIONS', () => {
     // Same contract as the object list: an index must keep meaning the same build.
     expect(SHARE_GAME_VERSIONS[0]).toBe('UE5.3-2026-07');
     expect(new Set(SHARE_GAME_VERSIONS).size).toBe(SHARE_GAME_VERSIONS.length);
+  });
+});
+
+describe('SHARE_COUNTRY_DOOR_IDS', () => {
+  it('names every country door, once, and nothing else', () => {
+    // A door missing here would silently lose its country in a shared link.
+    expect([...SHARE_COUNTRY_DOOR_IDS].sort()).toEqual(COUNTRY_DOORS.map((d) => d.id).sort());
+    expect(new Set(SHARE_COUNTRY_DOOR_IDS).size).toBe(SHARE_COUNTRY_DOOR_IDS.length);
+  });
+
+  it('has not been reordered', () => {
+    expect(SHARE_COUNTRY_DOOR_IDS[0]).toBe('second-country-0-a');
+    expect(SHARE_COUNTRY_DOOR_IDS[11]).toBe('second-country-1-g');
   });
 });

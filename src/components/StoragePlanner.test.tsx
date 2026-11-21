@@ -23,16 +23,25 @@ describe('the storage planner', () => {
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
-  it('states the MEASURED cargo split on screen, and where it came from', () => {
-    // The cargo split is measured (10,000 parcels), so the note names the figures.
+  it("states the game's cargo split for the plan's warehouse tier", () => {
+    // No owned tiers listed means all owned: tier 18, all four types drawn.
     render(<StoragePlanner />);
     open();
     const note = screen.getByRole('dialog').textContent ?? '';
-    expect(note).toMatch(/22\/60/);
-    expect(note).toMatch(/5\/60/);
-    expect(note).toMatch(/10,?000/);
+    expect(note).toMatch(/tier, here 18/);
+    expect(note).toMatch(/Road 36%, Rail 36%, Air 18%, Maritime 9%/);
     // It must not claim the split is even.
     expect(note).not.toMatch(/assumed to split EVENLY/i);
+  });
+
+  it('draws no Maritime parcels before warehouse tier 4', () => {
+    useEditor.setState({
+      plan: { gameVersion: 'test', warehouse: 'main', placements: [], ownedTiers: [1, 2] },
+    });
+    render(<StoragePlanner />);
+    open();
+    const note = screen.getByRole('dialog').textContent ?? '';
+    expect(note).toMatch(/Road 40%, Rail 40%, Air 20%\./);
   });
 
   it('asks for nothing but the schedule and the upgrade levels', () => {
