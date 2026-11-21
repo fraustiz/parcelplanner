@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, screen } from '@testing-library/react';
 import Inspector from './Inspector';
 import { useEditor } from '@/store/editor';
-import { useSimStats } from '@/store/sim-stats';
+import { DEFAULT_SIM_SETTINGS, useSimStats } from '@/store/sim-stats';
 import { getCatalogue } from '@/data/catalogue';
 import type { Placement } from '@/core/types';
 
@@ -28,7 +28,7 @@ const withPlacements = (placements: Placement[], selectedIds: string[] = []) =>
 
 beforeEach(() => {
   withPlacements([]);
-  useSimStats.setState({ stats: null, pausers: {} });
+  useSimStats.setState({ stats: null, pausers: {}, settings: DEFAULT_SIM_SETTINGS });
 });
 
 describe('the inspector with nothing selected', () => {
@@ -394,5 +394,33 @@ describe('a pauser in the parcel preview', () => {
     withPlacements([belt('a', 0)], ['a']);
     render(<Inspector />);
     expect(screen.queryByRole('checkbox', { name: 'Open in the preview' })).toBeNull();
+  });
+});
+
+describe('the preview settings', () => {
+  it('starts fully upgraded with every criterion unlocked', () => {
+    render(<Inspector />);
+    expect((screen.getByRole('combobox', { name: 'Parcels per truck' }) as HTMLSelectElement).value).toBe('2');
+    expect((screen.getByRole('combobox', { name: 'Door timer' }) as HTMLSelectElement).value).toBe('3');
+    expect((screen.getByRole('checkbox', { name: 'Stamp' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("offers the game's own truck sizes and door timers", () => {
+    render(<Inspector />);
+    const options = (name: string) => [...screen.getByRole('combobox', { name }).querySelectorAll('option')].map((o) => o.textContent);
+    expect(options('Parcels per truck')).toEqual(['3', '5', '7']);
+    expect(options('Door timer')).toEqual(['40 s', '30 s', '20 s', '10 s']);
+  });
+
+  it('passes what the player sets to the preview, not to the plan', () => {
+    const before = JSON.stringify(useEditor.getState().plan);
+    render(<Inspector />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Parcels per truck' }), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Serial number' }));
+    const { settings } = useSimStats.getState();
+    expect(settings.sizeLevel).toBe(0);
+    expect(settings.unlocked.has('serial')).toBe(false);
+    expect(settings.unlocked.has('stamp')).toBe(true);
+    expect(JSON.stringify(useEditor.getState().plan)).toBe(before);
   });
 });

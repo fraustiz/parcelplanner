@@ -33,6 +33,17 @@ describe('drawing a new parcel', () => {
     expect(drawLabels(rolls(0.9, 0.05, 0.0, 0.7, 0, 0.99), 0).invalid).toBe('country');
   });
 
+  it('fails a parcel only on what is unlocked', () => {
+    const early = new Set<never>();
+    // The criterion roll at its top end lands on the last criterion that applies.
+    expect(drawLabels(rolls(0.9, 0.9, 0.99, 0, 0.99), 0, early).invalid).toBe('weight');
+    expect(drawLabels(rolls(0.9, 0.9, 0.99, 0, 0.99), 0).invalid).toBe('stamp');
+  });
+
+  it('makes no parcel openable before prohibited contents is unlocked', () => {
+    expect(drawLabels(rolls(0.9, 0.05, 0.0, 0.2, 0, 0.99), 0, new Set(['serial'] as const)).invalid).toBe('country');
+  });
+
   it('draws only Road and Rail before the first expansion', () => {
     expect(cargoWeights(0).map(([type]) => type)).toEqual(['Road', 'Rail']);
     expect(drawLabels(rolls(0.1, 0.9, 0.99, 0.99), 0).cargo).toBe('Rail');

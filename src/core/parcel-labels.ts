@@ -22,12 +22,20 @@ export interface ParcelLabels {
 }
 
 /**
- * The criteria that can be failed, in the game's order (`OrderedCriteria`),
- * all unlocked: the planner shows a working warehouse, not the first days.
- * Contents (prohibited) only applies to the 10 % of parcels that can be
- * opened (`OpenableSpawnChance`).
+ * The criteria that can be failed when the parcel stays closed, in the game's
+ * order (`OrderedCriteria`). Country and weight are there from the start; the
+ * others unlock as the player progresses (`CriteriaValidCountUnlockMap`).
  */
 const CLOSED_CRITERIA: readonly Criterion[] = ['country', 'weight', 'serial', 'contents', 'stamp'];
+
+/** The criteria a player unlocks along the way, which the preview lets them pick. */
+export const UNLOCKABLE_CRITERIA: readonly Criterion[] = ['serial', 'contents', 'stamp', 'prohibited'];
+
+/** Everything unlocked: a working warehouse, not its first days. */
+export const ALL_UNLOCKED: ReadonlySet<Criterion> = new Set(UNLOCKABLE_CRITERIA);
+
+/** Parcels that can be opened (`OpenableSpawnChance`), once the prohibited
+ * contents check is unlocked (`CanSpawnOpenableParcels`). */
 const OPENABLE_CHANCE = 0.1;
 
 /**
@@ -56,18 +64,22 @@ const pick = <T>(items: readonly T[], roll: number): T =>
  * Draws a new parcel's labels. `random` returns numbers in [0, 1), like
  * Math.random.
  *
- * An invalid parcel fails exactly one criterion, picked evenly among those that
- * apply (`GetUnlockedCriteriaAndRandomInvalid`). For a parcel that can be
+ * An invalid parcel fails exactly one criterion, picked evenly among those
+ * `unlocked` (`GetUnlockedCriteriaAndRandomInvalid`). For a parcel that can be
  * opened, the game first picks one closed and one openable criterion, then
  * one of the two.
  */
-export function drawLabels(random: () => number, warehouseTier: number): ParcelLabels {
+export function drawLabels(
+  random: () => number,
+  warehouseTier: number,
+  unlocked: ReadonlySet<Criterion> = ALL_UNLOCKED,
+): ParcelLabels {
   const valid = random() < 0.5;
-  const openable = random() < OPENABLE_CHANCE;
+  const openable = random() < OPENABLE_CHANCE && unlocked.has('prohibited');
 
   let invalid: Criterion | undefined;
   if (!valid) {
-    const closed = pick(CLOSED_CRITERIA, random());
+    const closed = pick(CLOSED_CRITERIA.filter((c) => c === 'country' || c === 'weight' || unlocked.has(c)), random());
     invalid = openable && random() < 0.5 ? 'prohibited' : closed;
   }
 

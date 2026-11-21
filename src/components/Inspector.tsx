@@ -10,7 +10,9 @@ import { WAREHOUSES } from '@/data/warehouses';
 import { isZone, ZONE_PREFIX } from '@/core/zone';
 import { formatMoney, t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
-import { isPauserOpen, PAUSERS, useSimStats } from '@/store/sim-stats';
+import { UNLOCKABLE_CRITERIA, type Criterion } from '@/core/parcel-labels';
+import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
 import { sizeOf } from './HoverCard';
 
 /** Game time as minutes and seconds, as the game's clock would show it. */
@@ -60,8 +62,74 @@ function SimStatsPanel({ locale }: { locale: Locale }) {
           </div>
         ))}
       </dl>
-      <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-faint)]">{t(locale, 'sim.doorPace')}</p>
     </section>
+  );
+}
+
+/** The names of the criteria a player unlocks, as the inspector lists them. */
+const CRITERION_NAME: Readonly<Record<Criterion, TranslationKey>> = {
+  country: 'criterion.country',
+  weight: 'criterion.weight',
+  serial: 'criterion.serial',
+  contents: 'criterion.contents',
+  stamp: 'criterion.stamp',
+  prohibited: 'criterion.prohibited',
+};
+
+/**
+ * What the preview should assume about the player's game: delivery upgrades
+ * and the criteria unlocked so far. Folded away, since the defaults (fully
+ * upgraded, everything unlocked) suit most layouts.
+ */
+function SimSettingsPanel({ locale }: { locale: Locale }) {
+  const settings = useSimStats((s) => s.settings);
+  const setSettings = useSimStats((s) => s.setSettings);
+  const toggle = (criterion: Criterion, on: boolean) => {
+    const unlocked = new Set(settings.unlocked);
+    if (on) unlocked.add(criterion);
+    else unlocked.delete(criterion);
+    setSettings({ unlocked });
+  };
+  return (
+    <details className="mb-3 border-b border-[var(--line)] pb-3">
+      <summary className="font-semibold">{t(locale, 'simSettings.title')}</summary>
+      <div className="mt-2 space-y-2 px-1">
+        <label className="flex items-center justify-between gap-2">
+          <span className="text-[var(--text-faint)]">{t(locale, 'planner.size')}</span>
+          <select
+            value={settings.sizeLevel}
+            onChange={(event) => setSettings({ sizeLevel: Number(event.target.value) })}
+            className="rounded bg-[var(--raised)] px-1.5 py-0.5"
+          >
+            {PARCELS_PER_TRUCK.map((n, level) => <option key={level} value={level}>{n}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-2">
+          <span className="text-[var(--text-faint)]">{t(locale, 'simSettings.doorTimer')}</span>
+          <select
+            value={settings.speedLevel}
+            onChange={(event) => setSettings({ speedLevel: Number(event.target.value) })}
+            className="rounded bg-[var(--raised)] px-1.5 py-0.5"
+          >
+            {DOOR_TIMER_SECONDS.map((seconds, level) => <option key={level} value={level}>{seconds} s</option>)}
+          </select>
+        </label>
+        <fieldset>
+          <legend className="mb-1 text-[var(--text-faint)]">{t(locale, 'simSettings.unlocked')}</legend>
+          <p className="mb-1 text-xs text-[var(--text-faint)]">{t(locale, 'simSettings.alwaysOn')}</p>
+          {UNLOCKABLE_CRITERIA.map((criterion) => (
+            <label key={criterion} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.unlocked.has(criterion)}
+                onChange={(event) => toggle(criterion, event.target.checked)}
+              />
+              {t(locale, CRITERION_NAME[criterion])}
+            </label>
+          ))}
+        </fieldset>
+      </div>
+    </details>
   );
 }
 
@@ -166,6 +234,7 @@ export default function Inspector() {
     return (
       <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
         <SimStatsPanel locale={locale} />
+      {LIVE_PREVIEW && <SimSettingsPanel locale={locale} />}
         {scope.length === 0 ? (
           <span className="text-[var(--text-faint)]">{t(locale, 'inspector.empty')}</span>
         ) : (
@@ -201,6 +270,7 @@ export default function Inspector() {
   return (
     <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-[var(--line)] p-3 text-sm md:flex">
       <SimStatsPanel locale={locale} />
+      {LIVE_PREVIEW && <SimSettingsPanel locale={locale} />}
       {only && onlyEntry?.category === 'zone' ? (
         <>
           <h2 className="mb-2 font-semibold">{only.label ?? onlyEntry.displayName[locale]}</h2>

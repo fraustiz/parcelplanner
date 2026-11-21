@@ -34,7 +34,7 @@ import { blackenIcon, toDraw2D } from '@/render/canvas-draw';
 import { cameraAfterTouch, MAX_ZOOM, MIN_ZOOM, type TouchPoint } from '@/render/touch-gestures';
 import { drawScene, DARK_SCENE, LIGHT_SCENE, type HighlightState } from '@/render/renderer';
 import { draggedPlacement, useEditor, type MarqueeState } from '@/store/editor';
-import { isPauserOpen, PAUSERS, useSimStats } from '@/store/sim-stats';
+import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
 import ContextMenu, { type MenuAnchor } from './ContextMenu';
 import HoverCard from './HoverCard';
 
@@ -58,24 +58,9 @@ const DOOR_CELL_SECONDS = 2;
  * at all, so the route ends there and the parcel falls. */
 const OFF_THE_SIDE = 'off-the-side';
 
-/**
- * What each delivery door brings in the preview: a fully upgraded door, the
- * most a layout has to cope with (src/data/deliveries.ts).
- */
-const PREVIEW_TRUCK = {
-  parcels: PARCELS_PER_TRUCK[PARCELS_PER_TRUCK.length - 1]!,
-  every: DOOR_TIMER_SECONDS[DOOR_TIMER_SECONDS.length - 1]!,
-};
-
 /** Playback speeds, cycled by a button. 1 is the game's own pace. */
 const SPEEDS = [1, 2, 4, 8] as const;
 
-/**
- * Whether the live parcel preview is offered: only when
- * NEXT_PUBLIC_LIVE_PREVIEW is `on`, in every environment. Tests set it on (see
- * vitest.config.ts), so the code behind it stays tested.
- */
-const LIVE_PREVIEW = process.env.NEXT_PUBLIC_LIVE_PREVIEW === 'on';
 
 /** A ceiling on parcels alive at once, so a pathological layout cannot grow
  * the list without bound. Far above what a warehouse ever holds. */
@@ -209,6 +194,7 @@ export default function GridCanvas() {
    * dispatch, no undo entry).
    */
   const [sim, setSim] = useState<SimState>(EMPTY_SIM);
+  const simSettings = useSimStats((s) => s.settings);
   /** The racks' fill counts for the drawing (see rackFillNow). */
   const rackFillRef = useRef<readonly { from: Cell; to: Cell; text: string }[]>([]);
   const parcels = sim.parcels;
@@ -920,6 +906,11 @@ export default function GridCanvas() {
   const simContext = useMemo((): SimContext => {
     const { exitIds, storeIds, byId, onward, portIndex, inbound, sources, capacity } = simLayout;
     const warehouseTier = warehouseTierOf(plan);
+    // What each delivery door brings, as the player set their upgrades.
+    const truck = {
+      parcels: PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!,
+      every: DOOR_TIMER_SECONDS[simSettings.speedLevel] ?? DOOR_TIMER_SECONDS[0]!,
+    };
     const objectOf = (node: string) => byId.get(node)?.objectId;
 
     const linksCache = new Map<string, { port: number; to: string }[]>();
@@ -1009,11 +1000,11 @@ export default function GridCanvas() {
     return {
       sources: sources.map(({ from, slot, rack }) => ({
         key: from, slot,
-        ...(rack !== undefined ? { rack } : { truck: PREVIEW_TRUCK }),
+        ...(rack !== undefined ? { rack } : { truck }),
         walk: (labels: ParcelLabels) => walkFrom(from, labels),
       })),
       capacity,
-      draw: () => drawLabels(Math.random, warehouseTier),
+      draw: () => drawLabels(Math.random, warehouseTier, simSettings.unlocked),
       branches,
       slideSeconds,
       stopSeconds: (cell) => {
@@ -1029,7 +1020,7 @@ export default function GridCanvas() {
       retrySeconds: SPLITTER_RETRY_SECONDS,
       maxParcels: MAX_PARCELS,
     };
-  }, [simLayout, plan]);
+  }, [simLayout, plan, simSettings]);
 
   /** How full each rack on this floor is, while the preview has parcels to show. */
   const rackFillNow = useMemo(() => {
