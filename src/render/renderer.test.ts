@@ -3,6 +3,8 @@ import { DOOR_ARROW, UI_SHAPE_DIVISOR } from '@/data/ui-shapes';
 import { drawScene, type Draw2D, type DrawOptions, DARK_SCENE, LIGHT_SCENE } from './renderer';
 import { CELL_PX } from './camera';
 import type { CatalogEntry, Door, Plan, Shape } from '@/core/types';
+import { COUNTRY_DIVERTER } from '@/core/diverters';
+import { getCatalogue } from '@/data/catalogue';
 
 interface Call {
   op: string;
@@ -1879,5 +1881,35 @@ describe('drawScene keyboard cursor', () => {
     const ctx = recorder();
     drawScene(ctx, options({ cursor: { x: 0, y: 0 }, palette: LIGHT_SCENE }));
     expect(cursorStrokes(ctx, LIGHT_SCENE.cursor)).toHaveLength(1);
+  });
+});
+
+describe('country diverter screens', () => {
+  const diverterEntry = getCatalogue().get(COUNTRY_DIVERTER)!;
+  const withDiverter = (over: Partial<DrawOptions> = {}): DrawOptions => options({
+    catalogue: new Map([[COUNTRY_DIVERTER, diverterEntry]]),
+    plan: {
+      gameVersion: 'test', warehouse: 'main',
+      placements: [{
+        id: 'd', objectId: COUNTRY_DIVERTER, warehouse: 'main', floor: 0, cell: { x: 2, y: 2 }, rotation: 0, tier: 1,
+        diverterCountries: [{ left: 'Cristin' }, {}, { right: 'Molland' }],
+      }],
+    },
+    countryFlags: new Map([['Cristin', '/flags/Cristin.png'], ['Molland', '/flags/Molland.png']]),
+    ...over,
+  });
+  const flagsDrawn = (ctx: ReturnType<typeof recorder>) =>
+    ctx.calls.filter((c) => c.op === 'drawImage').map((c) => c.args[0]).sort();
+
+  it('draws the flag of every screen set to a country', () => {
+    const ctx = recorder();
+    drawScene(ctx, withDiverter());
+    expect(flagsDrawn(ctx)).toEqual(['/flags/Cristin.png', '/flags/Molland.png']);
+  });
+
+  it('draws none when zoomed out past the icon size', () => {
+    const ctx = recorder();
+    drawScene(ctx, withDiverter({ camera: { x: 0, y: 0, zoom: 0.2 } }));
+    expect(flagsDrawn(ctx)).toEqual([]);
   });
 });

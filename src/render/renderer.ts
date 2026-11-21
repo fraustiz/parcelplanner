@@ -1,7 +1,8 @@
 import {
-  coveredCells, displayColumn, displayRow, isBuildable, rotatedFootprint,
+  coveredCells, displayColumn, displayRow, isBuildable, rotatedFootprint, SIDE_STEP,
   warehouseDimensions, type WarehouseGeometry,
 } from '@/core/grid';
+import { countryScreens } from '@/core/diverters';
 import type { LegendEntry } from '@/core/legend';
 import type { CatalogEntry, Cell, Door, Placement, Plan, PlanNote, Rotation, Shape, Side } from '@/core/types';
 import { CELL_PX, visibleCellRange, worldToScreen, type Camera } from './camera';
@@ -533,6 +534,27 @@ function drawFlag(
   ctx.drawImage(path, x, y, w, h);
 }
 
+/** A screen flag's width in cells: small enough that both screens of a cell fit beside the belt. */
+const SCREEN_FLAG_WIDTH = 0.4;
+
+/**
+ * The flag a country diverter's screen shows, on its cell against the side it looks out of,
+ * so the country a lane takes reads straight off the plan as it does in the game.
+ */
+function drawScreenFlag(ctx: Draw2D, camera: Camera, size: number, cell: Cell, side: Side, path: string): void {
+  const { px, py } = worldToScreen(camera, cell);
+  const step = SIDE_STEP[side];
+  const w = size * SCREEN_FLAG_WIDTH;
+  const h = w / FLAG_ASPECT;
+  // Against the cell's edge on that side, a small margin in, so the belt's middle stays clear.
+  const margin = size * 0.06;
+  const cx = px + size / 2 + step.dx * (size / 2 - w / 2 - margin);
+  const cy = py + size / 2 + step.dy * (size / 2 - h / 2 - margin);
+  ctx.fillStyle = colours.doorGlyph;
+  ctx.fillRect(cx - w / 2 - 1, cy - h / 2 - 1, w + 2, h + 2);
+  ctx.drawImage(path, cx - w / 2, cy - h / 2, w, h);
+}
+
 /** Below this on-screen cell size an icon would be a few pixels of noise, so it is skipped. */
 const MIN_CELL_SIZE_FOR_ICON = 12;
 
@@ -1055,6 +1077,11 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
         const iconPath = o.icons.get(placement.objectId);
         if (iconPath) {
           drawIcon(ctx, camera, size, placement.cell, iconPath, placement.rotation, entry.footprint);
+        }
+        // A country diverter's screens, as flags, above its icon.
+        for (const screen of countryScreens(placement, entry)) {
+          const flag = o.countryFlags?.get(screen.country);
+          if (flag !== undefined) drawScreenFlag(ctx, camera, size, screen.cell, screen.side, flag);
         }
       }
 
