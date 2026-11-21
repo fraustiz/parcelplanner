@@ -1,14 +1,40 @@
-import type { ErrorEvent, EventHint } from '@sentry/nextjs';
-import { withoutFragment } from '@/core/scrub-url';
+import type { ErrorEvent, Event, EventHint } from '@sentry/nextjs';
+import { withoutPrivateParts } from '@/core/scrub-url';
 import { fromBrowserExtension, fromClientDisconnect } from '@/core/third-party-noise';
+
+/**
+ * What `beforeSendTransaction` receives. `@sentry/nextjs` does not re-export
+ * this type, so it is spelt out the way `@sentry/core` defines it.
+ */
+export type TransactionEvent = Event & { type: 'transaction' };
 
 /** Sentry is off unless a DSN is set, so local development and tests send nothing. */
 export const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN ?? '';
 
 /**
- * Strips the URL fragment from events and navigation breadcrumbs: a `#p=` link
- * carries a whole warehouse plan, which must not reach a third-party service.
+ * Takes out of any event what must not reach a third-party service: the URL
+ * fragment (a `#p=` link carries a whole warehouse plan), short-link ids in
+ * `/s/<id>` and `/api/link/<id>`, and the request body, which can be a shared
+ * plan, a suggestion's text, or the admin key posted to /api/suggestion/done.
  */
+function scrubPrivateData<T extends Event>(event: T): T {
+  if (event.request) {
+    delete event.request.data;
+    if (event.request.url) event.request.url = withoutPrivateParts(event.request.url);
+  }
+
+  for (const crumb of event.breadcrumbs ?? []) {
+    const data = crumb.data;
+    if (!data) continue;
+    // Navigation breadcrumbs carry from/to, fetch and xhr ones a url.
+    for (const key of ['from', 'to', 'url'] as const) {
+      if (typeof data[key] === 'string') data[key] = withoutPrivateParts(data[key]);
+    }
+  }
+  return event;
+}
+
+/** `beforeSend`: drops noise nobody here can fix, then scrubs what is left. */
 export function scrubFragments(event: ErrorEvent, _hint: EventHint): ErrorEvent | null {
   // Drop errors from browser extensions and client disconnects, which nobody
   // here can fix (see third-party-noise.ts for the exact match).
@@ -23,13 +49,15 @@ export function scrubFragments(event: ErrorEvent, _hint: EventHint): ErrorEvent 
   };
   if (fromBrowserExtension(reported) || fromClientDisconnect(reported)) return null;
 
-  if (event.request?.url) event.request.url = withoutFragment(event.request.url);
+  return scrubPrivateData(event);
+}
 
-  for (const crumb of event.breadcrumbs ?? []) {
-    if (typeof crumb.data?.from === 'string') crumb.data.from = withoutFragment(crumb.data.from);
-    if (typeof crumb.data?.to === 'string') crumb.data.to = withoutFragment(crumb.data.to);
-  }
-  return event;
+/**
+ * `beforeSendTransaction`: a page-load trace for `/#p=…` would otherwise carry
+ * the whole plan in its request url.
+ */
+export function scrubTransaction(event: TransactionEvent, _hint: EventHint): TransactionEvent {
+  return scrubPrivateData(event);
 }
 
 /**
@@ -44,4 +72,5 @@ export const sharedOptions = {
   tracesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.1,
   enableLogs: true,
   beforeSend: scrubFragments,
+  beforeSendTransaction: scrubTransaction,
 };
