@@ -125,6 +125,8 @@ const fr: Record<keyof typeof en, string> = {
   'tooltip.ports': 'Ports',
   'tooltip.footprint': 'Taille',
 
+  'status.deadEnds': 'Sorties sans issue',
+  'status.deadEndsHint': "Les colis qui sortent par là tomberaient : aucun tapis ni aucune porte ne les prend. Repéré sur le plan par un triangle orange.",
   'issue.overlap': 'Chevauche un autre objet',
   'issue.out-of-bounds': "En dehors de l’entrepôt",
   'issue.bad-floor': "Cet étage n’existe pas dans cet entrepôt",

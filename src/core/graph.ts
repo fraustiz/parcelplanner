@@ -2,11 +2,12 @@ import { placedPort, rotatedFootprint, portCell, SIDE_STEP } from './grid';
 import type { CatalogEntry, Cell, Door, Plan, Side } from './types';
 
 /**
- * Not called by the app at the moment. Kept and tested as the base for future
- * sorting analysis: the port table, the doors' in/out modelling and
- * `placedPort`'s mirror ordering are checked against game data. Delete it if
- * flow analysis is dropped for good. The catalogue has no throughput, so
- * nothing built on this may claim a spot copes, only how many lines meet there.
+ * Which object feeds which: the parcel preview, the storage planner and the
+ * dead-end warning (src/core/dead-ends.ts) are built on it. The port table,
+ * the doors' in/out modelling and `placedPort`'s mirror ordering are checked
+ * against game data and real saves. The catalogue has no throughput, so
+ * nothing built on this may claim a spot copes, only how many lines meet there,
+ * and nothing may call a layout valid (see src/core/validate.ts).
  */
 
 export interface ResolvedPort {

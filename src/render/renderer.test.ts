@@ -141,6 +141,17 @@ describe('drawScene', () => {
     expect(cells.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('marks an exit that leads nowhere with a triangle pointing out of its cell, on its floor only', () => {
+    const ctx = recorder();
+    // Side S faces y - 1 (see SIDE_STEP): the triangle's tip is above the cell.
+    drawScene(ctx, options({ deadEnds: [{ floor: 0, cell: { x: 2, y: 2 }, side: 'S' }, { floor: 1, cell: { x: 5, y: 5 }, side: 'S' }] }));
+    const fills = ctx.calls.filter((c) => c.op === 'fill' && c.fill === DARK_SCENE.deadEnd);
+    expect(fills).toHaveLength(1);
+    const tip = ctx.calls.find((c) => c.op === 'moveTo' && c.fill === DARK_SCENE.deadEnd)!;
+    expect(tip.args[0]).toBeCloseTo(2.5 * CELL_PX);
+    expect(tip.args[1]).toBeLessThan(2 * CELL_PX);
+  });
+
   describe('object artwork', () => {
     const artRect: Shape = { kind: 'rect', x: 0, y: 0, w: 1, h: 1, fill: '#123456' };
     const artFillPath: Shape = { kind: 'path', d: 'M0 0L1 1', fill: '#abcdef' };

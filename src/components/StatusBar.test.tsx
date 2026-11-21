@@ -39,6 +39,20 @@ describe('StatusBar', () => {
     expect(screen.queryByText(/issues found/)).toBeNull();
   });
 
+  it('warns, apart from the issues, of an exit a parcel would fall from', () => {
+    // A belt with nothing after it: a fact, not a verdict on the layout.
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: [belt('a', 30)] } }));
+    render(<StatusBar />);
+    expect(screen.getByText(/exits leading nowhere: 1/i)).toBeTruthy();
+    expect(screen.queryByText(/issues found/)).toBeNull();
+  });
+
+  it('does not warn on the workshop bench, where modules have loose ends', () => {
+    useEditor.setState((s) => ({ plan: { ...s.plan, warehouse: 'workshop', placements: [belt('a', 30, { warehouse: 'workshop' })] } }));
+    render(<StatusBar />);
+    expect(screen.queryByText(/leading nowhere/i)).toBeNull();
+  });
+
   it('still reports a placement problem it can actually see', () => {
     // Two belts on the same cell: a fact about placement, not a judgement.
     useEditor.setState((s) => ({ plan: { ...s.plan, placements: [belt('a', 0), belt('b', 0)] } }));

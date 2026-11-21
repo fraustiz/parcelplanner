@@ -2,8 +2,11 @@
 
 import { useMemo } from 'react';
 import { computeCost } from '@/core/cost';
+import { deadEnds } from '@/core/dead-ends';
+import { buildGraph } from '@/core/graph';
 import { validate } from '@/core/validate';
 import { getCatalogue } from '@/data/catalogue';
+import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
 import { ownedGeometry, ownedTiersOf } from '@/data/warehouse-tiers';
 import { formatMoney, t, type TranslationKey } from '@/i18n';
@@ -30,6 +33,12 @@ export default function StatusBar() {
   // out of bounds.
   const issues = useMemo(
     () => validate(plan, catalogue, ownedGeometry(ownedTiersOf(plan))),
+    [plan, catalogue],
+  );
+  // Exits a parcel would fall from: a warning, not an issue, since the layout
+  // may be unfinished. Never on the workshop bench (see GridCanvas).
+  const looseExits = useMemo(
+    () => (plan.warehouse === 'workshop' ? 0 : deadEnds(buildGraph(plan, catalogue, DOORS)).length),
     [plan, catalogue],
   );
   // computeCost prices both warehouses (see src/core/cost.ts); that figure is
@@ -104,6 +113,12 @@ export default function StatusBar() {
       {issues.length > 0 && (
         <span className="text-[var(--danger)]">
           {issues.length} {t(locale, 'status.issues')}
+        </span>
+      )}
+
+      {looseExits > 0 && (
+        <span className="text-[var(--warning)]" title={t(locale, 'status.deadEndsHint')}>
+          {t(locale, 'status.deadEnds')}: {looseExits}
         </span>
       )}
 

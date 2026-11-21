@@ -125,6 +125,8 @@ const en = {
   'tooltip.ports': 'Ports',
   'tooltip.footprint': 'Size',
 
+  'status.deadEnds': 'Exits leading nowhere',
+  'status.deadEndsHint': 'Parcels leaving here would fall: no belt or door takes them. Marked on the plan with an orange triangle.',
   'issue.overlap': 'Overlaps another object',
   'issue.out-of-bounds': 'Outside the warehouse',
   'issue.bad-floor': 'This warehouse has no such floor',

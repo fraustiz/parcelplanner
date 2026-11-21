@@ -144,6 +144,11 @@ export interface DrawOptions {
   rackFill?: readonly { from: Cell; to: Cell; text: string }[];
   /** The artwork colour a chosen colour replaces, or null for a family that cannot be painted. */
   repaintableColourOf: (entry: CatalogEntry) => string | null;
+  /**
+   * Exits that lead nowhere (`deadEnds` in src/core/dead-ends.ts): the cell and side a parcel
+   * would leave by and fall. Marked on the floor shown with a warning triangle pointing out.
+   */
+  deadEnds?: readonly { floor: number; cell: Cell; side: Side }[];
   /** Staircases between floors, from src/data/stairs.ts. */
   stairs: readonly {
     warehouse: Plan['warehouse'];
@@ -199,6 +204,8 @@ export const DARK_SCENE = {
   marqueeFill: 'rgba(245, 198, 91, 0.12)',
   /** The keyboard cursor: the page's own accent, as on focused controls. */
   cursor: '#dba66d',
+  /** An exit that leads nowhere: the UI's warning orange, so it reads as a caution, not an error. */
+  deadEnd: '#f0a05a',
   /** A note on the plan, warm and paper-like so it reads as written on it. */
   note: '#e8c35c',
   noteInk: '#221a06',
@@ -257,6 +264,7 @@ export const LIGHT_SCENE: ScenePalette = {
   doorHover: 'rgba(255, 255, 255, 0.3)',
   marqueeFill: 'rgba(184, 121, 10, 0.14)',
   cursor: '#8a5626',
+  deadEnd: '#c27100',
 };
 
 /** Widened: DARK_SCENE is `as const`, so its own type is literals nothing else could satisfy. */
@@ -443,6 +451,29 @@ function drawRejectCross(ctx: Draw2D, cx: number, cy: number, size: number): voi
   ctx.lineTo(cx + arm, cy + arm);
   ctx.moveTo(cx + arm, cy - arm);
   ctx.lineTo(cx - arm, cy + arm);
+  ctx.stroke();
+}
+
+/**
+ * A triangle on the edge a parcel would leave by, pointing out into the void, outlined so it
+ * stays visible on any artwork.
+ */
+function drawDeadEnd(ctx: Draw2D, camera: Camera, size: number, cell: Cell, side: Side): void {
+  const { px, py } = worldToScreen(camera, cell);
+  const step = SIDE_STEP[side];
+  const edgeX = px + size / 2 + (step.dx * size) / 2;
+  const edgeY = py + size / 2 + (step.dy * size) / 2;
+  const half = size * 0.22;
+  const reach = size * 0.32;
+  ctx.fillStyle = colours.deadEnd;
+  ctx.strokeStyle = colours.doorPortal;
+  ctx.lineWidth = Math.max(1, size * 0.04);
+  ctx.beginPath();
+  ctx.moveTo(edgeX + step.dx * reach, edgeY + step.dy * reach);
+  ctx.lineTo(edgeX - step.dy * half, edgeY + step.dx * half);
+  ctx.lineTo(edgeX + step.dy * half, edgeY - step.dx * half);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
 }
 
@@ -1134,6 +1165,11 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
 
       outlineIfSelected(placement, entry, isCurrent);
     }
+  }
+
+  // Exits that lead nowhere, over the objects so they cannot hide under artwork.
+  for (const end of o.deadEnds ?? []) {
+    if (end.floor === o.floor) drawDeadEnd(ctx, camera, size, end.cell, end.side);
   }
 
   // Drag/drop highlight, always drawn last so it sits on top.
