@@ -15,6 +15,7 @@ import { DOORS } from '@/data/doors';
 import { warehouseTierOf } from '@/data/warehouse-tiers';
 import { t, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
+import { useSimStats } from '@/store/sim-stats';
 import { useDialog } from './use-dialog';
 
 /**
@@ -61,6 +62,13 @@ export default function StoragePlanner() {
   const axis = useMemo(() => sortedBy(warehouse, warehouseTier), [warehouse, warehouseTier]);
   const [sizeLevel, setSizeLevel] = useState(0);
   const [speedLevel, setSpeedLevel] = useState(0);
+  // A game save just imported says how upgraded the doors are.
+  const savedDelivery = useSimStats((s) => s.savedDelivery);
+  useEffect(() => {
+    if (savedDelivery === null) return;
+    setSizeLevel(savedDelivery.sizeLevel);
+    setSpeedLevel(savedDelivery.speedLevel);
+  }, [savedDelivery]);
   // Everything starts accepted every day, so the player marks what is closed.
   // Keyed by what the warehouse sorts by and rebuilt when that changes: a
   // missing entry means "never accepted". Existing ticks survive the switch.

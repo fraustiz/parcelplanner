@@ -230,4 +230,14 @@ describe('planFromSave, what the player set up', () => {
     expect(colour(5)).toBe('#d0d0d1');
     expect(colour(6)).toBeUndefined(); // red is a rack's own colour
   });
+
+  it('reads how upgraded the delivery doors are, and nothing when the save does not say', () => {
+    const levels = (upgrades: unknown) => planFromSave(withExtras([], upgrades === undefined ? {} : { TieredUpgrades: upgrades as GvasStruct[] }), tables).delivery;
+    // Speed is NewEnumerator0, size NewEnumerator1; values are levels bought.
+    expect(levels([['E_TieredUpgrade::NewEnumerator0', 3], ['E_TieredUpgrade::NewEnumerator1', 2], ['E_TieredUpgrade::NewEnumerator5', 3]]))
+      .toEqual({ sizeLevel: 2, speedLevel: 3 });
+    expect(levels([['E_TieredUpgrade::NewEnumerator0', 1]])).toEqual({ sizeLevel: 0, speedLevel: 1 });
+    expect(levels([['E_TieredUpgrade::NewEnumerator1', 9]])).toEqual({ sizeLevel: 2, speedLevel: 0 });
+    expect(levels(undefined)).toBeUndefined();
+  });
 });

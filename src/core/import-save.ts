@@ -51,6 +51,20 @@ export interface SaveTables {
   rackColours: Readonly<Record<string, string | null>>;
   /** Whether a colour can be put on this object (see `repaintableColourOf`). */
   canPaint: (entry: CatalogEntry) => boolean;
+  /** The `E_TieredUpgrade` values of the delivery door upgrades, and how many levels each has. */
+  deliveryUpgrades: { size: string; speed: string; sizeLevels: number; speedLevels: number };
+}
+
+/**
+ * How upgraded the player's delivery doors are, 0-based like the preview's
+ * settings (src/store/sim-stats.ts). Not part of the plan: it describes the
+ * save, not the layout.
+ */
+export interface SaveDelivery { sizeLevel: number; speedLevel: number }
+
+export interface SaveImportResult extends ImportResult {
+  /** Absent when the save does not list its upgrades. */
+  delivery?: SaveDelivery;
 }
 
 /** World units to a cell. */
@@ -157,6 +171,22 @@ function ownedTiers(save: GvasSave, tables: SaveTables): number[] | undefined {
   return [...new Set(tiers)].sort((a, b) => a - b);
 }
 
+/**
+ * The delivery door upgrades bought (`TieredUpgrades`, upgrade to how many
+ * levels bought). One not listed is not bought.
+ */
+function delivery(save: GvasSave, tables: SaveTables): SaveDelivery | undefined {
+  const upgrades = save.properties.TieredUpgrades;
+  if (!Array.isArray(upgrades)) return undefined;
+  const bought = new Map(pairs(upgrades));
+  const level = (key: string, levels: number) => {
+    const n = bought.get(key);
+    return typeof n === 'number' ? Math.min(Math.max(0, Math.round(n)), levels - 1) : 0;
+  };
+  const u = tables.deliveryUpgrades;
+  return { sizeLevel: level(u.size, u.sizeLevels), speedLevel: level(u.speed, u.speedLevels) };
+}
+
 /** The country each export door takes, as the player set it. */
 function doorCountries(save: GvasSave, tables: SaveTables): Record<string, string> | undefined {
   const out: Record<string, string> = {};
@@ -194,7 +224,7 @@ function savedObjects(save: GvasSave): GvasStruct[] {
   return [...loose, ...racks];
 }
 
-export function planFromSave(save: GvasSave, tables: SaveTables, gameVersion = ''): ImportResult {
+export function planFromSave(save: GvasSave, tables: SaveTables, gameVersion = ''): SaveImportResult {
   const report: ImportReport = {
     placed: 0, byWarehouse: [], unknown: [], dropped: [], ignored: 0, rotationUnknown: 0,
   };
@@ -318,5 +348,6 @@ export function planFromSave(save: GvasSave, tables: SaveTables, gameVersion = '
   if (tiers !== undefined) plan.ownedTiers = tiers;
   const doors = doorCountries(save, tables);
   if (doors !== undefined) plan.doorCountries = doors;
-  return { plan, report };
+  const levels = delivery(save, tables);
+  return { plan, report, ...(levels !== undefined ? { delivery: levels } : {}) };
 }

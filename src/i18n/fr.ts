@@ -266,6 +266,8 @@ const fr: Record<keyof typeof en, string> = {
   "import.saveUnknown": "objets ne sont pas dans le planificateur, et ont été ignorés",
   "import.saveDropped": "objets n'étaient pas posés à plat sur une case de la grille, et ont été ignorés",
   "import.saveEmpty": "Rien n'est construit sur les grilles de cette sauvegarde.",
+  "import.saveDelivery": "Portes de livraison :",
+  "import.saveDeliveryParcels": "colis par camion",
   "import.saveUnreadableWhy": "Ce n'est pas une sauvegarde de Parcel Simulator, ou elle est endommagée. Les sauvegardes sont dans %LOCALAPPDATA%\\parcel\\Saved\\SaveGames, sous les noms Save1.sav, Save2.sav, etc.",
   "mobile.viewOnly": "Consultation seule : l'édition demande souris et clavier",
   "mobile.hint": "Glisse pour déplacer, pince pour zoomer. Ouvre sur ordinateur pour construire.",

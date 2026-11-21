@@ -2,6 +2,7 @@ import type { SaveGrid, SaveTables } from '@/core/import-save';
 import { getCatalogue } from './catalogue';
 import { repaintableColourOf } from './colours';
 import { isCountry } from './countries';
+import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from './deliveries';
 import { WAREHOUSES } from './warehouses';
 import type { CargoChoice } from '@/core/types';
 
@@ -161,6 +162,14 @@ export const SAVE_RACK_COLOURS: Readonly<Record<string, string | null>> = {
   Yellow: '#cbc11b',
 };
 
+/**
+ * The delivery door upgrades in `TieredUpgrades`, from `DT_TieredUpgrades`:
+ * DeliverySpeed (3 levels to buy) and DeliverySize (2). A save stores how many
+ * levels were bought, which is the 0-based level of src/data/deliveries.ts.
+ */
+export const SAVE_DELIVERY_SPEED = 'E_TieredUpgrade::NewEnumerator0';
+export const SAVE_DELIVERY_SIZE = 'E_TieredUpgrade::NewEnumerator1';
+
 /** Every table `planFromSave` needs, from this app's data. */
 export function saveTables(): SaveTables {
   return {
@@ -176,5 +185,9 @@ export function saveTables(): SaveTables {
     paints: SAVE_PAINTS,
     rackColours: SAVE_RACK_COLOURS,
     canPaint: (entry) => repaintableColourOf(entry) !== null,
+    deliveryUpgrades: {
+      size: SAVE_DELIVERY_SIZE, speed: SAVE_DELIVERY_SPEED,
+      sizeLevels: PARCELS_PER_TRUCK.length, speedLevels: DOOR_TIMER_SECONDS.length,
+    },
   };
 }

@@ -62,6 +62,13 @@ interface SimStore {
   /** Not saved with the plan: it describes the player's save, not the layout. */
   settings: SimSettings;
   setSettings: (change: Partial<SimSettings>) => void;
+  /**
+   * The delivery levels of the last game save imported, for the storage
+   * planner, which keeps its own levels until a save gives some.
+   */
+  savedDelivery: { sizeLevel: number; speedLevel: number } | null;
+  /** Sets the preview's delivery levels and the storage planner's from a save. */
+  applySavedDelivery: (levels: { sizeLevel: number; speedLevel: number }) => void;
 }
 
 export const useSimStats = create<SimStore>((set) => ({
@@ -70,6 +77,11 @@ export const useSimStats = create<SimStore>((set) => ({
   setPauserOpen: (id, open) => set((s) => ({ pausers: { ...s.pausers, [id]: open } })),
   settings: DEFAULT_SIM_SETTINGS,
   setSettings: (change) => set((s) => ({ settings: { ...s.settings, ...change } })),
+  savedDelivery: null,
+  applySavedDelivery: (levels) => set((s) => ({
+    settings: { ...s.settings, ...levels },
+    savedDelivery: { ...levels },
+  })),
 }));
 
 /** Whether the pauser `id` lets parcels through right now. */

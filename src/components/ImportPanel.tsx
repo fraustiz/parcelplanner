@@ -3,7 +3,9 @@
 import { useRef } from 'react';
 
 import type { ImportReport, TemplateProblem } from '@/core/import-plan';
+import type { SaveDelivery } from '@/core/import-save';
 import type { Plan } from '@/core/types';
+import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
 import { useDialog } from './use-dialog';
@@ -26,7 +28,7 @@ export type ImportSource = 'template' | 'save';
 export type ImportOutcome =
   | { kind: 'unreadable'; source: ImportSource }
   | { kind: 'refused'; problems: TemplateProblem[] }
-  | { kind: 'ready'; source: ImportSource; plan: Plan; report: ImportReport };
+  | { kind: 'ready'; source: ImportSource; plan: Plan; report: ImportReport; delivery?: SaveDelivery };
 
 /** The texts that differ between the two sources; the rest are shared. */
 const SOURCE_TEXT: Record<ImportSource, Record<'caution' | 'cautionWhy' | 'empty' | 'unknown' | 'dropped' | 'unreadableWhy', TranslationKey>> = {
@@ -72,7 +74,8 @@ function Button(
 export default function ImportPanel(
   { outcome, onConfirm, onClose }: {
     outcome: ImportOutcome;
-    onConfirm: (plan: Plan) => void;
+    /** Also given the delivery levels a game save carries. */
+    onConfirm: (plan: Plan, delivery?: SaveDelivery) => void;
     onClose: () => void;
   },
 ) {
@@ -111,6 +114,11 @@ export default function ImportPanel(
     }
     if (ready.report.dropped.length > 0) {
       lines.push(counted(locale, ready.report.dropped.length, text.dropped));
+    }
+    if (ready.delivery) {
+      const parcels = PARCELS_PER_TRUCK[ready.delivery.sizeLevel];
+      const seconds = DOOR_TIMER_SECONDS[ready.delivery.speedLevel];
+      lines.push(`${say('import.saveDelivery')} ${parcels} ${say('import.saveDeliveryParcels')}, ${seconds} s`);
     }
   }
 
@@ -154,7 +162,7 @@ export default function ImportPanel(
             label={say(ready && !empty ? 'import.cancel' : 'import.close')}
           />
           {ready && !empty && (
-            <Button tone="primary" onClick={() => onConfirm(ready.plan)} label={say('import.confirm')} />
+            <Button tone="primary" onClick={() => onConfirm(ready.plan, ready.delivery)} label={say('import.confirm')} />
           )}
         </div>
       </div>

@@ -19,6 +19,7 @@ import {
 import { WAREHOUSES } from '@/data/warehouses';
 import { t, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
+import { useSimStats } from '@/store/sim-stats';
 import { exportImage } from './export-image';
 import ImportPanel, { type ImportOutcome } from './ImportPanel';
 import { useDialog } from './use-dialog';
@@ -109,8 +110,8 @@ async function readSave(file: File): Promise<ImportOutcome> {
   } catch {
     return { kind: 'unreadable', source: 'save' };
   }
-  const { plan, report } = planFromSave(save, saveTables(), CATALOGUE_GAME_VERSION);
-  return { kind: 'ready', source: 'save', plan, report };
+  const { plan, report, delivery } = planFromSave(save, saveTables(), CATALOGUE_GAME_VERSION);
+  return { kind: 'ready', source: 'save', plan, report, ...(delivery ? { delivery } : {}) };
 }
 
 export default function Share() {
@@ -315,7 +316,11 @@ export default function Share() {
         <ImportPanel
           outcome={outcome}
           onClose={() => setOutcome(null)}
-          onConfirm={(imported) => { loadPlan(imported); setOutcome(null); }}
+          onConfirm={(imported, delivery) => {
+            loadPlan(imported);
+            if (delivery) useSimStats.getState().applySavedDelivery(delivery);
+            setOutcome(null);
+          }}
         />
       )}
 

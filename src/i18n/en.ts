@@ -266,6 +266,8 @@ const en = {
   "import.saveUnknown": "objects are not in the planner, and were left out",
   "import.saveDropped": "objects were not lying flat on a cell of the grid, and were left out",
   "import.saveEmpty": "Nothing is built on the grids of this save.",
+  "import.saveDelivery": "Delivery doors:",
+  "import.saveDeliveryParcels": "parcels per truck",
   "import.saveUnreadableWhy": "It is not a Parcel Simulator save, or it is damaged. Saves are in %LOCALAPPDATA%\\parcel\\Saved\\SaveGames, named Save1.sav, Save2.sav and so on.",
   "mobile.viewOnly": "Viewing only: editing needs a mouse and keyboard",
   "mobile.hint": "Drag to move, pinch to zoom. Open on a computer to build.",

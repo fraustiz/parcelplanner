@@ -50,7 +50,8 @@ describe('the caution an import has to carry', () => {
 
     expect(onConfirm).not.toHaveBeenCalled();
     fireEvent.click(getByRole('button', { name: /import anyway/i }));
-    expect(onConfirm).toHaveBeenCalledWith(PLAN);
+    // A spreadsheet carries no delivery levels.
+    expect(onConfirm).toHaveBeenCalledWith(PLAN, undefined);
   });
 
   it('backs out without loading', () => {
@@ -167,6 +168,15 @@ describe('a game save', () => {
     expect(getByText(/3215 objects read/i)).toBeTruthy();
     expect(getByText(/1 objects are not in the planner/i)).toBeTruthy();
     expect(getByText(/1 objects were not lying flat on a cell/i)).toBeTruthy();
+  });
+
+  it('shows the delivery door levels it read, and hands them over on confirm', () => {
+    const onConfirm = vi.fn();
+    const { getByText, getByRole } = render(
+      <ImportPanel outcome={SAVE({ delivery: { sizeLevel: 2, speedLevel: 3 } })} onConfirm={onConfirm} onClose={() => {}} />);
+    expect(getByText(/delivery doors: 7 parcels per truck, 10 s/i)).toBeTruthy();
+    fireEvent.click(getByRole('button', { name: /import anyway/i }));
+    expect(onConfirm).toHaveBeenCalledWith(PLAN, { sizeLevel: 2, speedLevel: 3 });
   });
 
   it('tells where saves are kept when the file is not one', () => {

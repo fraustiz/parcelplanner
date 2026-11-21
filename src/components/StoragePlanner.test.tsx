@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/react';
 import StoragePlanner from './StoragePlanner';
 import { useEditor } from '@/store/editor';
+import { act } from 'react';
+import { useSimStats } from '@/store/sim-stats';
 
 afterEach(cleanup);
 
@@ -11,6 +13,7 @@ beforeEach(() => {
     plan: { gameVersion: 'test', warehouse: 'main', placements: [] },
     locale: 'en',
   });
+  useSimStats.setState({ savedDelivery: null });
 });
 
 const open = () => fireEvent.click(screen.getByRole('button', { name: /storage/i }));
@@ -92,6 +95,14 @@ describe('the storage planner', () => {
     // Five inbound doors in the main warehouse, from src/data/doors.ts. The
     // in-game figure of 525 parcels a day at max upgrades is 5 x 105.
     expect(screen.getByRole('dialog').textContent).toContain('5 × 33');
+  });
+
+  it('takes the delivery levels of a game save just imported', () => {
+    render(<StoragePlanner />);
+    open();
+    act(() => useSimStats.getState().applySavedDelivery({ sizeLevel: 2, speedLevel: 3 }));
+    // Fully upgraded: 182 parcels a door a day (see src/data/deliveries.ts).
+    expect(screen.getByRole('dialog').textContent).toContain('5 × 182');
   });
 
   it('closes again', () => {
