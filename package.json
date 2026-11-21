@@ -24,7 +24,7 @@
     "node": ">=20.9.0"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.73.0",
+    "@sentry/nextjs": "^10.78.0",
     "lucide-react": "^1.27.0",
     "next": "^16.4.6",
     "react": "^19.2.8",
