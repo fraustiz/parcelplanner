@@ -16,6 +16,7 @@ import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/co
 import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
+import { countryFlags as flagsOf } from '@/data/countries';
 import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
@@ -331,6 +332,9 @@ export default function GridCanvas() {
   const icons = useMemo(() => new Map(Object.entries(OBJECT_ICONS)), []);
   // The same, for the cargo-type logos stamped into each export door's bay.
   const cargoIcons = useMemo(() => new Map(Object.entries(CARGO_TYPE_ICONS)), []);
+  // The flags drawn on assigned country doors, the game's or the RealCountries mod's.
+  const realCountries = useEditor((s) => s.realCountries);
+  const countryFlags = useMemo(() => flagsOf(realCountries), [realCountries]);
 
   // Bumped when an icon finishes loading, to trigger one more redraw (see
   // useImageCache).
@@ -586,7 +590,7 @@ export default function GridCanvas() {
         floor, highlight, selectedIds,
         geometry: WAREHOUSES, unlocked,
         shapes, shapeDivisor: SHAPE_DIVISOR,
-        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, parcelIcon: PARCEL_ICON,
+        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, parcelIcon: PARCEL_ICON,
         notes: plan.notes,
         doors: DOORS, marquee: marquee ?? area,
         cursor: showCursor ? cursor : null,
@@ -602,7 +606,7 @@ export default function GridCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getImage is a
     // closure over a ref; imageTick is the deliberate "icon loaded, redraw"
     // trigger and must stay though it is unread.
-  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
+  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
 
   // A box describes cells on one floor of one building; see `area`.
   useEffect(() => setArea(null), [floor, plan.warehouse]);

@@ -110,6 +110,11 @@ export interface DrawOptions {
   cargoIcons: ReadonlyMap<string, string>;
   /** The flag stamped on a country export door's bay, since those sort by destination. Undefined leaves it unlabelled. */
   countryIcon?: string;
+  /**
+   * Flag image by country id (`countryFlags()` in src/data/countries.ts). A country door the
+   * plan assigns (`plan.doorCountries`) shows its country's flag in place of `countryIcon`.
+   */
+  countryFlags?: ReadonlyMap<string, string>;
   /** Notes on the grid (`plan.notes`). Only those on the drawn floor and warehouse appear. */
   notes?: readonly PlanNote[];
   /** The parcel drawing (`PARCEL_ICON`). Without it a parcel draws no sprite, never a substitute shape. */
@@ -446,6 +451,8 @@ function drawDoors(
   countryIcon: string | undefined,
   arrow: readonly Shape[],
   arrowDivisor: number,
+  doorCountries: Plan['doorCountries'],
+  countryFlags: ReadonlyMap<string, string> | undefined,
 ): void {
   for (const door of doors) {
     if (door.warehouse !== warehouse || door.floor !== floor) continue;
@@ -466,7 +473,11 @@ function drawDoors(
     if (size >= MIN_CELL_SIZE_FOR_ICON) {
       // Glyphs go beyond the portal, so a cargo logo never sits under the arrow.
       const field = doorGlyphRect(px, py, size, door.side);
-      if (look === 'reject') {
+      const country = look === 'country' ? doorCountries?.[door.id] : undefined;
+      const flag = country === undefined ? undefined : countryFlags?.get(country);
+      if (flag !== undefined) {
+        drawFlag(ctx, field, size, flag);
+      } else if (look === 'reject') {
         const [centre] = glyphCentres(field, size, 1);
         if (centre) drawRejectCross(ctx, centre.cx, centre.cy, size);
       } else if (look === 'export' || look === 'country') {
@@ -498,6 +509,28 @@ function drawDoors(
       );
     }
   }
+}
+
+/** The game's flags are 1000 x 600. */
+const FLAG_ASPECT = 5 / 3;
+/** A flag's width in cells: wider than a glyph, since a flag is read by its pattern. */
+const FLAG_WIDTH = 1.8;
+
+/** A country's flag, centred in the bay beyond the portal, with a thin dark edge so a white
+ * flag still reads against the green bay. */
+function drawFlag(
+  ctx: Draw2D,
+  field: { x: number; y: number; w: number; h: number },
+  size: number,
+  path: string,
+): void {
+  const w = Math.min(size * FLAG_WIDTH, field.w * 0.9, field.h * 0.9 * FLAG_ASPECT);
+  const h = w / FLAG_ASPECT;
+  const x = field.x + (field.w - w) / 2;
+  const y = field.y + (field.h - h) / 2;
+  ctx.fillStyle = colours.doorGlyph;
+  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.drawImage(path, x, y, w, h);
 }
 
 /** Below this on-screen cell size an icon would be a few pixels of noise, so it is skipped. */
@@ -898,7 +931,7 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
 
   drawDoors(
     ctx, camera, size, o.doors, o.plan.warehouse, o.floor, o.cargoIcons, o.countryIcon,
-    o.doorArrow, o.doorArrowDivisor,
+    o.doorArrow, o.doorArrowDivisor, o.plan.doorCountries, o.countryFlags,
   );
 
   // Rulers are chrome, drawn early; the drag/drop highlight stays last.

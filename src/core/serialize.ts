@@ -1,4 +1,5 @@
-import { SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from '@/data/share-object-ids';
+import { SHARE_COUNTRY_DOOR_IDS, SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from '@/data/share-object-ids';
+import { COUNTRIES, isCountry } from '@/data/countries';
 import { isObjectColour, OBJECT_COLOURS } from '@/data/colours';
 import { rotatedFootprint } from './grid';
 import type { Cell, Placement, Plan, PlanNote } from './types';
@@ -74,8 +75,25 @@ function isPlan(value: unknown): value is Plan {
     isWarehouse(v.warehouse) &&
     Array.isArray(v.placements) && v.placements.every(isPlacement) &&
     (v.ownedTiers === undefined || (Array.isArray(v.ownedTiers) && v.ownedTiers.every(isFiniteNumber))) &&
-    (v.notes === undefined || (Array.isArray(v.notes) && v.notes.every(isNote)))
+    (v.notes === undefined || (Array.isArray(v.notes) && v.notes.every(isNote))) &&
+    (v.doorCountries === undefined || isRecord(v.doorCountries))
   );
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * The door assignments worth keeping: a known country door to a known country id. Anything
+ * else (a door this app does not have, a display name, a number) is dropped rather than
+ * rejected, like an unknown colour, and the field goes away when nothing is left.
+ */
+function cleanDoorCountries(value: Record<string, unknown> | undefined): Record<string, string> | undefined {
+  if (value === undefined) return undefined;
+  const kept = Object.entries(value).filter(
+    (entry): entry is [string, string] => SHARE_COUNTRY_DOOR_IDS.includes(entry[0]) && isCountry(entry[1]),
+  );
+  return kept.length > 0 ? Object.fromEntries(kept) : undefined;
 }
 
 /**
@@ -90,8 +108,11 @@ export function planFromJson(json: string): Plan {
   if (!isPlan(parsed)) {
     throw new Error('not a ParcelPlanner plan');
   }
+  const { doorCountries, ...rest } = parsed;
+  const doors = cleanDoorCountries(doorCountries);
   return {
-    ...parsed,
+    ...rest,
+    ...(doors !== undefined ? { doorCountries: doors } : {}),
     placements: parsed.placements.map(({ colour, ...p }) => ({
       ...p,
       warehouse: p.warehouse ?? DEFAULT_PLACEMENT_WAREHOUSE,
@@ -241,7 +262,10 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
   // the notes count even when zero, to keep the later blocks where the reader
   // looks for them.
   const notes = plan.notes ?? [];
-  if (notes.length > 0 || zones.length > 0 || benched.length > 0) {
+  // Door countries go last of all (see below); every block before them is then written,
+  // empty if need be, so the reader finds them.
+  const countries = doorCountryPairs(plan);
+  if (notes.length > 0 || zones.length > 0 || benched.length > 0 || countries.length > 0) {
     writeVarint(out, notes.length);
     const text = new TextEncoder();
     for (const note of notes) {
@@ -258,7 +282,7 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
 
   // Zones, after the notes: a link that ends before them has none. Written as
   // the ground they cover (rotation 0, same top-left cell): a zone has no front.
-  if (zones.length > 0 || benched.length > 0) {
+  if (zones.length > 0 || benched.length > 0 || countries.length > 0) {
     writeVarint(out, zones.length);
     const text = new TextEncoder();
     for (const zone of zones) {
@@ -279,8 +303,27 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
 
   // Workshop objects, last, in the same columns; their position marks them as
   // the workshop's. A link that ends before this block has nothing on the bench.
-  if (benched.length > 0) writeColumns(out, benched);
+  if (benched.length > 0 || countries.length > 0) writeColumns(out, benched);
+
+  // Country doors, last: a count, then each door's index in SHARE_COUNTRY_DOOR_IDS and its
+  // country's in COUNTRIES. A link that ends before this block assigns none.
+  if (countries.length > 0) {
+    writeVarint(out, countries.length);
+    for (const [door, country] of countries) {
+      writeVarint(out, door);
+      writeVarint(out, country);
+    }
+  }
   return new Uint8Array(out);
+}
+
+/** The plan's door assignments as (door index, country index) pairs, in door order,
+ * leaving out any the frozen lists do not hold. */
+function doorCountryPairs(plan: Plan): [number, number][] {
+  return Object.entries(plan.doorCountries ?? {})
+    .map(([door, country]) => [SHARE_COUNTRY_DOOR_IDS.indexOf(door), COUNTRIES.indexOf(country)] as [number, number])
+    .filter(([door, country]) => door >= 0 && country >= 0)
+    .sort((a, b) => a[0] - b[0]);
 }
 
 /**
@@ -456,6 +499,20 @@ function unpackPlanBinary(bytes: Uint8Array): Plan {
 
   // The workshop's objects, after the zones (see packPlanBinary).
   if (!reader.exhausted()) placements.push(...readColumns(reader, 'workshop'));
+
+  // Country doors, after the workshop (see packPlanBinary).
+  if (!reader.exhausted()) {
+    const count = reader.varint();
+    const doorCountries: Record<string, string> = {};
+    for (let i = 0; i < count; i++) {
+      const door = SHARE_COUNTRY_DOOR_IDS[reader.varint()];
+      const country = COUNTRIES[reader.varint()];
+      // An index past either list is a payload this app did not write.
+      if (door === undefined || country === undefined) throw new Error('not a ParcelPlanner plan');
+      doorCountries[door] = country;
+    }
+    if (count > 0) plan.doorCountries = doorCountries;
+  }
   return plan;
 }
 
