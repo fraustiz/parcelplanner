@@ -1,0 +1,28 @@
+name: Game data is wrong or outdated
+description: A price, size, port or object does not match the game, often after an update.
+labels: [game data]
+body:
+  - type: input
+    id: object
+    attributes:
+      label: Object or value
+      placeholder: T-Joiner conveyor, tier 2 price
+    validations:
+      required: true
+  - type: textarea
+    id: values
+    attributes:
+      label: In the planner, and in the game
+      description: What the planner shows, and what the game shows.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Game version or update
+      placeholder: 25 September update
+  - type: textarea
+    id: proof
+    attributes:
+      label: How you checked
+      description: A screenshot from the game is the best proof.

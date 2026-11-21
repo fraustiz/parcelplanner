@@ -1,0 +1,26 @@
+name: Bug
+description: Something in the planner does not work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: input
+    id: plan
+    attributes:
+      label: Link to the plan
+      description: Share → copy the link, and paste it here. It lets us open exactly what you see.
+      placeholder: https://parcelplanner.app/#p=...
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Firefox 140 on Windows
+  - type: textarea
+    id: more
+    attributes:
+      label: Screenshots or anything else
