@@ -292,8 +292,8 @@ export default function GridCanvas() {
   const [menu, setMenu] = useState<MenuAnchor | null>(null);
   // The country picker of a country door, opened by clicking the door's bay.
   const [doorMenu, setDoorMenu] = useState<{ door: Door; at: { x: number; y: number } } | null>(null);
-  // Whether the pointer is over a country door's bay, for the hand cursor.
-  const [overDoor, setOverDoor] = useState(false);
+  // The country door whose bay is under the pointer: lit up, with a hand cursor.
+  const [overDoor, setOverDoor] = useState<string | null>(null);
   // The keyboard cursor: UI state only, never in the plan or the undo history.
   // It keeps its cell while hidden, so focus coming back resumes where it was.
   const [cursor, setCursor] = useState<Cell | null>(null);
@@ -582,7 +582,7 @@ export default function GridCanvas() {
         floor, highlight, selectedIds,
         geometry: WAREHOUSES, unlocked,
         shapes, shapeDivisor: SHAPE_DIVISOR,
-        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, parcelIcon: PARCEL_ICON,
+        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, hoveredDoorId: overDoor ?? undefined, doorChips: true, parcelIcon: PARCEL_ICON,
         notes: plan.notes,
         doors: DOORS, marquee: marquee ?? area,
         cursor: showCursor ? cursor : null,
@@ -598,7 +598,7 @@ export default function GridCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getImage is a
     // closure over a ref; imageTick is the deliberate "icon loaded, redraw"
     // trigger and must stay though it is unread.
-  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
+  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, overDoor, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
 
   // A box describes cells on one floor of one building; see `area`.
   useEffect(() => setArea(null), [floor, plan.warehouse]);
@@ -1317,7 +1317,7 @@ export default function GridCanvas() {
     // Hover card: only over a real object, and never while one is armed.
     const cell = cellAt(event);
     const over = drag ? undefined : hitTest(cell);
-    setOverDoor(!drag && !over && countryDoorAt(plan.warehouse, floor, cell) !== undefined);
+    setOverDoor(drag || over ? null : countryDoorAt(plan.warehouse, floor, cell)?.id ?? null);
     // A note shows on hover even where nothing is built.
     const noted = drag ? undefined : (plan.notes ?? []).find(
       (note) => note.warehouse === plan.warehouse && note.floor === floor
@@ -1406,6 +1406,7 @@ export default function GridCanvas() {
   };
 
   const onMouseLeave = () => {
+    setOverDoor(null);
     panRef.current = null;
     // End any run at the edge rather than resuming it if the pointer returns.
     const painting = paintRef.current;
