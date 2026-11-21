@@ -899,6 +899,11 @@ export default function GridCanvas() {
     const onward = onwardOf(graph.edges);
     const portIndex = portIndexOf(graph.ports);
     const entries = [...entryPoints(graph.edges, deliveryIds)];
+    // The delivery door behind each entry: the preview's source is the first
+    // object the door feeds, but the bay and its truck belong to the door.
+    const entryDoor = new Map(graph.edges
+      .filter((edge) => deliveryIds.has(edge.from) && !deliveryIds.has(edge.to))
+      .map((edge) => [edge.to, edge.from] as const));
     const pullers = storePullers(
       graph.ports,
       graph.edges,
@@ -916,7 +921,7 @@ export default function GridCanvas() {
       ...pullers.map(({ puller, store }) => ({ from: puller, slot: firstSlot(puller), rack: store as string | undefined })),
     ].filter((source): source is { from: string; slot: string; rack: string | undefined } => source.slot !== undefined);
     const inbound = inboundIndexOf(portIndex);
-    return { exitIds, storeIds, byId, onward, portIndex, inbound, entries, sources, capacity };
+    return { exitIds, storeIds, byId, onward, portIndex, inbound, entries, entryDoor, sources, capacity };
   }, [plan, catalogue]);
 
   /**
@@ -1088,6 +1093,7 @@ export default function GridCanvas() {
       const here = byId.get(cell.node);
       // A truck's parcels come out of the delivery bay at its belts' pace,
       // one after the other: the bursts the game shows.
+      // A route from a delivery door starts on the door's own cell.
       if (here === undefined && previous === undefined) return secondsPerCell(BAY_BELT, simSettings.bayLevel);
       if (here === undefined) return DOOR_CELL_SECONDS;
       if (storeIds.has(cell.node)) {
@@ -1147,12 +1153,13 @@ export default function GridCanvas() {
       }];
     }).concat(
       // Each delivery door's truck while it unloads: parcels still in the bay.
-      DOORS.filter((d) => d.kind === 'delivery' && d.warehouse === plan.warehouse && d.floor === floor
-        && (sim.truckLeft[doorNodeId(d)] ?? 0) > 0)
-        .map((d) => {
-          const brings = PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!;
-          return { from: d.cell, to: d.cell, text: `${sim.truckLeft[doorNodeId(d)]}/${brings}` };
-        }),
+      [...simLayout.entryDoor].flatMap(([entry, doorNode]) => {
+        const left = sim.truckLeft[entry] ?? 0;
+        const d = DOORS.find((door) => doorNodeId(door) === doorNode);
+        if (left === 0 || d === undefined || d.warehouse !== plan.warehouse || d.floor !== floor) return [];
+        const brings = PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!;
+        return [{ from: d.cell, to: d.cell, text: `${left}/${brings}` }];
+      }),
       // Each export door's truck: how full, or how long it stays shut.
       DOORS.filter((d) => d.warehouse === plan.warehouse && d.floor === floor && sim.exports[doorNodeId(d)] !== undefined)
         .map((d) => {

@@ -2602,6 +2602,28 @@ describe('GridCanvas following parcels', () => {
       window.requestAnimationFrame = realRaf;
     }
   });
+
+  it('empties a truck faster out of a bay with faster belts (Conveyor Deliveries)', () => {
+    // Fast belts in the plan, so the bay is what limits how quickly a burst comes in.
+    const fastLine = fedLine(10).map((p) => ({ ...p, tier: 3 }));
+    const parcelsAfterSixSeconds = (bayLevel: number) => {
+      const realRaf = window.requestAnimationFrame;
+      try {
+        useSimStats.setState((s) => ({ settings: { ...s.settings, bayLevel } }));
+        const frames = fakeFrames();
+        useEditor.setState((s) => ({ plan: { ...s.plan, placements: fastLine } }));
+        const view = render(<GridCanvas />);
+        play();
+        runClock(frames, 24);
+        const n = simStats()?.onBelt ?? 0;
+        view.unmount();
+        return n;
+      } finally {
+        window.requestAnimationFrame = realRaf;
+      }
+    };
+    expect(parcelsAfterSixSeconds(3)).toBeGreaterThan(parcelsAfterSixSeconds(1));
+  });
 });
 
 // A bridge passes over its middle cell, so a belt can run underneath; a plain
