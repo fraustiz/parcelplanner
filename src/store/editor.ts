@@ -23,6 +23,21 @@ export const LOCALE_KEY = 'parcelplanner.locale';
  * theme, kept apart from the plan: the plan stores the game's own country ids either way. */
 export const REAL_COUNTRIES_KEY = 'parcelplanner.realCountries';
 
+/** Which side panels are shown. Saved per browser, apart from the plan. */
+export const PANELS_KEY = 'parcelplanner.panels';
+
+export interface Panels { palette: boolean; inspector: boolean }
+
+/** The saved side panels; both shown when none was saved or storage refuses. */
+export function savedPanels(): Panels {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(PANELS_KEY) ?? '{}') as Partial<Panels>;
+    return { palette: saved.palette !== false, inspector: saved.inspector !== false };
+  } catch {
+    return { palette: true, inspector: true };
+  }
+}
+
 /** The saved RealCountries choice; off when none was made or storage refuses. */
 export function savedRealCountries(): boolean {
   try {
@@ -207,6 +222,9 @@ interface EditorState {
   /** Show the RealCountries mod's names and flags instead of the game's own. Saved per browser. */
   realCountries: boolean;
   setRealCountries: (on: boolean) => void;
+  /** The object list (left) and the inspector (right), each closable. Saved per browser. */
+  panels: Panels;
+  setPanelOpen: (panel: keyof Panels, open: boolean) => void;
   loadPlan: (plan: Plan) => void;
 
   /**
@@ -571,6 +589,17 @@ export const useEditor = create<EditorState>((set, get) => {
     // Held like any edit: it writes to storage too.
     if (get().sharedOverWork) { set({ heldEdit: run }); return; }
     run();
+  },
+
+  panels: { palette: true, inspector: true },
+  setPanelOpen: (panel, open) => {
+    const panels = { ...get().panels, [panel]: open };
+    set({ panels });
+    try {
+      window.localStorage.setItem(PANELS_KEY, JSON.stringify(panels));
+    } catch {
+      // Storage refused: the choice still applies for this visit.
+    }
   },
 
   realCountries: false,

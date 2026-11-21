@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, screen, act } from '@testing-library/react';
 import Editor from './Editor';
-import { STORAGE_KEY, useEditor } from '@/store/editor';
+import { PANELS_KEY, STORAGE_KEY, useEditor } from '@/store/editor';
 import type { Placement } from '@/core/types';
 import { planToJson } from '@/core/serialize';
 
@@ -94,5 +94,36 @@ describe('following a short link', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' }).find((b) => alert.contains(b))!);
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('the side panels', () => {
+  const searchBox = () => screen.queryByPlaceholderText(/search/i);
+
+  it('close and open again from the canvas edge', () => {
+    render(<Editor />);
+    expect(searchBox()).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /hide the object list/i }));
+    expect(searchBox()).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /show the object list/i }));
+    expect(searchBox()).not.toBeNull();
+  });
+
+  it('close the inspector on the right the same way', () => {
+    const { container } = render(<Editor />);
+    const asides = () => container.querySelectorAll('aside').length;
+    const before = asides();
+    fireEvent.click(screen.getByRole('button', { name: /hide the side panel/i }));
+    expect(asides()).toBe(before - 1);
+    expect(screen.getByRole('button', { name: /show the side panel/i }).getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('come back as they were left, from this browser', () => {
+    window.localStorage.setItem(PANELS_KEY, JSON.stringify({ palette: false, inspector: true }));
+    render(<Editor />);
+    expect(searchBox()).toBeNull();
+    expect(screen.getByRole('button', { name: /show the object list/i })).toBeTruthy();
   });
 });

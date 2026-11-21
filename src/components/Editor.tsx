@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X } from 'lucide-react';
 import { decodePlan, planFromJson } from '@/core/serialize';
 import { parseSharedLocation } from '@/core/short-link';
 import { t } from '@/i18n';
-import { openingLocale, savedRealCountries, STORAGE_KEY, useEditor } from '@/store/editor';
+import { openingLocale, savedPanels, savedRealCountries, STORAGE_KEY, useEditor } from '@/store/editor';
 import GridCanvas from './GridCanvas';
 import Inspector from './Inspector';
 import MobileEmptyState from './MobileEmptyState';
@@ -27,6 +27,8 @@ export default function Editor() {
   const redo = useEditor((s) => s.redo);
   const locale = useEditor((s) => s.locale);
   /** Where following a shared link stands: fetching it, or failed to open. */
+  const panels = useEditor((s) => s.panels);
+  const setPanelOpen = useEditor((s) => s.setPanelOpen);
   const [link, setLink] = useState<'none' | 'loading' | 'failed'>('none');
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function Editor() {
     const applied = document.documentElement.dataset.theme;
     if (applied === 'light' || applied === 'dark') setTheme(applied);
     // Read, not set through setRealCountries, so a visit that never chose writes nothing.
-    useEditor.setState({ realCountries: savedRealCountries() });
+    useEditor.setState({ realCountries: savedRealCountries(), panels: savedPanels() });
   }, [setLocale, setTheme]);
 
   // A shared link wins over localStorage. Corrupt data is dropped rather than
@@ -110,9 +112,13 @@ export default function Editor() {
       <TopBar />
       {!empty && <MobileNotice />}
       <div className="flex min-h-0 flex-1">
-        <Palette />
+        {panels.palette && <Palette />}
         <main className="relative min-w-0 flex-1">
           <GridCanvas />
+          {/* Close or open each side panel, from the edge it sits on. Desktop
+              only: a phone shows neither. */}
+          <PanelToggle side="left" open={panels.palette} onToggle={() => setPanelOpen('palette', !panels.palette)} />
+          <PanelToggle side="right" open={panels.inspector} onToggle={() => setPanelOpen('inspector', !panels.inspector)} />
           {/* Covers the blank grid on a phone; held back while a shared plan
               is loading. */}
           {empty && link !== 'loading' && <MobileEmptyState />}
@@ -141,11 +147,34 @@ export default function Editor() {
             </div>
           )}
         </main>
-        <Inspector />
+        {panels.inspector && <Inspector />}
       </div>
       <StatusBar />
       <SharedPlanPrompt />
       <OpenSourceNotice />
     </div>
+  );
+}
+
+/** A tab on the canvas edge that closes or opens the panel beside it. */
+function PanelToggle({ side, open, onToggle }: { side: 'left' | 'right'; open: boolean; onToggle: () => void }) {
+  const locale = useEditor((s) => s.locale);
+  const label = t(locale, side === 'left'
+    ? (open ? 'panel.hidePalette' : 'panel.showPalette')
+    : (open ? 'panel.hideInspector' : 'panel.showInspector'));
+  const Icon = side === 'left'
+    ? (open ? PanelLeftClose : PanelLeftOpen)
+    : (open ? PanelRightClose : PanelRightOpen);
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      aria-expanded={open}
+      title={label}
+      className={`absolute top-1/2 z-30 hidden -translate-y-1/2 items-center justify-center border border-[var(--line-strong)] bg-[var(--panel)] px-0.5 py-3 text-[var(--text-faint)] shadow hover:bg-[var(--raised)] hover:text-[var(--text-strong)] active:bg-[var(--raised-hover)] md:flex ${side === 'left' ? 'left-0 rounded-r border-l-0' : 'right-0 rounded-l border-r-0'}`}
+    >
+      <Icon size={16} aria-hidden />
+    </button>
   );
 }
