@@ -1,0 +1,20 @@
+name: Idea
+description: A feature or change you would like to see.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem first, before the solution. What gets in your way when you plan a warehouse?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots, a plan link, how another tool does it.
