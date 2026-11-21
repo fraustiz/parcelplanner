@@ -133,6 +133,18 @@ describe('GridCanvas selection by click', () => {
   });
 });
 
+describe('GridCanvas country doors', () => {
+  it('opens the country picker when a country door is clicked, without touching the selection', () => {
+    useEditor.setState((s) => ({ plan: { ...s.plan, warehouse: 'second', placements: [belt('a', 2, 3, 0, 'second')] }, selectedIds: ['a'] }));
+    const { container } = render(<GridCanvas />);
+    // The first ground-floor country door stands on x 7, y 0; its bay is drawn above the wall.
+    fireEvent.click(container.querySelector('canvas')!, pointFor({ x: 7, y: -1 }));
+
+    expect(screen.getByRole('menu', { name: /^Door 1/ })).toBeTruthy();
+    expect(useEditor.getState().selectedIds).toEqual(['a']);
+  });
+});
+
 describe('GridCanvas delete/backspace', () => {
   it('removes the selected placement on Delete and clears the selection', () => {
     useEditor.setState((s) => ({

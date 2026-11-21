@@ -116,6 +116,10 @@ export interface DrawOptions {
    * plan assigns (`plan.doorCountries`) shows its country's flag in place of `countryIcon`.
    */
   countryFlags?: ReadonlyMap<string, string>;
+  /** The country door under the pointer, lit up so it reads as something to click. */
+  hoveredDoorId?: string;
+  /** Marks country doors as clickable (the editor). Left off in exported images and previews. */
+  doorChips?: boolean;
   /** Notes on the grid (`plan.notes`). Only those on the drawn floor and warehouse appear. */
   notes?: readonly PlanNote[];
   /** The parcel drawing (`PARCEL_ICON`). Without it a parcel draws no sprite, never a substitute shape. */
@@ -188,6 +192,9 @@ export const DARK_SCENE = {
   stairsStep: 'rgba(141, 148, 158, 0.55)',
   /** A door bay's glyph, in the same black as the recoloured object icons (see blackenIcon). */
   doorGlyph: '#000000',
+  /** The pick-a-country chip on a country door, and the wash over a door under the pointer. */
+  doorChip: '#ffffff',
+  doorHover: 'rgba(255, 255, 255, 0.22)',
   /** The box-selection marquee: the selection gold, with a faint fill. */
   marqueeFill: 'rgba(245, 198, 91, 0.12)',
   /** The keyboard cursor: the page's own accent, as on focused controls. */
@@ -246,6 +253,8 @@ export const LIGHT_SCENE: ScenePalette = {
   stairs: 'rgba(90, 98, 108, 0.18)',
   stairsStep: 'rgba(90, 98, 108, 0.45)',
   doorGlyph: '#000000',
+  doorChip: '#ffffff',
+  doorHover: 'rgba(255, 255, 255, 0.3)',
   marqueeFill: 'rgba(184, 121, 10, 0.14)',
   cursor: '#8a5626',
 };
@@ -454,6 +463,8 @@ function drawDoors(
   arrowDivisor: number,
   doorCountries: Plan['doorCountries'],
   countryFlags: ReadonlyMap<string, string> | undefined,
+  hoveredDoorId: string | undefined,
+  doorChips: boolean,
 ): void {
   for (const door of doors) {
     if (door.warehouse !== warehouse || door.floor !== floor) continue;
@@ -468,6 +479,13 @@ function drawDoors(
     const bay = doorBayRect(px, py, size, door.side);
     ctx.fillStyle = colour;
     ctx.fillRect(bay.x, bay.y, bay.w, bay.h);
+    if (door.id === hoveredDoorId) {
+      ctx.fillStyle = colours.doorHover;
+      ctx.fillRect(bay.x, bay.y, bay.w, bay.h);
+      ctx.strokeStyle = colours.selected;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bay.x + 1, bay.y + 1, bay.w - 2, bay.h - 2);
+    }
 
     // A delivery door gets no glyph, since nothing leaves by it. Glyphs are skipped at far
     // zoom-out, at the same size floor as object icons.
@@ -495,6 +513,8 @@ function drawDoors(
           ctx.drawImage(path, centre.cx - glyph / 2, centre.cy - glyph / 2, glyph, glyph);
         });
       }
+      // A country door is set by clicking it: a drop-down chip says so, flag or not.
+      if (look === 'country' && doorChips) drawPickChip(ctx, field, size);
     }
 
     // The opening, with an arrow showing which way parcels travel.
@@ -510,6 +530,33 @@ function drawDoors(
       );
     }
   }
+}
+
+/**
+ * The small white chip with a chevron in a country door's far corner, the mark of a
+ * drop-down, so the door reads as something to click. Kept clear of the centred flag.
+ */
+function drawPickChip(ctx: Draw2D, field: { x: number; y: number; w: number; h: number }, size: number): void {
+  const w = size * 0.62;
+  const h = size * 0.4;
+  const inset = size * 0.08;
+  const x = field.x + field.w - w - inset;
+  const y = field.y + inset;
+  const r = h * 0.3;
+  const outline = `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+  ctx.fillStyle = colours.doorChip;
+  ctx.fillPath(outline);
+  // White on the exit green is under 3:1, so a dark edge keeps the chip's shape readable.
+  ctx.strokeStyle = colours.doorGlyph;
+  ctx.lineWidth = 1;
+  ctx.strokePath(outline);
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const c = h * 0.22;
+  ctx.strokeStyle = colours.doorGlyph;
+  ctx.lineWidth = Math.max(1.5, size * 0.05);
+  ctx.lineCap = 'round';
+  ctx.strokePath(`M${cx - c * 1.4} ${cy - c * 0.6}L${cx} ${cy + c * 0.8}L${cx + c * 1.4} ${cy - c * 0.6}`);
 }
 
 /** The game's flags are 1000 x 600. */
@@ -953,7 +1000,7 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
 
   drawDoors(
     ctx, camera, size, o.doors, o.plan.warehouse, o.floor, o.cargoIcons, o.countryIcon,
-    o.doorArrow, o.doorArrowDivisor, o.plan.doorCountries, o.countryFlags,
+    o.doorArrow, o.doorArrowDivisor, o.plan.doorCountries, o.countryFlags, o.hoveredDoorId, o.doorChips ?? false,
   );
 
   // Rulers are chrome, drawn early; the drag/drop highlight stays last.

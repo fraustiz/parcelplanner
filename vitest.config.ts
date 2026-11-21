@@ -15,5 +15,9 @@ export default defineConfig({
     // covered even where a deployment hides it.
     env: { NEXT_PUBLIC_LIVE_PREVIEW: 'on' },
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // Node 25+ ships its own global localStorage, which hides jsdom's and breaks every
+    // component test that touches storage. Off, jsdom's is the one tests see. The flag
+    // exists from Node 22; older versions would refuse it.
+    execArgv: Number(process.versions.node.split('.')[0]) >= 22 ? ['--no-experimental-webstorage'] : [],
   },
 });

@@ -14,10 +14,10 @@ import { isOnTheFloor } from '@/core/queueing';
 import { loadSeconds, scanSeconds, secondsPerCell, SPLITTER_RETRY_SECONDS, UNLOAD_SECONDS } from '@/core/sim-timing';
 import { entryPoints, inboundIndexOf, onwardOf, outLinks, parcelPath, portIndexOf, routeSteps, storePullers, type RouteStep } from '@/core/simulate';
 import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/core/transform';
-import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
+import type { CatalogEntry, Cell, Door, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
-import { countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
+import { countryDoorAt, countryDoorNear, countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
 import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
@@ -37,6 +37,7 @@ import { drawScene, DARK_SCENE, LIGHT_SCENE, type HighlightState } from '@/rende
 import { draggedPlacement, useEditor, type MarqueeState } from '@/store/editor';
 import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
 import ContextMenu, { type MenuAnchor } from './ContextMenu';
+import DoorCountryMenu from './DoorCountryMenu';
 import HoverCard from './HoverCard';
 
 /** A point in client (viewport) pixel coordinates, as carried by both React
@@ -289,6 +290,21 @@ export default function GridCanvas() {
   // Menu and hover card are transient view state pinned to viewport pixels,
   // so they live here rather than in the store.
   const [menu, setMenu] = useState<MenuAnchor | null>(null);
+  // The country picker of a country door, opened by clicking the door's bay.
+  const [doorMenu, setDoorMenu] = useState<{ door: Door; at: { x: number; y: number } } | null>(null);
+  // The country door whose bay is under the pointer: lit up, with a hand cursor.
+  const [overDoor, setOverDoor] = useState<string | null>(null);
+  // Whether a mouse or trackpad can click a door. Touch is view-only (see the touch effect
+  // below), so on a phone the doors carry no drop-down chip that a tap would not open.
+  const [finePointer, setFinePointer] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia?.('(hover: hover) and (pointer: fine)');
+    if (!query) return;
+    const update = () => setFinePointer(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   // The keyboard cursor: UI state only, never in the plan or the undo history.
   // It keeps its cell while hidden, so focus coming back resumes where it was.
   const [cursor, setCursor] = useState<Cell | null>(null);
@@ -577,7 +593,7 @@ export default function GridCanvas() {
         floor, highlight, selectedIds,
         geometry: WAREHOUSES, unlocked,
         shapes, shapeDivisor: SHAPE_DIVISOR,
-        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, parcelIcon: PARCEL_ICON,
+        icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, hoveredDoorId: overDoor ?? undefined, doorChips: finePointer, parcelIcon: PARCEL_ICON,
         notes: plan.notes,
         doors: DOORS, marquee: marquee ?? area,
         cursor: showCursor ? cursor : null,
@@ -593,7 +609,7 @@ export default function GridCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getImage is a
     // closure over a ref; imageTick is the deliberate "icon loaded, redraw"
     // trigger and must stay though it is unread.
-  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
+  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, overDoor, finePointer, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
 
   // A box describes cells on one floor of one building; see `area`.
   useEffect(() => setArea(null), [floor, plan.warehouse]);
@@ -1312,6 +1328,7 @@ export default function GridCanvas() {
     // Hover card: only over a real object, and never while one is armed.
     const cell = cellAt(event);
     const over = drag ? undefined : hitTest(cell);
+    setOverDoor(drag || over ? null : countryDoorAt(plan.warehouse, floor, cell)?.id ?? null);
     // A note shows on hover even where nothing is built.
     const noted = drag ? undefined : (plan.notes ?? []).find(
       (note) => note.warehouse === plan.warehouse && note.floor === floor
@@ -1400,6 +1417,7 @@ export default function GridCanvas() {
   };
 
   const onMouseLeave = () => {
+    setOverDoor(null);
     panRef.current = null;
     // End any run at the edge rather than resuming it if the pointer returns.
     const painting = paintRef.current;
@@ -1436,6 +1454,12 @@ export default function GridCanvas() {
     // Alt reaches past a bridge to the conveyor under it; a plain click selects
     // what is visible.
     const hit = hitTest(cell, event.altKey);
+    // A country door's bay lies outside the walls, where nothing is ever built.
+    const door = hit ? undefined : countryDoorAt(plan.warehouse, floor, cell);
+    if (door) {
+      setDoorMenu({ door, at: { x: event.clientX, y: event.clientY } });
+      return;
+    }
     // Shift/ctrl-click toggles an object in the selection. On empty ground it
     // does nothing rather than clearing the selection.
     if (event.shiftKey || event.ctrlKey) {
@@ -1744,7 +1768,7 @@ export default function GridCanvas() {
         title={hover ? undefined : t(locale, 'canvas.panHint')}
         // touch-none tells the browser up front that this element handles its
         // gestures, so a pan does not stick while it decides whether to scroll.
-        className="h-full w-full touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]"
+        className={`h-full w-full touch-none ${overDoor ? 'cursor-pointer' : ''} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]`}
       />
       <p id={hintId} className="sr-only">{t(locale, 'canvas.keysHint')}</p>
       <div role="status" aria-live="polite" data-cursor-status className="sr-only">{said}</div>
@@ -1823,10 +1847,18 @@ export default function GridCanvas() {
         />
       )}
 
+      {doorMenu && (
+        <DoorCountryMenu door={doorMenu.door} at={doorMenu.at} onClose={() => setDoorMenu(null)} />
+      )}
+
       {menu && (
         <ContextMenu
           anchor={menu}
           onClose={() => setMenu(null)}
+          onDoorCountry={(() => {
+            const door = countryDoorNear(plan.warehouse, floor, menu.cell);
+            return door ? () => setDoorMenu({ door, at: { x: menu.x, y: menu.y } }) : undefined;
+          })()}
           onReserve={area && inBox(menu.cell, area)
             ? () => { reserveArea(area, catalogue, unlocked); setArea(null); }
             : undefined}

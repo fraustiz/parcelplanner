@@ -29,13 +29,13 @@ const ROW = 'flex w-full items-center justify-between gap-4 px-3 py-1.5 text-lef
 /** The items that belong to `menu` itself, not to a submenu inside it. */
 function itemsOf(menu: HTMLElement | null): HTMLElement[] {
   if (!menu) return [];
-  return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+  return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]')]
     .filter((item) => item.closest('[role="menu"]') === menu);
 }
 
 /** Up, Down, Home and End over a menu's own items, wrapping at the ends.
  * Returns true when the key was one of those. */
-function moveFocus(menu: HTMLElement | null, key: string): boolean {
+export function moveFocus(menu: HTMLElement | null, key: string): boolean {
   const items = itemsOf(menu);
   if (items.length === 0) return false;
   const at = items.indexOf(document.activeElement as HTMLElement);
@@ -62,6 +62,7 @@ export default function ContextMenu({
   onClose,
   onNote,
   onReserve,
+  onDoorCountry,
 }: {
   anchor: MenuAnchor;
   onClose: () => void;
@@ -71,6 +72,8 @@ export default function ContextMenu({
   /** Opens the note box on `anchor.cell`. The box lives on the canvas, which
    * owns the camera and so knows where that cell is on screen. */
   onNote: (cell: Cell) => void;
+  /** Opens the country picker of the country door the menu was opened on; present only then. */
+  onDoorCountry?: () => void;
 }) {
   const locale = useEditor((s) => s.locale);
   const plan = useEditor((s) => s.plan);
@@ -206,6 +209,17 @@ export default function ContextMenu({
     </button>
   );
 
+  const doorRow = onDoorCountry && (
+    <button
+      role="menuitem"
+      tabIndex={-1}
+      className={ROW}
+      onClick={() => { onDoorCountry(); onClose(); }}
+    >
+      {t(locale, 'menu.doorCountry')}
+    </button>
+  );
+
   // Nothing selected (bare floor): the menu offers only the note.
   if (selected.length === 0) {
     return (
@@ -217,6 +231,7 @@ export default function ContextMenu({
         style={{ left, top }}
         className="fixed z-50 w-50 rounded border border-[var(--line-strong)] bg-[var(--panel)] py-1 text-sm shadow-lg"
       >
+        {doorRow}
         {reserveRow}
         {noteRow}
       </div>
@@ -350,6 +365,7 @@ export default function ContextMenu({
       <div role="separator" className="my-1 border-t border-[var(--line-strong)]" />
 
       {/* A note is about the cell, so it sits apart from the selection actions. */}
+      {doorRow}
       {noteRow}
 
       <div role="separator" className="my-1 border-t border-[var(--line-strong)]" />

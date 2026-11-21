@@ -1070,6 +1070,30 @@ describe('doors', () => {
     expect(w! / h!).toBeCloseTo(5 / 3);
   });
 
+  it('marks each country door as clickable with a drop-down chip, in the editor only', () => {
+    const countryDoor: Door = { ...door, id: 'c1', kind: 'country-export' };
+    const chips = (doorChips: boolean | undefined) => {
+      const ctx = recorder();
+      drawScene(ctx, options({ doors: [countryDoor, exportDoor], doorChips }));
+      return ctx.calls.filter((c) => c.op === 'fillPath' && c.fill === '#ffffff').length;
+    };
+    // One chip, on the country door; none on the cargo export door.
+    expect(chips(true)).toBe(1);
+    // An exported image or a link preview is not clicked.
+    expect(chips(undefined)).toBe(0);
+  });
+
+  it('lights up the country door under the pointer', () => {
+    const countryDoor: Door = { ...door, id: 'c1', kind: 'country-export' };
+    const outlined = (hoveredDoorId: string | undefined) => {
+      const ctx = recorder();
+      drawScene(ctx, options({ doors: [countryDoor], hoveredDoorId }));
+      return ctx.calls.filter((c) => c.op === 'strokeRect' && c.stroke === '#f5c65b').length;
+    };
+    expect(outlined('c1')).toBe(1);
+    expect(outlined(undefined)).toBe(0);
+  });
+
   it('never reads a country exit as a reject bin, despite it having no cargo types', () => {
     // For a cargo export door an empty cargo list means a reject bin; a country door legitimately
     // has none.

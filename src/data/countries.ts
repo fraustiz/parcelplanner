@@ -1,4 +1,5 @@
-import type { Door } from '@/core/types';
+import { SIDE_STEP } from '@/core/grid';
+import type { Cell, Door, WarehouseId } from '@/core/types';
 import { DOORS } from './doors';
 
 /**
@@ -85,3 +86,34 @@ export const COUNTRY_DOORS: readonly Door[] = DOORS
 
 export const isCountryDoor = (id: unknown): id is string =>
   typeof id === 'string' && COUNTRY_DOORS.some((d) => d.id === id);
+
+/**
+ * The country door whose bay covers `cell`: the 3 x 3 cells drawn outside the wall in front
+ * of it (DOOR_BAY_SPAN and DOOR_BAY_DEPTH in src/render/renderer.ts), so clicking the
+ * door's flag opens its country. Country doors stand 5 cells apart, so bays never overlap.
+ */
+export function countryDoorAt(warehouse: WarehouseId, floor: number, cell: Cell): Door | undefined {
+  return COUNTRY_DOORS.find((door) => {
+    if (door.warehouse !== warehouse || door.floor !== floor) return false;
+    const out = SIDE_STEP[door.side];
+    const dx = cell.x - door.cell.x;
+    const dy = cell.y - door.cell.y;
+    const depth = dx * out.dx + dy * out.dy;
+    const along = out.dx === 0 ? dx : dy;
+    return depth >= 1 && depth <= 3 && Math.abs(along) <= 1;
+  });
+}
+
+/**
+ * The country door at `cell` for the right-click menu: its bay, as for a click, or the door's
+ * own cell inside the wall, where the keyboard cursor can reach it.
+ */
+export function countryDoorNear(warehouse: WarehouseId, floor: number, cell: Cell): Door | undefined {
+  return countryDoorAt(warehouse, floor, cell) ?? COUNTRY_DOORS.find((door) =>
+    door.warehouse === warehouse && door.floor === floor && door.cell.x === cell.x && door.cell.y === cell.y);
+}
+
+/** A country door's number in the UI: its place among its floor's doors, from 1, left to right. */
+export function countryDoorNumber(door: Door): number {
+  return COUNTRY_DOORS.filter((d) => d.floor === door.floor).indexOf(door) + 1;
+}
