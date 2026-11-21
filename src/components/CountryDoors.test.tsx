@@ -33,6 +33,12 @@ describe('the country doors panel', () => {
     expect(screen.getByRole('combobox', { name: /Upper floor, Door 6\b/ })).toBeTruthy();
   });
 
+  it('gives each door its column as the rulers number it, from 1', () => {
+    // The first ground-floor door stands on x 7, which the ruler calls column 8.
+    render(<CountryDoors />);
+    expect(screen.getByRole('combobox', { name: /Ground floor, Door 1, column 8$/ })).toBeTruthy();
+  });
+
   it('starts every door unassigned, with no flag', () => {
     const { container } = render(<CountryDoors />);
     for (const select of screen.getAllByRole('combobox')) {
