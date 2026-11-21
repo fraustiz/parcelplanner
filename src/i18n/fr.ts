@@ -29,6 +29,7 @@ const fr: Record<keyof typeof en, string> = {
   'countryDoors.hint': 'Le jeu attribue au hasard un pays à chacune de ces portes : indiquez lequel. Les portes sont numérotées de gauche à droite.',
   'countryDoors.door': 'Porte',
   'countryDoors.column': 'colonne',
+  'countryDoors.columnShort': 'col.',
   'countryDoors.unassigned': 'Non défini',
   'countryDoors.swap': "Choisir le pays d'une autre porte échange les deux portes.",
   'countryDoors.realCountries': 'Pays réels (mod RealCountries)',

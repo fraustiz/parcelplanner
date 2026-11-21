@@ -56,7 +56,7 @@ export default function CountryDoors() {
                 <li key={door.id} className="flex items-center gap-2">
                   <label htmlFor={id} className="w-24 shrink-0">
                     {door1}
-                    <span className="ml-1 font-mono text-xs text-[var(--text-faint)]">x{displayColumn(door.cell.x)}</span>
+                    <span className="ml-1 font-mono text-xs text-[var(--text-faint)]">{t(locale, 'countryDoors.columnShort')} {displayColumn(door.cell.x)}</span>
                   </label>
                   <span className="flex h-[15px] w-[25px] shrink-0 items-center justify-center rounded-sm border border-[var(--line)]">
                     {/* A 64 px PNG, decorative: the name is in the select. */}

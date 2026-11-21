@@ -29,6 +29,7 @@ const en = {
   'countryDoors.hint': 'The game deals these doors their countries at random: say which country each one takes. Doors are numbered from left to right.',
   'countryDoors.door': 'Door',
   'countryDoors.column': 'column',
+  'countryDoors.columnShort': 'col.',
   'countryDoors.unassigned': 'Not set',
   'countryDoors.swap': 'Picking a country another door has swaps the two doors.',
   'countryDoors.realCountries': 'Real countries (RealCountries mod)',
