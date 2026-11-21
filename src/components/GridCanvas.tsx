@@ -6,6 +6,7 @@ import { cellsBetween, centredAnchor, coveredCells, displayColumn, displayRow, e
 import { flippedShape, pastedAt, turnedShape } from '@/core/clipboard';
 import { clampedCell, floorBounds, pickedSelection, placementAt, steppedCursor } from '@/core/cursor';
 import { CARGO_DIVERTER, COUNTRY_DIVERTER, diverterChoice, exitWay, type Way } from '@/core/diverters';
+import { deadEnds } from '@/core/dead-ends';
 import { buildGraph, doorNodeId } from '@/core/graph';
 import { canPlace, shiftedSelection, type PlacementRejection } from '@/core/occupancy';
 import { EMPTY_SIM, stepSim, type Branch, type SimContext, type SimState, type Walk } from '@/core/live-sim';
@@ -325,6 +326,13 @@ export default function GridCanvas() {
   >(null);
 
   const catalogue = getCatalogue();
+  // Exits that lead nowhere. Not on the workshop bench, where a module being
+  // built always has loose ends.
+  const deadEndMarks = useMemo(
+    () => (plan.warehouse === 'workshop' ? [] : deadEnds(buildGraph(plan, catalogue, DOORS)))
+      .map(({ floor: onFloor, cell, side }) => ({ floor: onFloor, cell, side })),
+    [plan, catalogue],
+  );
   // Resolves an object's variant: the racks by language, the elevator by how
   // far the viewed floor is above the placement's own. See shapesFor.
   const shapes = useMemo(
@@ -604,12 +612,22 @@ export default function GridCanvas() {
         // parcel frame anyway.
         rackFill: rackFillRef.current,
         repaintableColourOf,
+        deadEnds: deadEndMarks,
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getImage is a
     // closure over a ref; imageTick is the deliberate "icon loaded, redraw"
     // trigger and must stay though it is unread.
-  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, overDoor, finePointer, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor]);
+  }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, overDoor, finePointer, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor, deadEndMarks]);
+
+  // Brings a cell another component asked for into view (the status bar's
+  // dead-end warning), with room around it.
+  const focus = useEditor((s) => s.focus);
+  useEffect(() => {
+    if (!focus) return;
+    const { width, height } = sizeRef.current;
+    setCamera((c) => cameraShowing(c, focus.cell, width, height, 6));
+  }, [focus]);
 
   // A box describes cells on one floor of one building; see `area`.
   useEffect(() => setArea(null), [floor, plan.warehouse]);

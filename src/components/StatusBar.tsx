@@ -1,9 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { computeCost } from '@/core/cost';
+import { deadEnds } from '@/core/dead-ends';
+import { buildGraph } from '@/core/graph';
 import { validate } from '@/core/validate';
 import { getCatalogue } from '@/data/catalogue';
+import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
 import { ownedGeometry, ownedTiersOf } from '@/data/warehouse-tiers';
 import { formatMoney, t, type TranslationKey } from '@/i18n';
@@ -32,6 +35,39 @@ export default function StatusBar() {
     () => validate(plan, catalogue, ownedGeometry(ownedTiersOf(plan))),
     [plan, catalogue],
   );
+  // Exits a parcel would fall from: a warning, not an issue, since the layout
+  // may be unfinished. Never on the workshop bench (see GridCanvas).
+  const looseExitList = useMemo(
+    () => (plan.warehouse === 'workshop' ? [] : deadEnds(buildGraph(plan, catalogue, DOORS))),
+    [plan, catalogue],
+  );
+  const looseExits = looseExitList.length;
+  // Each press shows the next one, so every exit can be found in turn, on
+  // whichever floor it is.
+  const nextLoose = useRef(0);
+  const select = useEditor((s) => s.select);
+  const showCell = useEditor((s) => s.showCell);
+  const showNextLoose = () => {
+    if (looseExitList.length === 0) return;
+    const exit = looseExitList[nextLoose.current % looseExitList.length]!;
+    nextLoose.current += 1;
+    select([exit.placementId]);
+    showCell(exit.floor, exit.cell);
+  };
+  // The same for placement issues: each press selects the next object at
+  // fault and brings the cell that is wrong into view.
+  const nextIssue = useRef(0);
+  const showNextIssue = () => {
+    const located = issues.flatMap((issue) => {
+      const placement = plan.placements.find((p) => p.id === issue.placementIds[0]);
+      return placement ? [{ placement, cell: issue.cells[0] ?? placement.cell }] : [];
+    });
+    if (located.length === 0) return;
+    const { placement, cell } = located[nextIssue.current % located.length]!;
+    nextIssue.current += 1;
+    select([placement.id]);
+    showCell(placement.floor, cell);
+  };
   // computeCost prices both warehouses (see src/core/cost.ts); that figure is
   // only shown as a labelled grand total. The headline covers this warehouse.
   const costThisWarehouse = useMemo(
@@ -102,9 +138,25 @@ export default function StatusBar() {
       </span>
 
       {issues.length > 0 && (
-        <span className="text-[var(--danger)]">
+        <button
+          type="button"
+          onClick={showNextIssue}
+          title={t(locale, 'status.issuesHint')}
+          className="inline-flex min-h-11 items-center rounded px-1 text-[var(--danger)] underline decoration-dotted underline-offset-2 hover:bg-[var(--raised)] md:min-h-0"
+        >
           {issues.length} {t(locale, 'status.issues')}
-        </span>
+        </button>
+      )}
+
+      {looseExits > 0 && (
+        <button
+          type="button"
+          onClick={showNextLoose}
+          title={t(locale, 'status.deadEndsHint')}
+          className="inline-flex min-h-11 items-center rounded px-1 text-[var(--warning)] underline decoration-dotted underline-offset-2 hover:bg-[var(--raised)] md:min-h-0"
+        >
+          {t(locale, 'status.deadEnds')}: {looseExits}
+        </button>
       )}
 
       {/* The total stays on a phone; the breakdown needs the width. */}

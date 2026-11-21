@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import StatusBar from './StatusBar';
 import { useEditor } from '@/store/editor';
 import type { Placement } from '@/core/types';
@@ -37,6 +37,50 @@ describe('StatusBar', () => {
     useEditor.setState((s) => ({ plan: { ...s.plan, placements: [belt('a', 0)] } }));
     render(<StatusBar />);
     expect(screen.queryByText(/issues found/)).toBeNull();
+  });
+
+  it('warns, apart from the issues, of an exit a parcel would fall from', () => {
+    // A belt with nothing after it: a fact, not a verdict on the layout.
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: [belt('a', 30)] } }));
+    render(<StatusBar />);
+    expect(screen.getByText(/exits leading nowhere: 1/i)).toBeTruthy();
+    expect(screen.queryByText(/issues found/)).toBeNull();
+  });
+
+  it('shows each loose exit in turn when the warning is pressed', () => {
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: [belt('a', 30), belt('b', 40)] } }));
+    render(<StatusBar />);
+    const warning = screen.getByRole('button', { name: /exits leading nowhere: 2/i });
+
+    fireEvent.click(warning);
+    const first = useEditor.getState().selectedIds;
+    expect(first).toHaveLength(1);
+    expect(useEditor.getState().focus).toMatchObject({ floor: 0, cell: { y: 0 } });
+
+    fireEvent.click(warning);
+    const second = useEditor.getState().selectedIds;
+    expect(second).toHaveLength(1);
+    expect(second[0]).not.toBe(first[0]);
+  });
+
+  it('shows each object at fault in turn when the issue count is pressed', () => {
+    // Two pairs of belts on the same cell: four overlapping objects.
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: [belt('a', 0), belt('b', 0), belt('c', 5), belt('d', 5)] } }));
+    render(<StatusBar />);
+    const count = screen.getByRole('button', { name: /4 issues found/i });
+    const seen = new Set<string>();
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(count);
+      seen.add(useEditor.getState().selectedIds[0]!);
+    }
+    expect([...seen].sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(useEditor.getState().focus).toMatchObject({ floor: 0 });
+  });
+
+  it('does not warn on the workshop bench, where modules have loose ends', () => {
+    useEditor.setState((s) => ({ plan: { ...s.plan, warehouse: 'workshop', placements: [belt('a', 30, { warehouse: 'workshop' })] } }));
+    render(<StatusBar />);
+    expect(screen.queryByText(/leading nowhere/i)).toBeNull();
   });
 
   it('still reports a placement problem it can actually see', () => {

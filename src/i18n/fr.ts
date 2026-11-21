@@ -125,6 +125,8 @@ const fr: Record<keyof typeof en, string> = {
   'tooltip.ports': 'Ports',
   'tooltip.footprint': 'Taille',
 
+  'status.deadEnds': 'Sorties sans issue',
+  'status.deadEndsHint': "Les colis qui sortent par là tomberaient : aucun tapis ni aucune porte ne les prend. Clique pour les montrer une à une sur le plan, repérées par un triangle orange.",
   'issue.overlap': 'Chevauche un autre objet',
   'issue.out-of-bounds': "En dehors de l’entrepôt",
   'issue.bad-floor': "Cet étage n’existe pas dans cet entrepôt",
@@ -132,6 +134,7 @@ const fr: Record<keyof typeof en, string> = {
   'issue.needs-headroom': "Doit avoir le champ libre au-dessus : rez-de-chaussée uniquement, et pas sous la mezzanine",
 
   'status.issues': 'problèmes détectés',
+  'status.issuesHint': "Clique pour montrer un à un les objets en cause sur le plan.",
 
   'share.copy': 'Copier le lien de partage',
   'share.copied': 'Lien copié',

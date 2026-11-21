@@ -100,6 +100,13 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
   setFloor: (floor: number) => void;
+  /**
+   * Asks the canvas to bring `cell` of `floor` into view, switching floor if
+   * needed. `nonce` changes on every request, so asking twice for the same
+   * cell still moves the view back to it.
+   */
+  focus: { floor: number; cell: Cell; nonce: number } | null;
+  showCell: (floor: number, cell: Cell) => void;
   setLocale: (locale: Locale) => void;
   setWarehouse: (warehouse: WarehouseId) => void;
   setBudget: (budget: number | null) => void;
@@ -313,6 +320,8 @@ export const useEditor = create<EditorState>((set, get) => {
   },
 
   setFloor: (floor) => set({ floor }),
+  focus: null,
+  showCell: (floor, cell) => set((s) => ({ floor, focus: { floor, cell, nonce: (s.focus?.nonce ?? 0) + 1 } })),
   setLocale: (locale) => {
     set({ locale });
     // The server renders `lang="en"`; screen readers and translators read it.
