@@ -142,7 +142,7 @@ export default function StatusBar() {
           type="button"
           onClick={showNextIssue}
           title={t(locale, 'status.issuesHint')}
-          className="inline-flex min-h-11 items-center rounded px-1 text-[var(--danger)] underline decoration-dotted underline-offset-2 hover:bg-[var(--raised)] md:min-h-0"
+          className="inline-flex min-h-11 items-center rounded px-1 text-[var(--danger)] underline decoration-dotted underline-offset-2 hover:bg-[var(--tint-danger)] active:translate-y-px md:min-h-0"
         >
           {issues.length} {t(locale, 'status.issues')}
         </button>
@@ -153,7 +153,7 @@ export default function StatusBar() {
           type="button"
           onClick={showNextLoose}
           title={t(locale, 'status.deadEndsHint')}
-          className="inline-flex min-h-11 items-center rounded px-1 text-[var(--warning)] underline decoration-dotted underline-offset-2 hover:bg-[var(--raised)] md:min-h-0"
+          className="inline-flex min-h-11 items-center rounded px-1 text-[var(--warning)] underline decoration-dotted underline-offset-2 hover:bg-[var(--tint-warning)] active:translate-y-px md:min-h-0"
         >
           {t(locale, 'status.deadEnds')}: {looseExits}
         </button>

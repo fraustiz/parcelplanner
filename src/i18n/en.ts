@@ -164,6 +164,7 @@ const en = {
   'share.export': 'Export',
   'share.import': 'Import',
   'share.badFile': 'Not a ParcelPlanner plan',
+  'share.reading': 'Reading the file…',
 
   'plan.versionMismatch': 'This plan was made for another version of the game',
 

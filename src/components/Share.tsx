@@ -122,7 +122,7 @@ export default function Share() {
   const theme = useEditor((s) => s.theme);
   const realCountries = useEditor((s) => s.realCountries);
   const [state, setState] = useState<
-    'idle' | 'busy' | 'copied' | 'refused' | 'too-big' | 'bad-file'
+    'idle' | 'busy' | 'reading' | 'copied' | 'refused' | 'too-big' | 'bad-file'
   >('idle');
   /** The link the clipboard refused, shown so it can be copied by hand. */
   const [refusedUrl, setRefusedUrl] = useState('');
@@ -147,8 +147,8 @@ export default function Share() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Busy ends by itself, and a refused link stays until it is dismissed.
-    if (state === 'idle' || state === 'busy' || state === 'refused') return;
+    // Busy and reading end by themselves, and a refused link stays until it is dismissed.
+    if (state === 'idle' || state === 'busy' || state === 'reading' || state === 'refused') return;
     const timer = setTimeout(() => setState('idle'), CONFIRM_MS);
     return () => clearTimeout(timer);
   }, [state]);
@@ -207,14 +207,15 @@ export default function Share() {
    * decides: a workbook is a ZIP and cannot be told apart without unpacking.
    */
   const importFile = async (file: File) => {
-    if (/\.xlsx$/i.test(file.name)) {
+    const template = /\.xlsx$/i.test(file.name);
+    if (template || /\.sav$/i.test(file.name)) {
+      // A large save takes a moment to read: say so, and let it show before
+      // the reading blocks the page.
+      setState('reading');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const read = template ? await readTemplate(file) : await readSave(file);
       setState('idle');
-      setOutcome(await readTemplate(file));
-      return;
-    }
-    if (/\.sav$/i.test(file.name)) {
-      setState('idle');
-      setOutcome(await readSave(file));
+      setOutcome(read);
       return;
     }
     try {
@@ -228,6 +229,7 @@ export default function Share() {
   const message: TranslationKey | null = {
     idle: null,
     busy: 'share.creating',
+    reading: 'share.reading',
     copied: 'share.copied',
     refused: 'share.refused',
     'too-big': 'share.download',
@@ -327,6 +329,7 @@ export default function Share() {
       {/* An always-present region, so the message is announced; sr-only adds
           no gap to the bar. */}
       <span role="status" className="sr-only">{message === null ? '' : t(locale, message)}</span>
+      {state === 'reading' && <span aria-hidden="true" className="text-[var(--text-muted)]">{t(locale, 'share.reading')}</span>}
       {state === 'copied' && <span aria-hidden="true" className="text-[var(--good)]">{t(locale, 'share.copied')}</span>}
       {state === 'too-big' && <span aria-hidden="true" className="text-[var(--warning)]">{t(locale, 'share.download')}</span>}
       {state === 'bad-file' && <span aria-hidden="true" className="text-[var(--danger)]">{t(locale, 'share.badFile')}</span>}

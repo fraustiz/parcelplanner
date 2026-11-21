@@ -164,6 +164,7 @@ const fr: Record<keyof typeof en, string> = {
   'share.export': 'Exporter',
   'share.import': 'Importer',
   'share.badFile': "Ce fichier n'est pas un plan ParcelPlanner",
+  'share.reading': 'Lecture du fichier…',
 
   'plan.versionMismatch': "Ce plan a été conçu pour une autre version du jeu",
 
