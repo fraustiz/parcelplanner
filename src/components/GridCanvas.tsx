@@ -17,7 +17,7 @@ import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/co
 import type { CatalogEntry, Cell, Door, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
-import { countryDoorAt, countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
+import { countryDoorAt, countryDoorNear, countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
 import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
@@ -1844,6 +1844,10 @@ export default function GridCanvas() {
         <ContextMenu
           anchor={menu}
           onClose={() => setMenu(null)}
+          onDoorCountry={(() => {
+            const door = countryDoorNear(plan.warehouse, floor, menu.cell);
+            return door ? () => setDoorMenu({ door, at: { x: menu.x, y: menu.y } }) : undefined;
+          })()}
           onReserve={area && inBox(menu.cell, area)
             ? () => { reserveArea(area, catalogue, unlocked); setArea(null); }
             : undefined}

@@ -12,14 +12,15 @@ import { useDialog } from './use-dialog';
 
 /** Roughly the menu's size, to keep it inside the viewport near an edge. */
 const MENU_W = 200;
-const MENU_H = 400;
+const MENU_H = 440;
 
 const ROW = 'flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-[var(--tint-accent)] focus-visible:bg-[var(--tint-accent)]';
 
 /**
  * The country of one country door, picked on the plan: opened by clicking the door's bay
- * (see `countryDoorAt`). Same choice and same swap as the Country doors panel, which stays
- * the way in from the keyboard.
+ * (see `countryDoorAt`), or from the right-click menu on the door, which is the keyboard's way
+ * in (Shift+F10 on the door's cell). Picking a country another door has swaps the two.
+ * Also holds the RealCountries switch, a display preference that is not part of the plan.
  */
 export default function DoorCountryMenu({
   door,
@@ -35,6 +36,7 @@ export default function DoorCountryMenu({
   const real = useEditor((s) => s.realCountries);
   const current = useEditor((s) => s.plan.doorCountries?.[door.id]);
   const setDoorCountry = useEditor((s) => s.setDoorCountry);
+  const setRealCountries = useEditor((s) => s.setRealCountries);
   const ref = useRef<HTMLDivElement>(null);
 
   useDialog(ref, true, { onClose, escape: false });
@@ -108,6 +110,23 @@ export default function DoorCountryMenu({
       <p className="px-3 pb-1 pt-0.5 text-xs text-[var(--text-faint)]">{title}</p>
       {option(null)}
       {COUNTRIES.map((country) => option(country))}
+      {/* A display preference of this browser, not part of the plan: it stays open to show the swap. */}
+      <div role="separator" className="my-1 border-t border-[var(--line)]" />
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={real}
+        onClick={() => setRealCountries(!real)}
+        title={t(locale, 'countryDoors.realCountriesHint')}
+        className={ROW}
+      >
+        <span className="flex h-[15px] w-[25px] shrink-0 items-center justify-center">
+          <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border ${real ? 'border-[var(--accent)] bg-[var(--accent)]' : 'border-[var(--line-strong)]'}`}>
+            {real && <Check aria-hidden className="h-3 w-3 text-[var(--panel)]" />}
+          </span>
+        </span>
+        <span className="flex-1 text-xs">{t(locale, 'countryDoors.realCountries')}</span>
+      </button>
     </div>
   );
 }

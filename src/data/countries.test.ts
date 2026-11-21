@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
 import {
-  COUNTRIES, COUNTRY_DOORS, countryDoorAt, countryDoorNumber, countryFlag, countryFlags, countryName, isCountryDoor, REAL_COUNTRY_NAMES,
+  COUNTRIES, COUNTRY_DOORS, countryDoorAt, countryDoorNear, countryDoorNumber, countryFlag, countryFlags, countryName, isCountryDoor, REAL_COUNTRY_NAMES,
 } from './countries';
 import { KEEP_OWN_COLOURS } from './icons';
 import { DOORS } from './doors';
@@ -101,5 +101,13 @@ describe('countryDoorAt', () => {
   it('numbers doors per floor, from 1', () => {
     expect(countryDoorNumber(countryDoorAt('second', 0, { x: 7, y: -1 })!)).toBe(1);
     expect(countryDoorNumber(countryDoorAt('second', 1, { x: 27, y: -1 })!)).toBe(2);
+  });
+});
+
+describe('countryDoorNear', () => {
+  it('also finds a door from its own cell, where the keyboard cursor reaches', () => {
+    expect(countryDoorNear('second', 0, { x: 7, y: 0 })?.id).toBe('second-country-0-a');
+    expect(countryDoorNear('second', 0, { x: 7, y: -2 })?.id).toBe('second-country-0-a');
+    expect(countryDoorNear('second', 0, { x: 8, y: 0 })).toBeUndefined();
   });
 });

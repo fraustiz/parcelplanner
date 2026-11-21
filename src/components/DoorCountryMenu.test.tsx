@@ -3,13 +3,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import DoorCountryMenu from './DoorCountryMenu';
 import { COUNTRY_DOORS } from '@/data/countries';
-import { useEditor } from '@/store/editor';
+import { REAL_COUNTRIES_KEY, savedRealCountries, useEditor } from '@/store/editor';
 
 afterEach(cleanup);
 
 const [first, second] = COUNTRY_DOORS;
 
 beforeEach(() => {
+  window.localStorage.clear();
   useEditor.setState({
     plan: { gameVersion: 'test', warehouse: 'second', placements: [] },
     locale: 'en', realCountries: false, undoStack: [], redoStack: [],
@@ -63,5 +64,15 @@ describe('the country picker on a door', () => {
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
     expect(useEditor.getState().plan.doorCountries).toBeUndefined();
+  });
+
+  it('switches to the RealCountries names in place, remembered by this browser and not by the plan', () => {
+    const onClose = open();
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /RealCountries/ }));
+    expect(screen.getByRole('menuitemradio', { name: 'France' })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(REAL_COUNTRIES_KEY)).toBe('on');
+    expect(savedRealCountries()).toBe(true);
+    expect('realCountries' in useEditor.getState().plan).toBe(false);
   });
 });

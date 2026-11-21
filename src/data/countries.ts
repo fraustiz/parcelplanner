@@ -104,6 +104,15 @@ export function countryDoorAt(warehouse: WarehouseId, floor: number, cell: Cell)
   });
 }
 
+/**
+ * The country door at `cell` for the right-click menu: its bay, as for a click, or the door's
+ * own cell inside the wall, where the keyboard cursor can reach it.
+ */
+export function countryDoorNear(warehouse: WarehouseId, floor: number, cell: Cell): Door | undefined {
+  return countryDoorAt(warehouse, floor, cell) ?? COUNTRY_DOORS.find((door) =>
+    door.warehouse === warehouse && door.floor === floor && door.cell.x === cell.x && door.cell.y === cell.y);
+}
+
 /** A country door's number in the UI: its place among its floor's doors, from 1, left to right. */
 export function countryDoorNumber(door: Door): number {
   return COUNTRY_DOORS.filter((d) => d.floor === door.floor).indexOf(door) + 1;

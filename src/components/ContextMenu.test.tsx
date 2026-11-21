@@ -118,3 +118,19 @@ describe('the context menu from the keyboard', () => {
     }
   });
 });
+
+describe('the context menu on a country door', () => {
+  it("offers the door's country, and hands over to its picker", () => {
+    const onClose = vi.fn();
+    const onDoorCountry = vi.fn();
+    render(<ContextMenu anchor={{ x: 10, y: 10, cell: { x: 7, y: 0 } }} onClose={onClose} onNote={() => {}} onDoorCountry={onDoorCountry} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: "This door's country…" }));
+    expect(onDoorCountry).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('has no such item elsewhere', () => {
+    render(<ContextMenu anchor={{ x: 10, y: 10, cell: { x: 0, y: 0 } }} onClose={() => {}} onNote={() => {}} />);
+    expect(screen.queryByRole('menuitem', { name: "This door's country…" })).toBeNull();
+  });
+});
