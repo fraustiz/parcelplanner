@@ -172,6 +172,42 @@ describe('buildGraph', () => {
     });
   });
 
+  describe('a reversible straight piece', () => {
+    // Mirrors the sticker applier: in on S, out on N, both reversible.
+    const turned = (id: string, x: number, y: number, rotation: Placement['rotation']): Placement =>
+      ({ ...put(id, 'belt', x, y), rotation });
+    const applierCatalogue = new Map(catalogue).set('applier', {
+      ...belt, id: 'applier',
+      ports: [
+        { side: 'S', offset: 0, dir: 'in', reversible: true },
+        { side: 'N', offset: 0, dir: 'out', reversible: true },
+      ],
+    });
+
+    it('runs the other way when a belt feeds its output', () => {
+      const g = buildGraph(plan([
+        put('a', 'applier', 0, 0),
+        turned('feed', 0, 1, 0), // runs into its N side
+        put('away', 'belt', 0, -1), // takes from its S side
+      ]), applierCatalogue, []);
+      expect(g.edges).toEqual(expect.arrayContaining([
+        { from: 'feed', to: 'a' }, { from: 'a', to: 'away' },
+      ]));
+      expect(g.danglingOutputs.map((p) => p.placementId)).not.toContain('feed');
+    });
+
+    it('keeps its way round when fed through its input', () => {
+      const g = buildGraph(plan([
+        turned('feed', 0, -1, 180), // runs into its S side
+        put('a', 'applier', 0, 0),
+        turned('away', 0, 1, 180), // takes from its N side
+      ]), applierCatalogue, []);
+      expect(g.edges).toEqual(expect.arrayContaining([
+        { from: 'feed', to: 'a' }, { from: 'a', to: 'away' },
+      ]));
+    });
+  });
+
   it('connects a belt to the belt in front of it', () => {
     // Belt's out is `S` (dy -1), so 'a' at (0,0) feeds (0,-1), where 'b'
     // enters on `N` (dy +1).

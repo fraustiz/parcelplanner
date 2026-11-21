@@ -32,9 +32,10 @@ export interface Port {
   /** Floor the port opens onto, relative to the placement. Default 0. */
   floorDelta?: number;
   /**
-   * The piece can also merge: when a belt feeds one of its `out` ports, every
-   * side a belt feeds takes parcels in and every other side sends them out
-   * (see buildGraph). Set on every port of such a piece.
+   * The piece can run the other way: when a belt feeds one of its `out`
+   * ports, every side a belt feeds takes parcels in and every other side
+   * sends them out (see buildGraph). A splitter then merges, a straight piece
+   * runs backwards. Set on every port of such a piece.
    */
   reversible?: boolean;
 }

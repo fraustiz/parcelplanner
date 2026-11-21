@@ -146,12 +146,14 @@ const criteriaScanner: Port[] = [
 
 /**
  * The sticker appliers run down the screen in their reference orientation: fed through `S`, out
- * through `N`. In a real layout three of their four placements connected this way round and not
- * the other; the fourth sat the other way round, so this one is worth checking in game.
+ * through `N`. In a real layout three of their four placements connect this way round and the
+ * fourth, at 59/41 in the second warehouse, is fed through `N`. Read as a working layout, the
+ * piece takes parcels from either end, so it is reversible: fed through `N`, it runs the other way.
+ * Worth checking in game.
  */
 const stickerApplier: Port[] = [
-  { side: 'S', offset: 0, dir: 'in' },
-  { side: 'N', offset: 0, dir: 'out' },
+  { side: 'S', offset: 0, dir: 'in', reversible: true },
+  { side: 'N', offset: 0, dir: 'out', reversible: true },
 ];
 
 export const PORTS: Record<string, Port[]> = {
