@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MAX_SUGGESTION_LENGTH } from '@/core/suggestion';
 import { handleSuggestion, handleSuggestionDone } from './suggestion-api';
 import { createSuggestionBook } from './suggestion-store';
 import { createRateLimiter } from './rate-limit';
@@ -23,6 +24,19 @@ const open = () => createRateLimiter({ limit: 1000, windowMs: 60_000, now: () =>
 
 const post = (text: string, headers: Record<string, string> = {}) =>
   new Request('http://localhost/api/suggestion', { method: 'POST', body: text, headers });
+
+/** A chunked body: a stream sends no content-length, so only a capped read can refuse it. */
+const streamed = (url: string, size: number) =>
+  new Request(url, {
+    method: 'POST',
+    body: new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('A'.repeat(size)));
+        controller.close();
+      },
+    }),
+    duplex: 'half',
+  } as RequestInit);
 
 /** Everything written to the book, oldest first. */
 async function stored(): Promise<string[]> {
@@ -63,6 +77,14 @@ describe('receiving a suggestion', () => {
       post('a', { 'content-length': '999999' }), { book, limiter: open() },
     );
     expect(response.status).toBe(400);
+  });
+
+  it('refuses an oversized chunked body that declares no length', async () => {
+    const request = streamed('http://localhost/api/suggestion', MAX_SUGGESTION_LENGTH * 4 + 1);
+    expect(request.headers.get('content-length')).toBeNull();
+    const response = await handleSuggestion(request, { book, limiter: open() });
+    expect(response.status).toBe(400);
+    expect(await stored()).toHaveLength(0);
   });
 
   it('turns away a caller sending too many', async () => {
@@ -205,6 +227,33 @@ describe('marking a suggestion as dealt with', () => {
     );
 
     expect(response.headers.get('location')).toBe(`/suggestions?key=${encodeURIComponent(KEY)}`);
+  });
+
+  it('reads the urlencoded fields the page form posts', async () => {
+    // A <form method="POST"> with no encType sends application/x-www-form-urlencoded.
+    await book.add('from the form', new Date());
+    const [only] = await book.list();
+    const body = new URLSearchParams({ id: only!.id, key: KEY }).toString();
+
+    const response = await handleSuggestionDone(
+      new Request('http://localhost/api/suggestion/done', {
+        method: 'POST',
+        body,
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      }),
+      { book, adminKey: KEY },
+    );
+
+    expect(response.status).toBe(303);
+    expect(await book.list()).toHaveLength(0);
+  });
+
+  it('answers an oversized form like a wrong key', async () => {
+    // Nothing about the key or the page is revealed to a body that is too big to be the form.
+    const response = await handleSuggestionDone(
+      streamed('http://localhost/api/suggestion/done', 2048), { book, adminKey: KEY },
+    );
+    expect(response.status).toBe(404);
   });
 });
 

@@ -25,6 +25,19 @@ const open = () => createRateLimiter({ limit: 1000, windowMs: 60_000, now: () =>
 const post = (body: string, headers: Record<string, string> = {}) =>
   new Request('http://localhost/api/link', { method: 'POST', body, headers });
 
+/** A chunked body: a stream sends no content-length, so only a capped read can refuse it. */
+const streamed = (url: string, size: number) =>
+  new Request(url, {
+    method: 'POST',
+    body: new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('A'.repeat(size)));
+        controller.close();
+      },
+    }),
+    duplex: 'half',
+  } as RequestInit);
+
 describe('sharing a plan to the server', () => {
   it('stores the payload and answers with the id that fetches it', async () => {
     const response = await handleShare(post('AwHVAQIDBAU'), { store, limiter: open() });
@@ -50,6 +63,13 @@ describe('sharing a plan to the server', () => {
 
   it('refuses an oversized body that lied about its length', async () => {
     const response = await handleShare(post('A'.repeat(MAX_FRAGMENT_LENGTH + 1)), { store, limiter: open() });
+    expect(response.status).toBe(400);
+  });
+
+  it('refuses an oversized chunked body that declares no length', async () => {
+    const request = streamed('http://localhost/api/link', MAX_FRAGMENT_LENGTH + 1);
+    expect(request.headers.get('content-length')).toBeNull();
+    const response = await handleShare(request, { store, limiter: open() });
     expect(response.status).toBe(400);
   });
 

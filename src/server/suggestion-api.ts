@@ -1,4 +1,5 @@
 import { cleanSuggestion, MAX_SUGGESTION_LENGTH } from '@/core/suggestion';
+import { readTextCapped } from './body';
 import { callerOf } from './caller';
 import { isAdminKey } from './admin';
 import { SuggestionBookFull, type SuggestionBook } from './suggestion-store';
@@ -29,13 +30,12 @@ export async function handleSuggestion(
     });
   }
 
-  // Checked before the body is buffered.
-  const declared = Number(request.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > MAX_SUGGESTION_LENGTH * 4) {
-    return new Response('suggestion too long', { status: 400 });
-  }
+  // Capped while reading, so a chunked body with no declared length cannot be buffered whole.
+  // Four bytes per character is the most UTF-8 needs.
+  const body = await readTextCapped(request, MAX_SUGGESTION_LENGTH * 4);
+  if (body === null) return new Response('suggestion too long', { status: 400 });
 
-  const text = cleanSuggestion(await request.text());
+  const text = cleanSuggestion(body);
   if (text === null) return new Response('nothing to say', { status: 400 });
 
   try {
@@ -89,14 +89,19 @@ export async function handleSuggestionDone(
     });
   }
 
-  const form = await request.formData();
+  // The page's form posts urlencoded fields: an id and the key, far under 1 KB. Anything larger
+  // gets the same answer as a wrong key, so it learns nothing.
+  const body = await readTextCapped(request, 1024);
+  if (body === null) return new Response('no such page', { status: 404 });
+  const form = new URLSearchParams(body);
+
   const key = form.get('key');
-  if (typeof key !== 'string' || !isAdminKey(key, adminKey)) {
+  if (key === null || !isAdminKey(key, adminKey)) {
     return new Response('no such page', { status: 404 });
   }
 
   const id = form.get('id');
-  if (typeof id !== 'string' || !(await book.remove(id))) {
+  if (id === null || !(await book.remove(id))) {
     return new Response('not a suggestion', { status: 400 });
   }
 
