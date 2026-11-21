@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { isAdminKey } from '@/server/admin';
+import { callerOf } from '@/server/caller';
 import { suggestionBook, adminLimiter, DATA_ROOT, SUGGESTION_ADMIN_KEY } from '@/server/links';
 import { describeStorage } from '@/server/storage-health';
 
@@ -23,7 +24,7 @@ export default async function SuggestionsPage(
 
   // Rate-limited before the key is compared, against guessing. Answers 404,
   // not 429, which would confirm the page exists.
-  const caller = (await headers()).get('x-forwarded-for')?.split(',').at(-1)?.trim() ?? 'unknown';
+  const caller = callerOf(await headers());
   if (!adminLimiter.allow(caller)) notFound();
 
   if (!isAdminKey(key, SUGGESTION_ADMIN_KEY)) notFound();

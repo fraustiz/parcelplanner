@@ -53,6 +53,15 @@ describe('who a request is from', () => {
   it('falls back to unknown when nothing names the caller', () => {
     expect(callerOf(request({}))).toBe('unknown');
   });
+
+  it('reads bare headers the same way as a request carrying them', () => {
+    // A server component has only headers(), not a Request; both must key the same limiter alike.
+    const forwarded = { 'x-forwarded-for': '203.0.113.9, 162.158.1.2', 'cf-connecting-ip': '198.51.100.7' };
+    const direct = { 'x-forwarded-for': '198.51.100.50', 'cf-connecting-ip': '1.2.3.4' };
+    for (const headers of [forwarded, direct, {}]) {
+      expect(callerOf(new Headers(headers))).toBe(callerOf(request(headers)));
+    }
+  });
 });
 
 describe('Cloudflare address ranges', () => {
