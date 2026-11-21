@@ -1,5 +1,7 @@
 import { isFragmentPayload } from '@/core/short-link';
+import { readTextCapped } from './body';
 import { callerOf } from './caller';
+import { isCrossSite } from './same-origin';
 import { MAX_FRAGMENT_LENGTH } from '@/core/serialize';
 import { LinkStoreFull, type LinkStore } from './link-store';
 import type { createRateLimiter } from './rate-limit';
@@ -23,13 +25,14 @@ export async function handleShare(
     });
   }
 
-  // Checked before the body is buffered. A body that lies about its size is caught by isFragmentPayload.
-  const declared = Number(request.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > MAX_FRAGMENT_LENGTH) {
-    return new Response('payload too large', { status: 400 });
+  // A text/plain POST needs no preflight, so another site's page could post through its visitors.
+  if (isCrossSite(request)) {
+    return new Response('cross-site requests are not accepted', { status: 403 });
   }
 
-  const payload = await request.text();
+  // Capped while reading, so a chunked body with no declared length cannot be buffered whole.
+  const payload = await readTextCapped(request, MAX_FRAGMENT_LENGTH);
+  if (payload === null) return new Response('payload too large', { status: 400 });
   if (!isFragmentPayload(payload)) {
     return new Response('not a ParcelPlanner plan fragment', { status: 400 });
   }

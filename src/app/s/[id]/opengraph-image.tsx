@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { headers } from 'next/headers';
 import { ImageResponse } from 'next/og';
 import { isShortLinkId } from '@/core/short-link';
+import { callerOf } from '@/server/caller';
+import { cardLimiter } from '@/server/links';
 import { planCardSvg } from '@/server/plan-card';
 import { planForShortLink } from '@/server/plan-summary';
 
@@ -19,13 +22,19 @@ export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const alt = 'A Parcel Simulator warehouse layout';
 
-/** The generic card, for links whose plan cannot be drawn. */
-async function fallback(): Promise<Response> {
+/**
+ * The generic card, for links whose plan cannot be drawn. It never gets the drawn card's long
+ * cache: a shared cache (an unfurler's image proxy) would keep showing it for that link.
+ */
+async function fallback(cacheControl: string): Promise<Response> {
   const bytes = await readFile(join(process.cwd(), 'public', 'og-card.png'));
   return new Response(new Uint8Array(bytes), {
-    headers: { 'Content-Type': 'image/png', 'Cache-Control': CACHE },
+    headers: { 'Content-Type': 'image/png', 'Cache-Control': cacheControl },
   });
 }
+
+/** An unknown, empty or undrawable id: briefly cacheable, since the store or the code can change. */
+const FALLBACK_CACHE = 'public, max-age=300, s-maxage=3600';
 
 /** Ids are content-addressed (src/core/short-link.ts), so a card never goes stale. */
 const CACHE = 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800';
@@ -35,15 +44,20 @@ export default async function Image(
 ): Promise<Response> {
   const { id } = await params;
 
+  // Drawing a card is the costliest thing a stranger can ask for, so it is limited. Over the
+  // limit the generic card answers, never a 429: a link unfurler would then show nothing.
+  // The caller was refused, not the link, so this answer must not be cached for anyone.
+  if (!cardLimiter.allow(callerOf(await headers()))) return fallback('no-store');
+
   const plan = isShortLinkId(id) ? await planForShortLink(id) : null;
-  if (!plan || plan.placements.length === 0) return fallback();
+  if (!plan || plan.placements.length === 0) return fallback(FALLBACK_CACHE);
 
   let svg: string;
   try {
     svg = planCardSvg(plan, size.width, size.height);
   } catch {
     // Decodes but cannot be drawn, e.g. an object from a later game version.
-    return fallback();
+    return fallback(FALLBACK_CACHE);
   }
 
   // One full-bleed image for Satori to lay out.

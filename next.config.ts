@@ -7,6 +7,9 @@ import { ANALYTICS_ENABLED, STATS_PATH, UMAMI_ORIGIN } from './src/analytics';
 const config: NextConfig = {
   images: { unoptimized: true },
 
+  // No `X-Powered-By: Next.js`: it tells a stranger nothing they need.
+  poweredByHeader: false,
+
   /**
    * One canonical host. `www.` and the bare domain are different origins, and
    * the editor keeps the plan in per-origin localStorage, so both answering
@@ -81,6 +84,10 @@ const config: NextConfig = {
         { key: 'X-Content-Type-Options', value: 'nosniff' },
         { key: 'Referrer-Policy', value: 'no-referrer' },
         { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        // After one visit, never plain HTTP again: the admin key travels in a URL. Production
+        // only, so a local http://localhost is never pinned. No includeSubDomains or preload:
+        // other services may live on subdomains, and preload is hard to undo.
+        ...(development ? [] : [{ key: 'Strict-Transport-Security', value: 'max-age=31536000' }]),
       ],
     }];
   },

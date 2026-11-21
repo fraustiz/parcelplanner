@@ -19,6 +19,9 @@ export const linkStore = createLinkStore({
 /** Sixty link reads a minute per address: far above a person, far below a script walking the id space. */
 export const linkReadLimiter = createRateLimiter({ limit: 60, windowMs: 60_000 });
 
+/** Thirty preview cards drawn a minute per address: an unfurler asks once, a loop asks forever. */
+export const cardLimiter = createRateLimiter({ limit: 30, windowMs: 60_000 });
+
 /** Twenty admin attempts a minute per address, successes included. */
 export const adminLimiter = createRateLimiter({ limit: 20, windowMs: 60_000 });
 

@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { isAdminKey } from '@/server/admin';
+import { callerOf } from '@/server/caller';
 import { suggestionBook, adminLimiter, DATA_ROOT, SUGGESTION_ADMIN_KEY } from '@/server/links';
 import { describeStorage } from '@/server/storage-health';
 
@@ -23,7 +24,7 @@ export default async function SuggestionsPage(
 
   // Rate-limited before the key is compared, against guessing. Answers 404,
   // not 429, which would confirm the page exists.
-  const caller = (await headers()).get('x-forwarded-for')?.split(',').at(-1)?.trim() ?? 'unknown';
+  const caller = callerOf(await headers());
   if (!adminLimiter.allow(caller)) notFound();
 
   if (!isAdminKey(key, SUGGESTION_ADMIN_KEY)) notFound();
@@ -63,7 +64,8 @@ export default async function SuggestionsPage(
                 {suggestion.at.replace('T', ' ').replace(/\..*/, '')} UTC
               </span>
               {/* A plain form, so it works without JavaScript. The key goes in
-                  the body, not the query string, to keep it out of history. */}
+                  the body, so the form submission's URL does not carry it; the
+                  redirect back to this page carries it again, like the first visit. */}
               <form action="/api/suggestion/done" method="POST">
                 <input type="hidden" name="id" value={suggestion.id} />
                 <input type="hidden" name="key" value={key ?? ''} />

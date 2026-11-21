@@ -30,14 +30,15 @@ describe('the Content-Security-Policy', () => {
     expect(await scriptSrcFor('development')).toContain("'unsafe-eval'");
   });
 
-  it('keeps the rest of the policy the same in both', async () => {
+  it('keeps the rest of the headers the same in both', async () => {
     setNodeEnv('production');
     const production = (await config.headers!())[0]!.headers;
     setNodeEnv('development');
     const development = (await config.headers!())[0]!.headers;
 
+    // HSTS is production-only on purpose (see below).
     const without = (headers: typeof production) =>
-      headers.filter((h) => h.key !== 'Content-Security-Policy');
+      headers.filter((h) => h.key !== 'Content-Security-Policy' && h.key !== 'Strict-Transport-Security');
     expect(without(development)).toEqual(without(production));
   });
 
@@ -50,6 +51,28 @@ describe('the Content-Security-Policy', () => {
     expect(value('X-Content-Type-Options')).toBe('nosniff');
     expect(value('Referrer-Policy')).toBe('no-referrer');
     expect(value('Content-Security-Policy')).toContain("frame-ancestors 'none'");
+  });
+});
+
+describe('HTTPS and server identification', () => {
+  const hsts = async (env: string) => {
+    setNodeEnv(env);
+    const headers = (await config.headers!())[0]!.headers;
+    return headers.find((h) => h.key === 'Strict-Transport-Security')?.value;
+  };
+
+  it('pins HTTPS in production, without subdomains or preload', async () => {
+    // The admin key travels in a URL, so a first plain-HTTP request must not
+    // happen again after one visit.
+    expect(await hsts('production')).toBe('max-age=31536000');
+  });
+
+  it('does not pin HTTPS in development, where localhost is plain HTTP', async () => {
+    expect(await hsts('development')).toBeUndefined();
+  });
+
+  it('does not announce the framework', () => {
+    expect(config.poweredByHeader).toBe(false);
   });
 });
 

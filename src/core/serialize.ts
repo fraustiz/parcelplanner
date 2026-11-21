@@ -1,6 +1,8 @@
 import { SHARE_COUNTRY_DOOR_IDS, SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from '@/data/share-object-ids';
 import { COUNTRIES, isCountry } from '@/data/countries';
 import { isObjectColour, OBJECT_COLOURS } from '@/data/colours';
+import { getCatalogue } from '@/data/catalogue';
+import { WAREHOUSES } from '@/data/warehouses';
 import { CARGO_CHOICES, CARGO_DIVERTER, cleanDiverterSettings, COUNTRY_DIVERTER, COUNTRY_DIVERTER_CELLS } from './diverters';
 import { rotatedFootprint } from './grid';
 import type { Cell, Placement, Plan, PlanNote } from './types';
@@ -13,6 +15,14 @@ const DEFAULT_PLACEMENT_WAREHOUSE = 'main';
 
 /** Beyond this, share by file download instead of a URL fragment. */
 export const MAX_FRAGMENT_LENGTH = 8000;
+
+/**
+ * The most a shared plan may inflate to. Deflate expands up to about 1000:1, so 8000 characters
+ * could otherwise decode to a million placements and exhaust the server drawing their preview.
+ * Measured on 2026-11-21: every cell of all three buildings filled inflates to 57 599 bytes, and
+ * the old text format's largest link to 184 442; this is four times the first, to a power of two.
+ */
+export const MAX_DECODED_BYTES = 262_144;
 
 export function planToJson(plan: Plan): string {
   return JSON.stringify(plan);
@@ -143,6 +153,33 @@ const fromBase64Url = (text: string): Uint8Array<ArrayBuffer> => {
 async function through(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
   const buffer = await new Response(stream).arrayBuffer();
   return new Uint8Array(buffer);
+}
+
+/** Like `through`, but stops inflating once the output passes `maxBytes`, so a small hostile
+ * payload never gets to expand in memory. */
+async function throughCapped(
+  stream: ReadableStream<Uint8Array>, maxBytes: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error('plan too large');
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return bytes;
 }
 
 const SHARE_VERSION = 2;
@@ -630,6 +667,8 @@ function unpackPlan(text: string): Plan {
     if (n.length !== 4 && n.length !== 8) throw new Error('not a ParcelPlanner plan');
     const [object, dy, dx, rotation, floor = 0, tier = 1, mirrored = 0, home = 0] = n as number[];
     if (![object, dy, dx, rotation].every(Number.isFinite)) throw new Error('not a ParcelPlanner plan');
+    // Quarter turns, as written; `% 4` would turn -1 into -90 and 0.5 into 45.
+    if (!isIntegerIn(rotation!, 0, 3)) throw new Error('not a ParcelPlanner plan');
     lastY += dy!;
     lastX += dx!;
     const objectId = SHARE_OBJECT_IDS[object!];
@@ -661,17 +700,45 @@ export async function encodePlan(plan: Plan): Promise<string> {
   return toBase64Url(await through(source.pipeThrough(new CompressionStream('deflate-raw'))));
 }
 
+/** The highest floor index any building has (WAREHOUSES lists floors per building). */
+const MAX_FLOOR = Math.max(...Object.values(WAREHOUSES).map((floors) => floors.length)) - 1;
+
+/** The highest tier any object reaches. Computed on first use, not at import. */
+let maxTier: number | undefined;
+const highestTier = (): number =>
+  (maxTier ??= Math.max(1, ...[...getCatalogue().values()].map((entry) => entry.maxTier)));
+
+const isIntegerIn = (value: number, min: number, max: number): boolean =>
+  Number.isInteger(value) && value >= min && value <= max;
+
+/**
+ * A decoded share link's numbers, checked once for every format. Real links only ever carry small
+ * integers, but the older formats read them with `Number()`, so a crafted link could load NaN,
+ * negative or fractional floors and tiers: invisible placements, NaN costs, "$NaN" previews.
+ */
+function assertSanePlan(plan: Plan): Plan {
+  const sane = plan.placements.every((p) =>
+    isIntegerIn(p.floor, 0, MAX_FLOOR)
+    && isIntegerIn(p.tier, 1, highestTier())
+    && (p.rotation === 0 || p.rotation === 90 || p.rotation === 180 || p.rotation === 270)
+    && Number.isSafeInteger(p.cell.x)
+    && Number.isSafeInteger(p.cell.y))
+    && (plan.ownedTiers === undefined || plan.ownedTiers.every((tier) => Number.isSafeInteger(tier)));
+  if (!sane) throw new Error('not a ParcelPlanner plan');
+  return plan;
+}
+
 export async function decodePlan(encoded: string): Promise<Plan> {
   const source = new Blob([fromBase64Url(encoded)]).stream();
-  const bytes = await through(source.pipeThrough(new DecompressionStream('deflate-raw')));
+  const bytes = await throughCapped(source.pipeThrough(new DecompressionStream('deflate-raw')), MAX_DECODED_BYTES);
 
-  if (bytes[0] === SHARE_VERSION_BINARY) return unpackPlanBinary(bytes);
+  if (bytes[0] === SHARE_VERSION_BINARY) return assertSanePlan(unpackPlanBinary(bytes));
 
   const text = new TextDecoder().decode(bytes);
-  if (text.startsWith(`${SHARE_VERSION}|`)) return unpackPlan(text);
+  if (text.startsWith(`${SHARE_VERSION}|`)) return assertSanePlan(unpackPlan(text));
 
   // Older links, newest first: the packed-JSON format, then the very first one
   // that carried the plan's own JSON. Both are already out in the world.
   const parsed: unknown = JSON.parse(text);
-  return unpackV1(parsed) ?? planFromJson(text);
+  return assertSanePlan(unpackV1(parsed) ?? planFromJson(text));
 }
