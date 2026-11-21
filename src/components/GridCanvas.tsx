@@ -1224,6 +1224,18 @@ export default function GridCanvas() {
     useSimStats.setState({ pausers: {} });
   }, [planLoads]);
 
+  // Parcels carry a floor but no warehouse: opening another building would
+  // draw them over its floor, on belts that are not there. Same stop as above.
+  const warehouseSeen = useRef(plan.warehouse);
+  useEffect(() => {
+    if (plan.warehouse === warehouseSeen.current) return;
+    warehouseSeen.current = plan.warehouse;
+    setSim(EMPTY_SIM);
+    setLead(0);
+    setPlaying(false);
+    useSimStats.setState({ pausers: {} });
+  }, [plan.warehouse]);
+
   const sendParcels = (): void => {
     if (simLayout.entries.length === 0) return; // nothing is wired up; say nothing
     setSim(EMPTY_SIM);

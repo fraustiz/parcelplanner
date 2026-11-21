@@ -2501,6 +2501,18 @@ describe('GridCanvas following parcels', () => {
     expect(screen.getByRole('button', { name: /play/i })).toBeTruthy();
   });
 
+  it('stops when another warehouse is opened, instead of leaving the parcels over its floor', () => {
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
+    render(<GridCanvas />);
+    play();
+    expect(screen.getByRole('button', { name: /pause/i })).toBeTruthy();
+
+    act(() => useEditor.getState().setWarehouse('second'));
+
+    expect(simStats()).toBeNull();
+    expect(screen.getByRole('button', { name: /play/i })).toBeTruthy();
+  });
+
   it('keeps running through an edit, which is not a new plan', () => {
     useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
     render(<GridCanvas />);
