@@ -8,7 +8,7 @@ import { getCatalogue } from '@/data/catalogue';
 import { COLOUR_NAMES, OBJECT_COLOURS, repaintableColourOf } from '@/data/colours';
 import { WAREHOUSES } from '@/data/warehouses';
 import { isZone, ZONE_PREFIX } from '@/core/zone';
-import { formatMoney, t, type Locale } from '@/i18n';
+import { formatMoney, t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
 import { useSimStats } from '@/store/sim-stats';
 import { sizeOf } from './HoverCard';
@@ -17,20 +17,30 @@ import { sizeOf } from './HoverCard';
 function SimStatsPanel({ locale }: { locale: Locale }) {
   const stats = useSimStats((s) => s.stats);
   if (!stats) return null;
-  const rows = [
-    ['sim.onBelt', stats.onBelt],
-    ['sim.delivered', stats.delivered],
-    ['sim.stored', stats.stored],
-    ['sim.fell', stats.fell],
-  ] as const;
+  // A share of the parcels that have finished, delivered or fallen. A rack
+  // only holds a parcel until an unloader takes it out, so it is no end. Not a
+  // rate per minute: the game data has no belt speed to turn steps into time.
+  const finished = stats.delivered + stats.fell;
+  const share = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
+  const rows: ReadonlyArray<readonly [TranslationKey, number, boolean]> = [
+    ['sim.onBelt', stats.onBelt, false],
+    ['sim.delivered', stats.delivered, true],
+    ['sim.stored', stats.stored, false],
+    ['sim.fell', stats.fell, true],
+  ];
   return (
     <section aria-label={t(locale, 'sim.title')} className="mb-3 border-b border-[var(--line)] pb-3">
       <h2 className="mb-2 font-semibold">{t(locale, 'sim.title')}</h2>
       <dl className="space-y-0.5">
-        {rows.map(([key, value]) => (
+        {rows.map(([key, value, shared]) => (
           <div key={key} className="flex items-baseline justify-between gap-2 px-1">
             <dt className="text-[var(--text-faint)]">{t(locale, key)}</dt>
-            <dd className="font-mono tabular-nums">{value}</dd>
+            <dd className="font-mono tabular-nums">
+              {shared && finished > 0 && (
+                <span className="mr-2 text-[var(--text-faint)]">{share.format(value / finished)}</span>
+              )}
+              {value}
+            </dd>
           </div>
         ))}
       </dl>

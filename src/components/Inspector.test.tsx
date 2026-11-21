@@ -339,9 +339,17 @@ describe('the parcel preview counts', () => {
       withPlacements([belt('a', 0)], selectedIds);
       render(<Inspector />);
       const rows = [...screen.getByRole('region', { name: 'Parcels' }).querySelectorAll('dl > div')].map((row) => row.textContent);
-      expect(rows).toEqual(['On the belts385', 'Delivered2', 'In racks53', 'Fell off111']);
+      expect(rows).toEqual(['On the belts385', 'Delivered2%2', 'In racks53', 'Fell off98%111']);
       cleanup();
     }
+  });
+
+  it('gives no share before any parcel has finished', () => {
+    useSimStats.setState({ stats: { onBelt: 4, delivered: 0, stored: 1, fell: 0 } });
+    withPlacements([belt('a', 0)]);
+    render(<Inspector />);
+    const rows = [...screen.getByRole('region', { name: 'Parcels' }).querySelectorAll('dl > div')].map((row) => row.textContent);
+    expect(rows).toEqual(['On the belts4', 'Delivered0', 'In racks1', 'Fell off0']);
   });
 
   it('shows nothing while no parcel runs', () => {
