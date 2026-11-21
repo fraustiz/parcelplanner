@@ -9,20 +9,36 @@ import { useEditor } from '@/store/editor';
 import { useDialog } from './use-dialog';
 
 /**
- * The dialog every spreadsheet import goes through. An import never lands in
- * silence: a cell names an object but rarely its facing, so part of any import
- * is a guess. The plan is built first and loaded only on a press.
+ * The dialog every spreadsheet or game-save import goes through. An import
+ * never lands in silence: a cell names an object but rarely its facing, and a
+ * save holds things the planner leaves out. The plan is built first and
+ * loaded only on a press.
  *
- *   `unreadable`  not an .xlsx at all.
+ *   `unreadable`  not an .xlsx (or not a save) at all.
  *   `refused`     wrong version, missing sheet or moved doors. No override:
  *                 a shifted grid looks normal and is wrong in every cell.
  *   `ready`       the caution, what was read, what was guessed, and a button.
  */
 
+/** What was imported: the community spreadsheet or a game save. */
+export type ImportSource = 'template' | 'save';
+
 export type ImportOutcome =
-  | { kind: 'unreadable' }
+  | { kind: 'unreadable'; source: ImportSource }
   | { kind: 'refused'; problems: TemplateProblem[] }
-  | { kind: 'ready'; plan: Plan; report: ImportReport };
+  | { kind: 'ready'; source: ImportSource; plan: Plan; report: ImportReport };
+
+/** The texts that differ between the two sources; the rest are shared. */
+const SOURCE_TEXT: Record<ImportSource, Record<'caution' | 'cautionWhy' | 'empty' | 'unknown' | 'dropped' | 'unreadableWhy', TranslationKey>> = {
+  template: {
+    caution: 'import.caution', cautionWhy: 'import.cautionWhy', empty: 'import.empty',
+    unknown: 'import.unknown', dropped: 'import.dropped', unreadableWhy: 'import.unreadableWhy',
+  },
+  save: {
+    caution: 'import.saveCaution', cautionWhy: 'import.saveCautionWhy', empty: 'import.saveEmpty',
+    unknown: 'import.saveUnknown', dropped: 'import.saveDropped', unreadableWhy: 'import.saveUnreadableWhy',
+  },
+};
 
 /** `t` has no interpolation on purpose (see src/i18n/index.ts), so a counted
  * line is built here: the number, then the phrase it counts. */
@@ -67,16 +83,17 @@ export default function ImportPanel(
 
   const ready = outcome.kind === 'ready' ? outcome : null;
   const empty = ready !== null && ready.report.placed === 0;
+  const text = SOURCE_TEXT[outcome.kind === 'refused' ? 'template' : outcome.source];
 
   const title = outcome.kind === 'unreadable' ? say('import.unreadable')
     : outcome.kind === 'refused' ? say('import.refused')
-      : empty ? say('import.empty')
-        : say('import.caution');
+      : empty ? say(text.empty)
+        : say(text.caution);
 
   // Empty needs no body: its title says it all.
-  const body = outcome.kind === 'unreadable' ? say('import.unreadableWhy')
+  const body = outcome.kind === 'unreadable' ? say(text.unreadableWhy)
     : outcome.kind === 'refused' ? say('import.refusedWhy')
-      : empty ? '' : say('import.cautionWhy');
+      : empty ? '' : say(text.cautionWhy);
 
   // What landed, where, then what was guessed or left out.
   const lines: string[] = [];
@@ -90,10 +107,10 @@ export default function ImportPanel(
       lines.push(counted(locale, ready.report.rotationUnknown, 'import.rotationUnknown'));
     }
     if (ready.report.unknown.length > 0) {
-      lines.push(counted(locale, ready.report.unknown.length, 'import.unknown'));
+      lines.push(counted(locale, ready.report.unknown.length, text.unknown));
     }
     if (ready.report.dropped.length > 0) {
-      lines.push(counted(locale, ready.report.dropped.length, 'import.dropped'));
+      lines.push(counted(locale, ready.report.dropped.length, text.dropped));
     }
   }
 

@@ -18,6 +18,7 @@ const PLAN: Plan = {
 
 const READY = (over: Partial<ImportOutcome & { kind: 'ready' }> = {}): ImportOutcome => ({
   kind: 'ready',
+  source: 'template',
   plan: PLAN,
   report: {
     placed: 33,
@@ -115,7 +116,7 @@ describe('a workbook that cannot be trusted', () => {
 
   it('says so when the file is not a workbook at all', () => {
     const { getByText, queryByRole } = render(
-      <ImportPanel outcome={{ kind: 'unreadable' }} onConfirm={() => {}} onClose={() => {}} />);
+      <ImportPanel outcome={{ kind: 'unreadable', source: 'template' }} onConfirm={() => {}} onClose={() => {}} />);
     expect(getByText(/could not be read/i)).toBeTruthy();
     expect(queryByRole('button', { name: /import anyway/i })).toBeNull();
   });
@@ -132,6 +133,57 @@ describe('a workbook with nothing on it', () => {
     const { getByText, queryByRole } = render(
       <ImportPanel outcome={outcome} onConfirm={() => {}} onClose={() => {}} />);
     expect(getByText(/nothing on this workbook/i)).toBeTruthy();
+    expect(queryByRole('button', { name: /import anyway/i })).toBeNull();
+  });
+});
+
+describe('a game save', () => {
+  const SAVE = (over: Partial<ImportOutcome & { kind: 'ready' }> = {}) => READY({
+    source: 'save',
+    report: {
+      placed: 3215, byWarehouse: [{ warehouse: 'main', placed: 825 }, { warehouse: 'second', placed: 2390 }],
+      unknown: [{ sheet: 'main/0', cell: { x: 1, y: 1 }, value: 'BP_New' }],
+      dropped: [{ sheet: 'main/0', cell: { x: 2, y: 2 }, value: 'BP_ConveyorBelt_Joiner' }],
+      ignored: 24, rotationUnknown: 0,
+    },
+    ...over,
+  });
+
+  it('says it came from the game, and what is not read yet, before loading', () => {
+    const onConfirm = vi.fn();
+    const { getByText, queryByText } = render(
+      <ImportPanel outcome={SAVE()} onConfirm={onConfirm} onClose={() => {}} />);
+    expect(getByText(/imported from your game save/i)).toBeTruthy();
+    expect(getByText(/colours, diverter settings and the expansions/i)).toBeTruthy();
+    // Nothing about spreadsheets or guessed angles: a save states them all.
+    expect(queryByText(/spreadsheet/i)).toBeNull();
+    expect(queryByText(/default angle/i)).toBeNull();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("counts what it left out in a save's own words", () => {
+    const { getByText } = render(
+      <ImportPanel outcome={SAVE()} onConfirm={() => {}} onClose={() => {}} />);
+    expect(getByText(/3215 objects read/i)).toBeTruthy();
+    expect(getByText(/1 objects are not in the planner/i)).toBeTruthy();
+    expect(getByText(/1 objects were not lying flat on a cell/i)).toBeTruthy();
+  });
+
+  it('tells where saves are kept when the file is not one', () => {
+    const { getByText } = render(
+      <ImportPanel outcome={{ kind: 'unreadable', source: 'save' }} onConfirm={() => {}} onClose={() => {}} />);
+    expect(getByText(/not a Parcel Simulator save/i)).toBeTruthy();
+    expect(getByText(/SaveGames/)).toBeTruthy();
+  });
+
+  it('says so when nothing is built on it', () => {
+    const outcome = SAVE({
+      plan: { ...PLAN, placements: [] },
+      report: { placed: 0, byWarehouse: [], unknown: [], dropped: [], ignored: 13, rotationUnknown: 0 },
+    });
+    const { getByText, queryByRole } = render(
+      <ImportPanel outcome={outcome} onConfirm={() => {}} onClose={() => {}} />);
+    expect(getByText(/nothing is built on the grids of this save/i)).toBeTruthy();
     expect(queryByRole('button', { name: /import anyway/i })).toBeNull();
   });
 });
