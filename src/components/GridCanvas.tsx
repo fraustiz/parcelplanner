@@ -14,10 +14,10 @@ import { isOnTheFloor } from '@/core/queueing';
 import { loadSeconds, scanSeconds, secondsPerCell, SPLITTER_RETRY_SECONDS, UNLOAD_SECONDS } from '@/core/sim-timing';
 import { entryPoints, inboundIndexOf, onwardOf, outLinks, parcelPath, portIndexOf, routeSteps, storePullers, type RouteStep } from '@/core/simulate';
 import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/core/transform';
-import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
+import type { CatalogEntry, Cell, Door, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
-import { countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
+import { countryDoorAt, countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
 import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
@@ -37,6 +37,7 @@ import { drawScene, DARK_SCENE, LIGHT_SCENE, type HighlightState } from '@/rende
 import { draggedPlacement, useEditor, type MarqueeState } from '@/store/editor';
 import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
 import ContextMenu, { type MenuAnchor } from './ContextMenu';
+import DoorCountryMenu from './DoorCountryMenu';
 import HoverCard from './HoverCard';
 
 /** A point in client (viewport) pixel coordinates, as carried by both React
@@ -289,6 +290,10 @@ export default function GridCanvas() {
   // Menu and hover card are transient view state pinned to viewport pixels,
   // so they live here rather than in the store.
   const [menu, setMenu] = useState<MenuAnchor | null>(null);
+  // The country picker of a country door, opened by clicking the door's bay.
+  const [doorMenu, setDoorMenu] = useState<{ door: Door; at: { x: number; y: number } } | null>(null);
+  // Whether the pointer is over a country door's bay, for the hand cursor.
+  const [overDoor, setOverDoor] = useState(false);
   // The keyboard cursor: UI state only, never in the plan or the undo history.
   // It keeps its cell while hidden, so focus coming back resumes where it was.
   const [cursor, setCursor] = useState<Cell | null>(null);
@@ -1312,6 +1317,7 @@ export default function GridCanvas() {
     // Hover card: only over a real object, and never while one is armed.
     const cell = cellAt(event);
     const over = drag ? undefined : hitTest(cell);
+    setOverDoor(!drag && !over && countryDoorAt(plan.warehouse, floor, cell) !== undefined);
     // A note shows on hover even where nothing is built.
     const noted = drag ? undefined : (plan.notes ?? []).find(
       (note) => note.warehouse === plan.warehouse && note.floor === floor
@@ -1436,6 +1442,12 @@ export default function GridCanvas() {
     // Alt reaches past a bridge to the conveyor under it; a plain click selects
     // what is visible.
     const hit = hitTest(cell, event.altKey);
+    // A country door's bay lies outside the walls, where nothing is ever built.
+    const door = hit ? undefined : countryDoorAt(plan.warehouse, floor, cell);
+    if (door) {
+      setDoorMenu({ door, at: { x: event.clientX, y: event.clientY } });
+      return;
+    }
     // Shift/ctrl-click toggles an object in the selection. On empty ground it
     // does nothing rather than clearing the selection.
     if (event.shiftKey || event.ctrlKey) {
@@ -1744,7 +1756,7 @@ export default function GridCanvas() {
         title={hover ? undefined : t(locale, 'canvas.panHint')}
         // touch-none tells the browser up front that this element handles its
         // gestures, so a pan does not stick while it decides whether to scroll.
-        className="h-full w-full touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]"
+        className={`h-full w-full touch-none ${overDoor ? 'cursor-pointer' : ''} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]`}
       />
       <p id={hintId} className="sr-only">{t(locale, 'canvas.keysHint')}</p>
       <div role="status" aria-live="polite" data-cursor-status className="sr-only">{said}</div>
@@ -1821,6 +1833,10 @@ export default function GridCanvas() {
             top: worldToScreen(camera, noteAt).py,
           }}
         />
+      )}
+
+      {doorMenu && (
+        <DoorCountryMenu door={doorMenu.door} at={doorMenu.at} onClose={() => setDoorMenu(null)} />
       )}
 
       {menu && (

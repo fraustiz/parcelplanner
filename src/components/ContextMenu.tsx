@@ -29,13 +29,13 @@ const ROW = 'flex w-full items-center justify-between gap-4 px-3 py-1.5 text-lef
 /** The items that belong to `menu` itself, not to a submenu inside it. */
 function itemsOf(menu: HTMLElement | null): HTMLElement[] {
   if (!menu) return [];
-  return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+  return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')]
     .filter((item) => item.closest('[role="menu"]') === menu);
 }
 
 /** Up, Down, Home and End over a menu's own items, wrapping at the ends.
  * Returns true when the key was one of those. */
-function moveFocus(menu: HTMLElement | null, key: string): boolean {
+export function moveFocus(menu: HTMLElement | null, key: string): boolean {
   const items = itemsOf(menu);
   if (items.length === 0) return false;
   const at = items.indexOf(document.activeElement as HTMLElement);

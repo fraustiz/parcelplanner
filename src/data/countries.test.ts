@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
 import {
-  COUNTRIES, COUNTRY_DOORS, countryFlag, countryFlags, countryName, isCountryDoor, REAL_COUNTRY_NAMES,
+  COUNTRIES, COUNTRY_DOORS, countryDoorAt, countryDoorNumber, countryFlag, countryFlags, countryName, isCountryDoor, REAL_COUNTRY_NAMES,
 } from './countries';
 import { KEEP_OWN_COLOURS } from './icons';
 import { DOORS } from './doors';
@@ -73,5 +73,33 @@ describe('the country doors', () => {
     ]);
     expect(isCountryDoor('second-country-0-a')).toBe(true);
     expect(isCountryDoor('second-export-reject-0')).toBe(false);
+  });
+});
+
+describe('countryDoorAt', () => {
+  // The first ground-floor country door stands on x 7, y 0, and faces S (-y): its bay is
+  // the 3 x 3 cells above it, x 6 to 8, y -1 to -3.
+  it('finds the door from any cell of its bay', () => {
+    for (const x of [6, 7, 8]) {
+      for (const y of [-1, -2, -3]) {
+        expect(countryDoorAt('second', 0, { x, y })?.id).toBe('second-country-0-a');
+      }
+    }
+  });
+
+  it('finds nothing on the door cell itself, inside the walls, or beside the bay', () => {
+    expect(countryDoorAt('second', 0, { x: 7, y: 0 })).toBeUndefined();
+    expect(countryDoorAt('second', 0, { x: 5, y: -1 })).toBeUndefined();
+    expect(countryDoorAt('second', 0, { x: 7, y: -4 })).toBeUndefined();
+  });
+
+  it('only on the door\'s own floor and warehouse', () => {
+    expect(countryDoorAt('second', 1, { x: 7, y: -1 })).toBeUndefined();
+    expect(countryDoorAt('main', 0, { x: 7, y: -1 })).toBeUndefined();
+  });
+
+  it('numbers doors per floor, from 1', () => {
+    expect(countryDoorNumber(countryDoorAt('second', 0, { x: 7, y: -1 })!)).toBe(1);
+    expect(countryDoorNumber(countryDoorAt('second', 1, { x: 27, y: -1 })!)).toBe(2);
   });
 });

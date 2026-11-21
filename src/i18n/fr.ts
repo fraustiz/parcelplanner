@@ -26,7 +26,7 @@ const fr: Record<keyof typeof en, string> = {
   'tiers.allOwned': 'Tout possédé',
   'tiers.gridMask': "Décocher un palier grise la partie de grille qu'il débloque.",
   'countryDoors.title': 'Portes des pays',
-  'countryDoors.hint': 'Le jeu attribue au hasard un pays à chacune de ces portes : indiquez lequel. Les portes sont numérotées de gauche à droite.',
+  'countryDoors.hint': 'Le jeu attribue au hasard un pays à chacune de ces portes : indiquez lequel, ici ou en cliquant sur la porte dans le plan. Les portes sont numérotées de gauche à droite.',
   'countryDoors.door': 'Porte',
   'countryDoors.column': 'colonne',
   'countryDoors.columnShort': 'col.',

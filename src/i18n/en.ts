@@ -26,7 +26,7 @@ const en = {
   'tiers.allOwned': 'All owned',
   'tiers.gridMask': 'Unticking a tier greys out the part of the grid it unlocks.',
   'countryDoors.title': 'Country doors',
-  'countryDoors.hint': 'The game deals these doors their countries at random: say which country each one takes. Doors are numbered from left to right.',
+  'countryDoors.hint': 'The game deals these doors their countries at random: say which country each one takes, here or by clicking the door on the plan. Doors are numbered from left to right.',
   'countryDoors.door': 'Door',
   'countryDoors.column': 'column',
   'countryDoors.columnShort': 'col.',
