@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { headers } from 'next/headers';
 import { ImageResponse } from 'next/og';
 import { isShortLinkId } from '@/core/short-link';
+import { callerOf } from '@/server/caller';
+import { cardLimiter } from '@/server/links';
 import { planCardSvg } from '@/server/plan-card';
 import { planForShortLink } from '@/server/plan-summary';
 
@@ -34,6 +37,10 @@ export default async function Image(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+
+  // Drawing a card is the costliest thing a stranger can ask for, so it is limited. Over the
+  // limit the generic card answers, never a 429: a link unfurler would then show nothing.
+  if (!cardLimiter.allow(callerOf(await headers()))) return fallback();
 
   const plan = isShortLinkId(id) ? await planForShortLink(id) : null;
   if (!plan || plan.placements.length === 0) return fallback();
