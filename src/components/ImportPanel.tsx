@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import type { ImportReport, TemplateProblem } from '@/core/import-plan';
 import type { SaveDelivery } from '@/core/import-save';
 import type { Plan } from '@/core/types';
-import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { DOOR_TIMER_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
 import { useDialog } from './use-dialog';
@@ -119,6 +119,8 @@ export default function ImportPanel(
       const parcels = PARCELS_PER_TRUCK[ready.delivery.sizeLevel];
       const seconds = DOOR_TIMER_SECONDS[ready.delivery.speedLevel];
       lines.push(`${say('import.saveDelivery')} ${parcels} ${say('import.saveDeliveryParcels')}, ${seconds} s`);
+      const exported = EXPORT_TRUCK_PARCELS[ready.delivery.exportLevel];
+      lines.push(`${say('import.saveExports')} ${exported} ${say('import.saveDeliveryParcels')}, ${say(ready.delivery.automaticExports ? 'import.saveExportsAuto' : 'import.saveExportsByHand')}`);
     }
   }
 

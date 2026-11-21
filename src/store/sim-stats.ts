@@ -73,8 +73,8 @@ interface SimStore {
    * planner, which keeps its own levels until a save gives some.
    */
   savedDelivery: { sizeLevel: number; speedLevel: number } | null;
-  /** Sets the preview's delivery levels and the storage planner's from a save. */
-  applySavedDelivery: (levels: { sizeLevel: number; speedLevel: number }) => void;
+  /** Sets the preview's door levels and the storage planner's delivery levels from a save. */
+  applySavedDelivery: (levels: { sizeLevel: number; speedLevel: number; exportLevel?: number; automaticExports?: boolean }) => void;
 }
 
 export const useSimStats = create<SimStore>((set) => ({
@@ -86,7 +86,7 @@ export const useSimStats = create<SimStore>((set) => ({
   savedDelivery: null,
   applySavedDelivery: (levels) => set((s) => ({
     settings: { ...s.settings, ...levels },
-    savedDelivery: { ...levels },
+    savedDelivery: { sizeLevel: levels.sizeLevel, speedLevel: levels.speedLevel },
   })),
 }));
 

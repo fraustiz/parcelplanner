@@ -234,10 +234,11 @@ describe('planFromSave, what the player set up', () => {
   it('reads how upgraded the delivery doors are, and nothing when the save does not say', () => {
     const levels = (upgrades: unknown) => planFromSave(withExtras([], upgrades === undefined ? {} : { TieredUpgrades: upgrades as GvasStruct[] }), tables).delivery;
     // Speed is NewEnumerator0, size NewEnumerator1; values are levels bought.
-    expect(levels([['E_TieredUpgrade::NewEnumerator0', 3], ['E_TieredUpgrade::NewEnumerator1', 2], ['E_TieredUpgrade::NewEnumerator5', 3]]))
-      .toEqual({ sizeLevel: 2, speedLevel: 3 });
-    expect(levels([['E_TieredUpgrade::NewEnumerator0', 1]])).toEqual({ sizeLevel: 0, speedLevel: 1 });
-    expect(levels([['E_TieredUpgrade::NewEnumerator1', 9]])).toEqual({ sizeLevel: 2, speedLevel: 0 });
+    // Export Size is NewEnumerator4, Automatic Exports NewEnumerator2.
+    expect(levels([['E_TieredUpgrade::NewEnumerator0', 3], ['E_TieredUpgrade::NewEnumerator1', 2], ['E_TieredUpgrade::NewEnumerator4', 2], ['E_TieredUpgrade::NewEnumerator2', 1], ['E_TieredUpgrade::NewEnumerator5', 3]]))
+      .toEqual({ sizeLevel: 2, speedLevel: 3, exportLevel: 2, automaticExports: true });
+    expect(levels([['E_TieredUpgrade::NewEnumerator0', 1]])).toEqual({ sizeLevel: 0, speedLevel: 1, exportLevel: 0, automaticExports: false });
+    expect(levels([['E_TieredUpgrade::NewEnumerator1', 9]])).toEqual({ sizeLevel: 2, speedLevel: 0, exportLevel: 0, automaticExports: false });
     expect(levels(undefined)).toBeUndefined();
   });
 });
