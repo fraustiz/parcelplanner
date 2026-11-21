@@ -1699,8 +1699,10 @@ export default function GridCanvas() {
       )}
 
       {/* Play, pause and speed, at the foot of the canvas. */}
+      {/* Not on a phone: the site only shows a plan there, and the counts
+          live in the inspector, which a phone does not get either. */}
       {LIVE_PREVIEW && (
-      <div className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded border border-[var(--line-strong)] bg-[var(--panel)]/95 px-1.5 py-1 shadow-lg">
+      <div className="absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 md:flex items-center gap-1 rounded border border-[var(--line-strong)] bg-[var(--panel)]/95 px-1.5 py-1 shadow-lg">
         <button
           onClick={() => (playing ? setPlaying(false) : parcels.length > 0 ? setPlaying(true) : sendParcels())}
           aria-label={t(locale, playing ? 'sim.pause' : 'sim.play')}

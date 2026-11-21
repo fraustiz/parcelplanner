@@ -2383,6 +2383,14 @@ describe('GridCanvas following parcels', () => {
     expect(screen.getByRole('button', { name: /speed/i })).toBeTruthy();
   });
 
+  it('keeps the controls off a phone, which only shows a plan', () => {
+    render(<GridCanvas />);
+    const bar = screen.getByRole('button', { name: /play/i }).parentElement!;
+    // Hidden below the md breakpoint, shown from it up.
+    expect(bar.className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'md:flex']));
+    expect(bar.className.split(' ')).not.toContain('flex');
+  });
+
   it('changes nothing in the plan, it only looks', () => {
     // Following parcels must never edit the plan.
     useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
