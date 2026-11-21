@@ -8,13 +8,15 @@
  * A save states every object's exact position, facing, mirroring and tier,
  * so unlike the spreadsheet import nothing is guessed. What it cannot place
  * (off the grid, tilted, unknown to the catalogue) is reported, not dropped
- * in silence.
+ * in silence. It also carries the diverters' screens, the countries of the
+ * export doors, the expansions bought and the paint of every belt and rack.
  */
 
 import { centredAnchor, isBuildable, rotatedFootprint, type WarehouseGeometry } from './grid';
 import type { GvasSave, GvasStruct, GvasValue } from './gvas';
 import type { ImportReport, ImportResult } from './import-plan';
-import type { CatalogEntry, Cell, Placement, Rotation, WarehouseId } from './types';
+import { CARGO_DIVERTER, COUNTRY_DIVERTER, COUNTRY_DIVERTER_CELLS } from './diverters';
+import type { CargoChoice, CatalogEntry, Cell, DiverterSides, Placement, Plan, Rotation, WarehouseId } from './types';
 
 /** One of the game's building grids, as a save refers to it. */
 export interface SaveGrid {
@@ -36,6 +38,19 @@ export interface SaveTables {
   /** Degrees added to the in-game yaw, by object id; `defaultTurn` otherwise. */
   turns: Readonly<Record<string, number>>;
   defaultTurn: number;
+  /** Expansion tier, by the name a save lists it under. */
+  tiers: Readonly<Record<string, number>>;
+  /** Door id here, by the game's `UniqueDoorID` of a country export door. */
+  countryDoors: Readonly<Record<number, string>>;
+  isCountry: (value: unknown) => value is string;
+  /** Screen setting, by `E_CargoType` value; anything else is "any". */
+  cargo: Readonly<Record<string, CargoChoice>>;
+  /** Colour here for each of the game's conveyor paints, by hue shift; null is the artwork's own. */
+  paints: readonly { amount: number; colour: string | null }[];
+  /** Colour here for each rack colour, by its class suffix. */
+  rackColours: Readonly<Record<string, string | null>>;
+  /** Whether a colour can be put on this object (see `repaintableColourOf`). */
+  canPaint: (entry: CatalogEntry) => boolean;
 }
 
 /** World units to a cell. */
@@ -69,13 +84,102 @@ function pairs(v: GvasValue | undefined): [GvasValue, GvasValue][] {
 /**
  * `/Game/…/BP_ConveyorBelt_Loader.BP_ConveyorBelt_Loader_C` to the catalogue
  * id. Racks come in colours (`BP_StorageRack_ExtraLarge_Blue`) that the
- * catalogue holds once.
+ * catalogue holds once; the colour is returned apart.
  */
-function objectIdOf(classPath: string, catalogue: ReadonlyMap<string, CatalogEntry>): string {
+function objectIdOf(classPath: string, catalogue: ReadonlyMap<string, CatalogEntry>): { id: string; suffix?: string } {
   const id = (classPath.split('.').pop() ?? '').replace(/_C$/, '');
-  if (catalogue.has(id) || !id.startsWith('BP_StorageRack_')) return id;
-  const plain = id.split('_').slice(0, 3).join('_');
-  return catalogue.has(plain) ? plain : id;
+  if (catalogue.has(id) || !id.startsWith('BP_StorageRack_')) return { id };
+  const parts = id.split('_');
+  const plain = parts.slice(0, 3).join('_');
+  return catalogue.has(plain) ? { id: plain, suffix: parts.slice(3).join('_') } : { id };
+}
+
+/** One pair of diverter screens, turned into this app's left and right. */
+function sides<T>(struct: GvasValue | undefined, read: (v: GvasValue | undefined) => T | undefined, mirrored: boolean): DiverterSides<T> {
+  if (!isStruct(struct)) return {};
+  let left = read(field(struct, 'Left'));
+  let right = read(field(struct, 'Right'));
+  // A screen is fixed to the model: mirrored, the game's left is on the side
+  // the planner calls right. No mirrored diverter was in any save checked.
+  if (mirrored) [left, right] = [right, left];
+  return { ...(left !== undefined ? { left } : {}), ...(right !== undefined ? { right } : {}) };
+}
+
+/** Screens set on a country or cargo diverter, as this app stores them; none for any other object. */
+function diverterSettings(
+  objectId: string,
+  guid: GvasValue | undefined,
+  mirrored: boolean,
+  saved: { country: Map<GvasValue, GvasValue>; cargo: Map<GvasValue, GvasValue> },
+  tables: SaveTables,
+): Pick<Placement, 'diverterCountries' | 'diverterCargo'> {
+  if (objectId === COUNTRY_DIVERTER) {
+    const screens = saved.country.get(guid ?? null);
+    if (!isStruct(screens)) return {};
+    const country = (v: GvasValue | undefined) => (tables.isCountry(v) ? v : undefined);
+    // Screens A, B and C, from the entry onward. Checked on a real save: 36 of
+    // the 48 set screens lead to the door of their country, the other 12 to
+    // no belt at all. Read any other way, at most 12 do.
+    const cells = ['ScreensA', 'ScreensB', 'ScreensC'].slice(0, COUNTRY_DIVERTER_CELLS)
+      .map((name) => sides(field(screens, name), country, mirrored));
+    return cells.some((c) => Object.keys(c).length > 0) ? { diverterCountries: cells } : {};
+  }
+  if (objectId === CARGO_DIVERTER) {
+    const screens = saved.cargo.get(guid ?? null);
+    if (!isStruct(screens)) return {};
+    const choice = (v: GvasValue | undefined) => (typeof v === 'string' ? tables.cargo[v] : undefined);
+    const forward = choice(field(screens, 'Forward'));
+    const set = { ...sides(screens, choice, mirrored), ...(forward !== undefined ? { forward } : {}) };
+    return Object.keys(set).length > 0 ? { diverterCargo: set } : {};
+  }
+  return {};
+}
+
+/** The planner colour for an object's paint, or undefined to keep its own. */
+function colourOf(
+  entry: CatalogEntry,
+  suffix: string | undefined,
+  hue: GvasValue | undefined,
+  tables: SaveTables,
+): string | undefined {
+  if (!tables.canPaint(entry)) return undefined;
+  if (suffix !== undefined) return tables.rackColours[suffix] ?? undefined;
+  if (typeof hue !== 'number') return undefined;
+  const paint = tables.paints.find((p) => Math.abs(p.amount - hue) < 0.005);
+  return paint?.colour ?? undefined;
+}
+
+/** The expansions bought, if the save lists them; names it does not know are skipped. */
+function ownedTiers(save: GvasSave, tables: SaveTables): number[] | undefined {
+  const names = save.properties.UnlockedTileObjectNames;
+  if (!Array.isArray(names)) return undefined;
+  const tiers = names.flatMap((n) => (typeof n === 'string' && tables.tiers[n] !== undefined ? [tables.tiers[n]!] : []));
+  return [...new Set(tiers)].sort((a, b) => a - b);
+}
+
+/** The country each export door takes, as the player set it. */
+function doorCountries(save: GvasSave, tables: SaveTables): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const [id, country] of pairs(save.properties.CountryExportDoorIdToSelectedCountry)) {
+    const door = typeof id === 'number' ? tables.countryDoors[id] : undefined;
+    if (door !== undefined && tables.isCountry(country)) out[door] = country;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * A placement id from the game's own GUID for the object, so importing the
+ * same save twice gives the same ids. Anything not 32 hex digits gets a fresh
+ * id: ids only have to be unique.
+ */
+function idOf(guid: GvasValue | undefined, used: Set<string>): string {
+  const hex = typeof guid === 'string' && /^[0-9a-f]{32}$/.test(guid) ? guid : null;
+  const id = hex
+    ? `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+    : crypto.randomUUID();
+  if (used.has(id)) return crypto.randomUUID();
+  used.add(id);
+  return id;
 }
 
 const quarter = (deg: number): Rotation => ((((Math.round(deg / 90) * 90) % 360) + 360) % 360) as Rotation;
@@ -96,7 +200,13 @@ export function planFromSave(save: GvasSave, tables: SaveTables, gameVersion = '
   };
   const gridOf = new Map<GvasValue, GvasValue>(pairs(save.properties.InteractableGuidToGridManagerId));
   const tierOf = new Map<GvasValue, GvasValue>(pairs(save.properties.InteractableGuidToUpgradeTier));
+  const hueOf = new Map<GvasValue, GvasValue>(pairs(save.properties.ConveyorGuidToHueShiftColour));
+  const screens = {
+    country: new Map<GvasValue, GvasValue>(pairs(save.properties.DiverterGuidToCountryScreens)),
+    cargo: new Map<GvasValue, GvasValue>(pairs(save.properties.DiverterGuidToCargoTypes)),
+  };
   const byWarehouse = new Map<WarehouseId, Placement[]>();
+  const usedIds = new Set<string>();
 
   for (const object of savedObjects(save)) {
     const classPath = field(object, 'InteractableClass');
@@ -108,7 +218,7 @@ export function planFromSave(save: GvasSave, tables: SaveTables, gameVersion = '
     // hands. Not part of a layout.
     const gridId = gridOf.get(guid ?? null);
     const grid = typeof gridId === 'string' ? tables.grids[gridId] : undefined;
-    const objectId = objectIdOf(classPath, tables.catalogue);
+    const { id: objectId, suffix } = objectIdOf(classPath, tables.catalogue);
     const sheet = grid ? `${grid.warehouse}/${grid.floor}` : String(gridId ?? '');
     if (gridId === undefined) {
       report.ignored++;
@@ -179,15 +289,18 @@ export function planFromSave(save: GvasSave, tables: SaveTables, gameVersion = '
       : 1;
 
     report.placed++;
+    const colour = colourOf(entry, suffix, hueOf.get(guid ?? null), tables);
     const list = byWarehouse.get(grid.warehouse) ?? [];
     list.push({
-      id: crypto.randomUUID(),
+      id: idOf(guid, usedIds),
       objectId,
       warehouse: grid.warehouse,
       floor: grid.floor,
       cell,
       rotation,
       ...(mirrored ? { mirrored: true } : {}),
+      ...(colour !== undefined ? { colour } : {}),
+      ...diverterSettings(objectId, guid, mirrored, screens, tables),
       tier,
     });
     byWarehouse.set(grid.warehouse, list);
@@ -200,7 +313,10 @@ export function planFromSave(save: GvasSave, tables: SaveTables, gameVersion = '
   }
   const warehouse = report.byWarehouse[0]?.warehouse ?? 'main';
   const placements = order.flatMap((id) => byWarehouse.get(id) ?? []);
-  // `ownedTiers` is absent, meaning all owned (see Plan): which save tiles
-  // match which expansion is not mapped yet.
-  return { plan: { gameVersion, warehouse, placements }, report };
+  const plan: Plan = { gameVersion, warehouse, placements };
+  const tiers = ownedTiers(save, tables);
+  if (tiers !== undefined) plan.ownedTiers = tiers;
+  const doors = doorCountries(save, tables);
+  if (doors !== undefined) plan.doorCountries = doors;
+  return { plan, report };
 }

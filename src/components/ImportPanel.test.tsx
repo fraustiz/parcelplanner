@@ -149,12 +149,12 @@ describe('a game save', () => {
     ...over,
   });
 
-  it('says it came from the game, and what is not read yet, before loading', () => {
+  it('says it came from the game, and what is only approximate, before loading', () => {
     const onConfirm = vi.fn();
     const { getByText, queryByText } = render(
       <ImportPanel outcome={SAVE()} onConfirm={onConfirm} onClose={() => {}} />);
     expect(getByText(/imported from your game save/i)).toBeTruthy();
-    expect(getByText(/colours, diverter settings and the expansions/i)).toBeTruthy();
+    expect(getByText(/11 paints and the planner 8 colours/i)).toBeTruthy();
     // Nothing about spreadsheets or guessed angles: a save states them all.
     expect(queryByText(/spreadsheet/i)).toBeNull();
     expect(queryByText(/default angle/i)).toBeNull();

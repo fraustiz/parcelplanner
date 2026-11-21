@@ -262,7 +262,7 @@ const fr: Record<keyof typeof en, string> = {
   "import.unreadable": "Ce fichier n'a pas pu être lu",
   "import.unreadableWhy": "Ce n'est pas un classeur .xlsx, ou il est endommagé. ParcelPlanner importe aussi le fichier .json que produit son propre bouton de téléchargement.",
   "import.saveCaution": "Importé depuis ta sauvegarde du jeu.",
-  "import.saveCautionWhy": "Les positions, les orientations et les niveaux d'amélioration viennent directement du jeu. Les couleurs, les réglages des aiguillages et les extensions achetées ne sont pas encore lus. Vérifie le résultat avant de t'y fier.",
+  "import.saveCautionWhy": "Les positions, les orientations, les niveaux d'amélioration, les écrans des aiguillages, les pays des portes et les extensions achetées viennent directement du jeu. Le jeu a 11 peintures et le planificateur 8 couleurs : quelques peintures prennent la couleur la plus proche. Vérifie le résultat avant de t'y fier.",
   "import.saveUnknown": "objets ne sont pas dans le planificateur, et ont été ignorés",
   "import.saveDropped": "objets n'étaient pas posés à plat sur une case de la grille, et ont été ignorés",
   "import.saveEmpty": "Rien n'est construit sur les grilles de cette sauvegarde.",

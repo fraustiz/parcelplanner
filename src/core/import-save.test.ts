@@ -1,17 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getCatalogue } from '@/data/catalogue';
-import { SAVE_DEFAULT_TURN, SAVE_GRIDS, SAVE_TURNS } from '@/data/save-format';
-import { WAREHOUSES } from '@/data/warehouses';
+import { saveTables } from '@/data/save-format';
 import type { GvasSave, GvasStruct } from './gvas';
 import { planFromSave, type SaveTables } from './import-save';
 
-const tables: SaveTables = {
-  catalogue: getCatalogue(),
-  geometry: WAREHOUSES,
-  grids: SAVE_GRIDS,
-  turns: SAVE_TURNS,
-  defaultTurn: SAVE_DEFAULT_TURN,
-};
+const tables: SaveTables = saveTables();
 
 const MAIN = 'E_GridManagerID::NewEnumerator0';
 const SECOND = 'E_GridManagerID::NewEnumerator1';
@@ -148,5 +140,94 @@ describe('planFromSave', () => {
   it('opens on the main warehouse and leaves expansions as all owned', () => {
     const { plan } = planFromSave(save([]), tables, 'v');
     expect(plan).toEqual({ gameVersion: 'v', warehouse: 'main', placements: [] });
+  });
+});
+
+describe('planFromSave, what the player set up', () => {
+  /** A save with extra top-level properties. */
+  const withExtras = (specs: Spec[], extras: GvasStruct, racks: Spec[] = []): GvasSave => {
+    const base = save(specs, racks);
+    return { ...base, properties: { ...base.properties, ...extras } };
+  };
+  const HEX = '0123456789abcdef0123456789abcdef';
+
+  it('keeps the game\'s id for each object, so a second import matches the first', () => {
+    const { plan } = planFromSave(save([{ guid: HEX, cls: 'BP_ConveyorBelt_Straight_Tier1', at: main(1, 1) }]), tables);
+    expect(plan.placements[0]!.id).toBe('01234567-89ab-cdef-0123-456789abcdef');
+  });
+
+  it('reads the expansions bought', () => {
+    const { plan } = planFromSave(withExtras([], {
+      UnlockedTileObjectNames: ['BP_WarehouseTier_C_10', 'BP_WarehouseTier_C_9', 'wh2', 'BP_WarehouseTier_Large_C_1', 'SomethingElse'],
+    }), tables);
+    expect(plan.ownedTiers).toEqual([1, 2, 15, 16]);
+  });
+
+  it('reads none bought as none, not as all', () => {
+    expect(planFromSave(withExtras([], { UnlockedTileObjectNames: [] }), tables).plan.ownedTiers).toEqual([]);
+  });
+
+  it('reads the country of each country export door, and nothing it cannot place', () => {
+    const { plan } = planFromSave(withExtras([], {
+      CountryExportDoorIdToSelectedCountry: [[278394, 'Cristin'], [2147483647, 'Molland'], [5438972, 'Vocua'], [132675, 'Atlantis']],
+    }), tables);
+    // 5438972 is a reject bin; Atlantis is no country of the game.
+    expect(plan.doorCountries).toEqual({ 'second-country-0-a': 'Cristin', 'second-country-1-e': 'Molland' });
+  });
+
+  it('reads a cargo diverter\'s screens, a closed way included', () => {
+    const { plan } = planFromSave(withExtras([
+      { guid: 'd', cls: 'BP_ConveyorBelt_Diverter', at: main(3, 3) },
+    ], {
+      DiverterGuidToCargoTypes: [['d', {
+        Left_6_575D084E: 'E_CargoType::NewEnumerator6',
+        Forward_7_A005A4FA: 'E_CargoType::NewEnumerator4',
+        Right_8_D3667B5E: 'E_CargoType::NewEnumerator5',
+      }]],
+    }), tables);
+    // "All" is the default, stored as no setting at all.
+    expect(plan.placements[0]!.diverterCargo).toEqual({ left: 'None', forward: 'Rail' });
+  });
+
+  it('reads a country diverter\'s screens from its entry onward', () => {
+    const pair = (left: string, right: string) => ({ Left_12_575D084E: left, Right_13_D3667B5E: right });
+    const { plan } = planFromSave(withExtras([
+      { guid: 'c', cls: 'BP_ConveyorBelt_CountryDiverter2', at: main(30, 10) },
+      { guid: 'm', cls: 'BP_ConveyorBelt_CountryDiverter2', at: main(35, 10), scale: [1, -1, 1] },
+    ], {
+      DiverterGuidToCountryScreens: ['c', 'm'].map((g) => [g, {
+        ScreensA_7_685A2D1E: pair('Cristin', 'NoEntry'),
+        ScreensB_8_695991C8: pair('NoEntry', 'Molland'),
+        ScreensC_9_87999A64: pair('NoEntry', 'NoEntry'),
+      }]),
+    }), tables);
+    const [plain, mirrored] = plan.placements;
+    expect(plain!.diverterCountries).toEqual([{ left: 'Cristin' }, { right: 'Molland' }, {}]);
+    // A screen is fixed to the model, so a mirrored diverter shows it on the other side.
+    expect(mirrored!.diverterCountries).toEqual([{ right: 'Cristin' }, { left: 'Molland' }, {}]);
+  });
+
+  it('paints belts from their hue shift and racks from their colour, at the nearest colour offered', () => {
+    const { plan } = planFromSave(withExtras([
+      { guid: 'red', cls: 'BP_ConveyorBelt_Straight_Tier1', at: main(1, 1) },
+      { guid: 'pink', cls: 'BP_ConveyorBelt_Corner_Tier1', at: main(2, 1) },
+      { guid: 'blue', cls: 'BP_ConveyorBelt_Straight_Tier1', at: main(3, 1) },
+      { guid: 'odd', cls: 'BP_ConveyorBelt_Straight_Tier1', at: main(4, 1) },
+      // A scanner's blue says what it is: never painted.
+      { guid: 'scan', cls: 'BP_ConveyorBelt_CriteriaScanner_Weight', at: main(5, 1) },
+    ], {
+      ConveyorGuidToHueShiftColour: [['red', 0.36], ['pink', 0.31], ['blue', 1], ['odd', 0.777], ['scan', 0.36]],
+    }, [
+      { guid: 'r1', cls: 'BP_StorageRack_Large_White', at: main(30, 10) },
+      { guid: 'r2', cls: 'BP_StorageRack_Large_Red', at: main(32, 10) },
+    ]), tables);
+    const colour = (i: number) => plan.placements[i]!.colour;
+    expect(colour(0)).toBe('#ae302e');
+    expect(colour(1)).toBe('#bf0083');
+    expect(colour(2)).toBeUndefined(); // the game's own blue
+    expect(colour(3)).toBeUndefined(); // a paint this version does not know
+    expect(colour(4)).toBeUndefined();
+    expect(colour(5)).toBe('#d0d0d1');
+    expect(colour(6)).toBeUndefined(); // red is a rack's own colour
   });
 });

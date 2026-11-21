@@ -11,7 +11,7 @@ import { CATALOGUE_GAME_VERSION } from '@/core/version';
 import { readWorkbook } from '@/core/xlsx';
 import { getCatalogue } from '@/data/catalogue';
 import { DOORS } from '@/data/doors';
-import { SAVE_DEFAULT_TURN, SAVE_GRIDS, SAVE_TURNS } from '@/data/save-format';
+import { saveTables } from '@/data/save-format';
 import {
   DOOR_FILLS, TEMPLATE_CODES, TEMPLATE_LABELS, TEMPLATE_SHEETS, TEMPLATE_SIGNAGE,
   TEMPLATE_VERSION,
@@ -109,13 +109,7 @@ async function readSave(file: File): Promise<ImportOutcome> {
   } catch {
     return { kind: 'unreadable', source: 'save' };
   }
-  const { plan, report } = planFromSave(save, {
-    catalogue: getCatalogue(),
-    geometry: WAREHOUSES,
-    grids: SAVE_GRIDS,
-    turns: SAVE_TURNS,
-    defaultTurn: SAVE_DEFAULT_TURN,
-  }, CATALOGUE_GAME_VERSION);
+  const { plan, report } = planFromSave(save, saveTables(), CATALOGUE_GAME_VERSION);
   return { kind: 'ready', source: 'save', plan, report };
 }
 

@@ -262,7 +262,7 @@ const en = {
   "import.unreadable": "This file could not be read",
   "import.unreadableWhy": "It is not an .xlsx workbook, or it is damaged. ParcelPlanner also imports the .json file its own download button produces.",
   "import.saveCaution": "Imported from your game save.",
-  "import.saveCautionWhy": "Positions, facings and upgrade tiers come straight from the game. Colours, diverter settings and the expansions you own are not read yet. Check the result before you rely on it.",
+  "import.saveCautionWhy": "Positions, facings, upgrade tiers, diverter screens, door countries and the expansions you own come straight from the game. The game has 11 paints and the planner 8 colours, so a few paints show as the nearest one. Check the result before you rely on it.",
   "import.saveUnknown": "objects are not in the planner, and were left out",
   "import.saveDropped": "objects were not lying flat on a cell of the grid, and were left out",
   "import.saveEmpty": "Nothing is built on the grids of this save.",
