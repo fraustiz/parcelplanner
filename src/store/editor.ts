@@ -351,7 +351,15 @@ export const useEditor = create<EditorState>((set, get) => {
       cell: null,
     },
   }),
-  moveDrag: (cell) => set((s) => (s.drag ? { drag: { ...s.drag, cell } } : {})),
+  // Returns the same state when the cell has not changed, so the store does not
+  // notify. dragover fires continuously over one cell, and a fresh drag object
+  // each time looped renders in Firefox until React stopped (error #185).
+  moveDrag: (cell) => set((s) => {
+    if (!s.drag) return s;
+    const was = s.drag.cell;
+    if (was === cell || (was && cell && was.x === cell.x && was.y === cell.y)) return s;
+    return { drag: { ...s.drag, cell } };
+  }),
   rotateDrag: (direction = 1) =>
     set((s) =>
       s.drag
