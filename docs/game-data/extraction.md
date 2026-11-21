@@ -48,6 +48,7 @@ cd scripts/game-extract
 dotnet run -- list "BP_ConveyorBelt_Joiner"                  # chemins des paquets, sans mappings
 dotnet run -- grep "Core/.*\.uasset$" RandomBoolWithWeight   # qui contient ce texte, sans mappings
 dotnet run -- dump "^parcel/Content/Core/Blueprints/.*\.uasset$" <sortie> <fichier.usmap>
+dotnet run -- png "Flags/[A-Za-z]+_Valid\.uasset$" <sortie> <fichier.usmap> 64   # textures en PNG
 ```
 
 `dump` écrit un JSON par paquet en reproduisant l'arborescence de FModel
@@ -64,6 +65,76 @@ python scripts/game-extract/kismet.py <sortie>\...\AC_MoneyManager.json GetUpgra
 **Ne pas charger les mods.** `RealCountries_P` remplace les pays fictifs du jeu par de vrais
 pays et corromprait le catalogue. L'outil ne monte que les archives du dossier `Paks`, pas
 `LogicMods`.
+
+### Drapeaux des pays
+
+`png` décode chaque `Texture2D` des paquets retenus (paquet NuGet `CUE4Parse-Conversion`, encodage
+SkiaSharp) et l'écrit en `<sortie>\<nom de la texture>.png`. Le dernier argument, facultatif, réduit
+l'image à cette largeur en pixels (jamais d'agrandissement).
+
+Les douze drapeaux du planificateur sont les textures `<Pays>_Valid` de
+`/Game/Core/Assets/Images/Criteria/Country/Flags/`, celles que référence `DT_Countries`
+(champ `Flag`). Les variantes `_Invalid1` et `_Invalid2` (faux drapeaux des colis invalides) ne
+sont pas exportées.
+
+```powershell
+dotnet run -- png "Criteria/Country/Flags/[A-Za-z]+_Valid\.uasset$" <sortie> <fichier.usmap> 64
+```
+
+Les sources font 1 000 × 600 px ; réduites à 64 × 38 px, les douze pèsent environ 7 Ko en
+tout. Retirer le suffixe `_Valid` et les copier dans `public/flags/<Pays>.png`
+(`src/data/countries.ts`, fonction `countryFlag`). Un PNG de cette taille est déjà plus petit
+qu'un WebP utile : pas de conversion.
+
+### Mod RealCountries (affichage seulement)
+
+Le mod communautaire **RealCountries** (version **3.1.0**, auteur indiqué dans l'archive :
+Draityalan, description « Replacing fictitious countries with real ones! ») remplace à
+l'affichage les douze pays fictifs par de vrais pays. L'archive ne contient ni licence ni
+fichier lisez-moi. Elle n'est **pas** versionnée dans le dépôt : seuls les noms et les
+drapeaux réduits qui en sont tirés le sont.
+
+Le mod (`RealCountries_P.pak` / `.utoc` / `.ucas`) remplace :
+
+- la table de chaînes `STBL_CN_ONLY_Countries` (clés `CountryName_<Pays>`) ;
+- les textures de drapeaux `Flags/<Pays>_Valid`, `_Invalid1`, `_Invalid2` ;
+- et ajoute `Mods/RealCountries_P/ModActor` (`ModVersion` 3.1.0) et `ModHud_DRA`.
+
+Il ne touche pas `DT_Countries` : les identifiants internes (`Cristin`, `Impland`, ...) ne
+changent pas. Le planificateur stocke donc toujours ces identifiants et ne fait que changer
+l'affichage (préférence locale `parcelplanner.realCountries`, comme le thème).
+
+| Identifiant du jeu | Nom du mod |
+|---|---|
+| Cristin | France |
+| Impland | USA |
+| Jonathia | China |
+| Kongradi | Russia |
+| Ligbal | Japan |
+| Mahteen | Germany |
+| Molland | UK |
+| Pruania | Italy |
+| Sowport | India |
+| Strentom | Brazil |
+| Vocua | Canada |
+| Yatdanica | Australia |
+
+`data/raw/dt-countries.json` le laissait deviner : le `SourceString` de Cristin vaut déjà
+« France » dans le jeu de base. La table est recopiée dans `REAL_COUNTRY_NAMES`
+(`src/data/countries.ts`).
+
+Pour relire le mod, extraire l'archive dans un dossier vide hors du dépôt, puis monter un
+dossier qui contient le mod et une **copie** de `global.utoc` / `global.ucas` du jeu (IoStore en a
+besoin), sans jamais modifier l'installation :
+
+```powershell
+$env:PARCEL_PAKS = "<dossier avec RealCountries_P.* et global.*>"
+dotnet run -- dump "(STBL_CN_ONLY_Countries|Mods/)" <sortie> <fichier.usmap>
+dotnet run -- png "Criteria/Country/Flags/[A-Za-z]+_Valid\.uasset$" <sortie> <fichier.usmap> 64
+```
+
+Les drapeaux du mod vont dans `public/flags/real/<Pays>.png` (12 fichiers, environ 12 Ko en
+tout). Le mod, daté d'août 2026, se lit sans erreur avec `GAME_UE5_7` et les mappings 5.7.4.
 
 ## Étape 3 : construire `data/raw/`
 
