@@ -450,3 +450,67 @@ describe('a shared plan that inflates past any real layout', () => {
     expect((await decodePlan(encoded)).placements).toHaveLength(plan.placements.length);
   });
 });
+
+describe('numbers a crafted link in an older format could carry', () => {
+  /** A link in the `2|` text format, deflated and base64url-encoded like the real ones. */
+  async function textLink(text: string): Promise<string> {
+    const deflated = new Uint8Array(await new Response(
+      new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('deflate-raw')),
+    ).arrayBuffer());
+    let binary = '';
+    for (const byte of deflated) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  it('still reads a well-formed one, every field spelt out', async () => {
+    // object.dy.dx.rotation.floor.tier.mirrored.warehouse
+    const back = await decodePlan(await textLink('2|UE5.3-2026-07|1|1,2,3|0.4.5.3.1.3.1.1'));
+    expect(back.placements).toHaveLength(1);
+    expect(back.placements[0]).toMatchObject({
+      warehouse: 'second', floor: 1, cell: { x: 5, y: 4 }, rotation: 270, tier: 3, mirrored: true,
+    });
+    expect(back.ownedTiers).toEqual([1, 2, 3]);
+  });
+
+  it('refuses a floor that is not a number', async () => {
+    await expect(decodePlan(await textLink('2|UE5.3-2026-07|0||0.4.5.0.x.1.0.0')))
+      .rejects.toThrow('not a ParcelPlanner plan');
+  });
+
+  it('refuses a floor no building has', async () => {
+    await expect(decodePlan(await textLink('2|UE5.3-2026-07|0||0.4.5.0.7.1.0.0')))
+      .rejects.toThrow('not a ParcelPlanner plan');
+  });
+
+  it('refuses a negative rotation', async () => {
+    // `% 4` would have made it -90 degrees.
+    await expect(decodePlan(await textLink('2|UE5.3-2026-07|0||0.4.5.-1')))
+      .rejects.toThrow('not a ParcelPlanner plan');
+  });
+
+  it('refuses a fractional tier', async () => {
+    // `0.5` would split on the dot, so a fraction is spelt as an exponent.
+    await expect(decodePlan(await textLink('2|UE5.3-2026-07|0||0.4.5.0.0.5e-1.0.0')))
+      .rejects.toThrow('not a ParcelPlanner plan');
+  });
+
+  it('refuses a tier past the highest any object has', async () => {
+    await expect(decodePlan(await textLink('2|UE5.3-2026-07|0||0.4.5.0.0.9.0.0')))
+      .rejects.toThrow('not a ParcelPlanner plan');
+  });
+
+  it('refuses owned expansion tiers that are not numbers', async () => {
+    await expect(decodePlan(await textLink('2|UE5.3-2026-07|0|1,x|0.4.5.0')))
+      .rejects.toThrow('not a ParcelPlanner plan');
+  });
+
+  it('refuses the same values in the first compact format', async () => {
+    const link = (row: number[]) =>
+      textLink(JSON.stringify({ v: 1, g: 'UE5.3-2026-07', w: 0, o: ['BP_ConveyorBelt_Straight_Tier1'], p: [row] }));
+    // object, home, floor, x, y, rotation, tier, mirrored
+    expect((await decodePlan(await link([0, 0, 0, 1, 2, 1, 1, 0]))).placements).toHaveLength(1);
+    await expect(decodePlan(await link([0, 0, -1, 1, 2, 1, 1, 0]))).rejects.toThrow('not a ParcelPlanner plan');
+    await expect(decodePlan(await link([0, 0, 0, 1, 2, -1, 1, 0]))).rejects.toThrow('not a ParcelPlanner plan');
+    await expect(decodePlan(await link([0, 0, 0, 1, 2, 1, 0.5, 0]))).rejects.toThrow('not a ParcelPlanner plan');
+  });
+});

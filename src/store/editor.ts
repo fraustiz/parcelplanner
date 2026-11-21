@@ -6,6 +6,7 @@ import { canPlace } from '@/core/occupancy';
 import { mirroredSelection, rotatedSelection, settledSelection, type FlipAxis, type TransformResult } from '@/core/transform';
 import { zoneObjectId, zoneSize } from '@/core/zone';
 import { copiedShape, pastedAt, type ClipboardEntry } from '@/core/clipboard';
+import { planFromJson } from '@/core/serialize';
 import { ALL_TIERS, MANDATORY_TIERS } from '@/data/warehouse-tiers';
 import { isCountry, isCountryDoor } from '@/data/countries';
 import { CATALOGUE_GAME_VERSION } from '@/core/version';
@@ -230,14 +231,15 @@ const persist = (plan: Plan): void => {
 };
 
 /** The visitor's saved layout, or null when there is none worth keeping (an
- * empty plan is not work). */
+ * empty plan is not work). Checked like a shared plan: storage can hold a plan
+ * loaded from an old link, or one an older version of the app wrote. */
 const savedWork = (): Plan | null => {
   if (typeof window === 'undefined') return null;
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (raw === null) return null;
   try {
-    const plan = JSON.parse(raw) as Plan;
-    return Array.isArray(plan?.placements) && plan.placements.length > 0 ? plan : null;
+    const plan = planFromJson(raw);
+    return plan.placements.length > 0 ? plan : null;
   } catch {
     return null;
   }
