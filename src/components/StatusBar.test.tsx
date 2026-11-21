@@ -63,6 +63,20 @@ describe('StatusBar', () => {
     expect(second[0]).not.toBe(first[0]);
   });
 
+  it('shows each object at fault in turn when the issue count is pressed', () => {
+    // Two pairs of belts on the same cell: four overlapping objects.
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: [belt('a', 0), belt('b', 0), belt('c', 5), belt('d', 5)] } }));
+    render(<StatusBar />);
+    const count = screen.getByRole('button', { name: /4 issues found/i });
+    const seen = new Set<string>();
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(count);
+      seen.add(useEditor.getState().selectedIds[0]!);
+    }
+    expect([...seen].sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(useEditor.getState().focus).toMatchObject({ floor: 0 });
+  });
+
   it('does not warn on the workshop bench, where modules have loose ends', () => {
     useEditor.setState((s) => ({ plan: { ...s.plan, warehouse: 'workshop', placements: [belt('a', 30, { warehouse: 'workshop' })] } }));
     render(<StatusBar />);

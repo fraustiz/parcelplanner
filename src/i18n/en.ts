@@ -134,6 +134,7 @@ const en = {
   'issue.needs-headroom': 'Needs open space above: ground floor only, and not under the mezzanine',
 
   'status.issues': 'issues found',
+  'status.issuesHint': 'Click to show each object at fault on the plan, one at a time.',
 
   'share.copy': 'Copy share link',
   'share.copied': 'Link copied',

@@ -134,6 +134,7 @@ const fr: Record<keyof typeof en, string> = {
   'issue.needs-headroom': "Doit avoir le champ libre au-dessus : rez-de-chaussée uniquement, et pas sous la mezzanine",
 
   'status.issues': 'problèmes détectés',
+  'status.issuesHint': "Clique pour montrer un à un les objets en cause sur le plan.",
 
   'share.copy': 'Copier le lien de partage',
   'share.copied': 'Lien copié',
