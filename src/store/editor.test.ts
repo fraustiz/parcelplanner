@@ -231,3 +231,30 @@ describe('writing a note', () => {
     expect(notes()).toHaveLength(2);
   });
 });
+
+describe('moveDrag', () => {
+  it('leaves the state untouched while the pointer stays on one cell', () => {
+    useEditor.getState().startDrag('belt');
+    useEditor.getState().moveDrag({ x: 2, y: 3 });
+    const before = useEditor.getState();
+    let notified = 0;
+    const stop = useEditor.subscribe(() => { notified += 1; });
+    useEditor.getState().moveDrag({ x: 2, y: 3 });
+    stop();
+    expect(notified).toBe(0);
+    expect(useEditor.getState()).toBe(before);
+  });
+
+  it('moves to a new cell', () => {
+    useEditor.getState().startDrag('belt');
+    useEditor.getState().moveDrag({ x: 2, y: 3 });
+    useEditor.getState().moveDrag({ x: 4, y: 3 });
+    expect(useEditor.getState().drag?.cell).toEqual({ x: 4, y: 3 });
+  });
+
+  it('does nothing without a drag', () => {
+    const before = useEditor.getState();
+    useEditor.getState().moveDrag({ x: 1, y: 1 });
+    expect(useEditor.getState()).toBe(before);
+  });
+});
