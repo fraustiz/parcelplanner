@@ -93,25 +93,8 @@ function isExcluded(id) {
  * Objects newer than the extraction. Kept here, not in shop-items.json, so
  * hand-entered data stays separate from extracted data; an extraction that
  * contains the id takes precedence.
- *
- * BP_ConveyorBelt_Joiner_2WayT: id from the package index in
- * parcel-Windows.utoc, price from the in-game shop (FModel mounts no packages
- * on this build).
  */
-const PENDING_EXTRACTION = [
-  {
-    after: 'BP_ConveyorBelt_Joiner',
-    item: {
-      id: 'BP_ConveyorBelt_Joiner_2WayT',
-      assetPath: '/Game/Core/Blueprints/Actors/ConveyorBelt/Joiner/BP_ConveyorBelt_Joiner_2WayT',
-      displayName: 'T-Joiner Conveyor',
-      price: 650,
-      upgradePrice: null,
-      speed: null,
-      inheritsFrom: null,
-    },
-  },
-];
+const PENDING_EXTRACTION = [];
 
 /** Inserts each pending object after its neighbour: the palette follows this order. */
 function withPendingObjects(items) {

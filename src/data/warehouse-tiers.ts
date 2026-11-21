@@ -4,8 +4,10 @@ import type { WarehouseId } from '@/core/types';
  * The game's 18 warehouse expansion tiers and their prices, numbered across both buildings as the
  * community spreadsheet does: 1..14 expand main, 15 buys the Regional Sorting Centre, 16..18 expand it.
  *
- * Prices come from the spreadsheet's Management tables (community, unverified): the export does not
- * reach the price. The count matches the level: 14 `BP_WarehouseTier`, 3 `BP_WarehouseTier_Large`, plus the building.
+ * Prices are the game's: `BP_WarehouseExpansion` charges `BasePrice` 700 plus 300 per tier already
+ * owned, and `BP_Warehouse_2_Expansion` costs 500,000. They agree with the community spreadsheet's
+ * Management tables. The count matches the level: 14 `BP_WarehouseTier`, 3 `BP_WarehouseTier_Large`,
+ * plus the building.
  *
  * Extents come from floating shapes anchored over the spreadsheet grid (xl/drawings/*.xml,
  * `oneCellAnchor` plus an EMU extent), not from cells. Anchors land a cell short in places, so they

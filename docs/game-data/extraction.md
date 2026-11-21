@@ -7,71 +7,79 @@ Procédure reproductible pour régénérer `data/raw/` après une mise à jour d
 | Élément | Valeur |
 |---|---|
 | Jeu | Parcel Simulator, Steam app `2424010` |
-| Moteur | Unreal Engine **5.3** (`++UE5+Release-5.3`) |
-| Empaquetage | IoStore, `parcel-Windows.utoc` / `.ucas` (2,2 Go), version 5 |
-| Chiffrement | **aucun** — `ContainerFlags = 9` (Compressed + Indexed), GUID de clé nul |
-| Assets | 11 615 entrées dans le TOC, 9 373 fichiers exploitables |
+| Moteur | Unreal Engine **5.7.4** (`++UE5+Release-5.7`) depuis la mise à jour du 30 septembre 2026, 5.3 avant |
+| Empaquetage | IoStore, `parcel-Windows.utoc` / `.ucas`, compressé en Oodle |
+| Chiffrement | **aucun** : GUID de clé nul |
 | Sauvegardes | GVAS non chiffré, `%LOCALAPPDATA%\parcel\Saved\SaveGames\` |
 
 Aucune clé AES n'est nécessaire. En revanche les paquets utilisent la
 **sérialisation non versionnée** : les noms de propriétés ne sont pas stockés dans les
-assets. Sans fichier de mappings, aucune donnée n'est lisible — c'est le seul verrou réel.
+assets. Sans fichier de mappings (`.usmap`), aucune donnée n'est lisible : c'est le seul
+verrou réel. Le fichier de mappings dépend de la version du jeu et se régénère après chaque
+mise à jour.
 
-## Étape 1 — Générer les mappings avec UE4SS
+Repère de version : la chaîne `++UE5+Release-5.x` dans `parcel-Win64-Shipping.exe`. Un en-tête
+de paquet lu avec la mauvaise version échoue dans `LoadNameBatch` (« Read size is bigger than
+remaining archive length ») : c'est le signe qu'il faut changer `UE_VERSION`, pas les mappings.
 
-Nécessaire une fois, et à refaire après chaque mise à jour du jeu.
+## Étape 1 : générer les mappings avec UE4SS
 
-1. Installer [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) dans
-   `parcel\Binaries\Win64\` (version utilisée : 3.0.1 Beta)
-2. Dans `ue4ss\UE4SS-settings.ini`, section `[Debug]` :
-   ```ini
-   GuiConsoleEnabled = 1
-   GuiConsoleVisible = 1
-   ```
-3. Lancer le jeu. La console UE4SS s'ouvre à côté.
-4. Onglet `Dumpers` → générer le `.usmap`, ou taper `dumpusmap` dans l'onglet `Console`
-5. Le fichier apparaît en `ue4ss\Mappings.usmap` (~1,4 Mo)
+Nécessaire une fois par version du jeu.
 
-Remettre ensuite les deux réglages à `0` pour masquer la console.
+1. Installer [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) **v4.0.0 ou plus** dans
+   `parcel\Binaries\Win64\` (`dwmapi.dll` à côté de l'exécutable, dossier `ue4ss\`).
+   La 3.0.1 plante au démarrage sur UE 5.7.
+2. Vérifier que `ue4ss\UE4SS-settings.ini` n'est **pas vide**. Un fichier vide (laissé par
+   certains gestionnaires de mods) empêche UE4SS de démarrer, sans message ni journal.
+   Ne pas forcer `MajorVersion` / `MinorVersion` : la détection automatique est juste.
+3. Activer le mod `Keybinds` dans `ue4ss\Mods\mods.txt` (`Keybinds : 1`).
+4. Lancer le jeu et appuyer sur **Ctrl + 6 du pavé numérique** au menu principal.
+5. Le fichier apparaît dans `ue4ss\`, nommé d'après la version, par exemple
+   `parcel-5.7.4-51494982+++UE5+Release-5.7-30afe5ff.usmap` (~2 Mo, types Blueprint compris).
+   Le journal `ue4ss\UE4SS.log` confirme « Mappings Generation Completed Successfully ».
 
-## Étape 2 — Extraire les assets avec FModel
+## Étape 2 : extraire les assets avec `scripts/game-extract`
 
-1. Installer [FModel](https://fmodel.app) (nécessite le runtime .NET Desktop 8)
-2. `Add Undetected Game` → dossier :
-   `...\steamapps\common\Parcel Simulator\parcel\Content\Paks`
-3. **`UE Versions` → `GAME_UE5_3`** — une version fausse casse tout silencieusement
-4. Laisser le champ AES vide
-5. `Settings` → activer **`Local Mapping File (drag & drop)`**, puis renseigner
-   **`Mapping File Path`** avec le `Mappings.usmap` de l'étape 1
-
-   Ce réglage ne peut pas être injecté dans `AppSettings.json` : FModel ne charge les
-   mappings que lorsqu'ils sont déclarés depuis l'interface.
-6. Onglet `Archives` → `Loading Mode: Multiple` → cocher **uniquement**
-   `parcel-Windows.pak` et `parcel-Windows.utoc` → `Load`
-
-   **Ne pas charger les mods.** `RealCountries_P` remplace les pays fictifs du jeu par de
-   vrais pays et corromprait le catalogue.
-7. Onglet `Folders` → clic droit sur `parcel/Content/Core` →
-   **`Save Folder's Packages Properties (.json)`**
-
-   Bien prendre cette entrée, et non `Export Folder's Packages Raw Data`, qui n'écrit
-   aucun JSON.
-
-Résultat attendu : environ 4 400 fichiers JSON, ~136 Mo, dans `Output\Exports\`.
-
-## Étape 3 — Construire `data/raw/`
-
-Le script `scripts/build-catalogue.ps1` lit l'export FModel et produit :
+Petit outil .NET (SDK 10) autour de [CUE4Parse](https://github.com/FabianFG/CUE4Parse), la
+bibliothèque de FModel. Il remplace FModel et lit en plus le bytecode des Blueprints.
 
 ```powershell
-./scripts/build-catalogue.ps1 -Root "<dossier FModel>\Output\Exports"
+cd scripts/game-extract
+dotnet run -- list "BP_ConveyorBelt_Joiner"                  # chemins des paquets, sans mappings
+dotnet run -- grep "Core/.*\.uasset$" RandomBoolWithWeight   # qui contient ce texte, sans mappings
+dotnet run -- dump "^parcel/Content/Core/Blueprints/.*\.uasset$" <sortie> <fichier.usmap>
 ```
 
-Les fichiers sont écrits dans `data/raw/` du dépôt (option `-Out` pour un autre dossier).
+`dump` écrit un JSON par paquet en reproduisant l'arborescence de FModel
+(`<sortie>\parcel\Content\Core\...`), soit 1 111 fichiers et ~90 Mo pour `Core/Blueprints`.
+Variables d'environnement : `PARCEL_PAKS` (dossier `Content\Paks`, chemin Steam par défaut) et
+`UE_VERSION` (`GAME_UE5_7` par défaut).
+
+Pour lire une fonction Blueprint (les chances, minuteries et poids codés en dur) :
+
+```powershell
+python scripts/game-extract/kismet.py <sortie>\...\AC_MoneyManager.json GetUpgradeDeliverySpeed
+```
+
+**Ne pas charger les mods.** `RealCountries_P` remplace les pays fictifs du jeu par de vrais
+pays et corromprait le catalogue. L'outil ne monte que les archives du dossier `Paks`, pas
+`LogicMods`.
+
+## Étape 3 : construire `data/raw/`
+
+Le script `scripts/build-catalogue.ps1` lit l'export et produit :
+
+```powershell
+./scripts/build-catalogue.ps1 -Root "<sortie de l'étape 2>"
+```
+
+Les fichiers sont écrits dans `data/raw/` du dépôt (option `-Out` pour un autre dossier,
+utile pour comparer avant d'écraser). Ensuite `npm run catalogue` régénère
+`src/data/generated/catalogue.json`.
 
 | Fichier | Source | Contenu |
 |---|---|---|
-| `shop-items.json` | `AC_MoneyManager.ShopItems` + CDO de chaque Blueprint | 50 objets achetables, prix, nom, description |
+| `shop-items.json` | `AC_MoneyManager.ShopItems` + CDO de chaque Blueprint | 51 objets achetables, prix, nom, description |
 | `dt-upgrades-tiered.json` | `DT_TieredUpgrades` | améliorations par palier, `BasePrice`, `MaxTier` |
 | `dt-upgrades-legacy.json` | `DT_Upgrades` | ancien système, conservé pour référence |
 | `dt-licences.json` | `DT_Licences` | licences, coût, outil requis, bonus de revenu |
@@ -102,16 +110,36 @@ Les fichiers sont écrits dans `data/raw/` du dépôt (option `-Out` pour un aut
   que `JSON.parse` de Node refuse. `build-catalogue.ps1` écrit désormais via
   `UTF8Encoding($false)`, et les lecteurs Node retirent le BOM par précaution.
 
+## Valeurs codées en dur dans les Blueprints
+
+Lues dans le bytecode (version 5.7.4) avec `kismet.py`. Aucune n'est dans une table de données.
+
+| Donnée | Valeur | Source |
+|---|---|---|
+| Colis valide | 50 % (les trois premiers colis d'une partie sont scriptés) | `BP_Parcel.ValidChance`, `BP_DeliveryManager.GetValidChanceWithSubmitCount` |
+| Critère invalide | un seul par colis invalide, tiré à parts égales parmi les critères débloqués | `AC_CriteriaManager.GetUnlockedCriteriaAndRandomInvalid` |
+| Déblocage des critères | pays et poids d'emblée, numéro de série 6, timbre 12, contenu 20 | `AC_CriteriaManager.CriteriaValidCountUnlockMap` |
+| Type de fret | poids route 2 / rail 2 au palier 0 ; + air 1 aux paliers 1 à 3 ; route 4 / rail 4 / air 2 / maritime 1 dès le palier 4 | `AC_CriteriaManager.GetRandomWeightedValidCargoType` |
+| Autocollant déjà posé (toujours le bon) | (ln(palier + 2) / ln 12 × 35 + 10) % | `BP_Parcel.RandomlyTryPreAttachInspectionSticker` |
+| Colis ouvrable | 10 % dès qu'un critère d'ouverture est débloqué | `AC_CriteriaManager.OpenableSpawnChance` |
+| Scanner de critère | à gauche si le critère testé est l'invalide du colis, sinon à droite | `BP_ConveyorBelt_CriteriaScanner`, `Scan and Unpause` |
+| Vérificateur d'autocollant | approuvé à droite, refusé à gauche, sans autocollant tout droit | `BP_ConveyorBelt_Scanner2`, `Scan and Unpause` |
+| Temps de scan | 10 s, 5 s, 1 s selon le palier de l'objet ; le colis s'arrête pendant le scan | `ScanSpeed` et son changement à l'amélioration |
+| Vitesse des tapis | `BaseSpeed` 50 cm/s au palier 1, × 1,5 au palier 2, × 2 au palier 3 ; convoyeur rapide 200 ; un tapis droit fait 100 cm (une case) | `BP_ConveyorBelt`, spline de `BP_ConveyorBelt_Straight` |
+| Colis par camion | 3 / 5 / 7 (10 prévu mais non achetable) | `AC_MoneyManager.GetUpgradeNumberParcelsToSpawn` |
+| Minuterie entre camions | 40 / 30 / 20 / 10 s | `AC_MoneyManager.GetUpgradeDeliverySpeed` |
+| Journée de livraison | de 9 h à 17 h exclu, une minute de jeu par seconde réelle : 480 s | `BP_ParcelGameInstance.HandleTime`, `TimeRate = 1.0` |
+| Coût d'amélioration | `UpgradePrice × palier actuel` | `BP_ConveyorBelt` |
+| Extension d'entrepôt | 700 + 300 × palier possédé ; second entrepôt 500 000 | `BP_WarehouseExpansion.SetInteractTextAndPriceBasedOnTier` |
+| Capacité des étagères | 4 emplacements de base + 4 / 8 / 12, soit 8 / 12 / 16 | composants `ParcelSpawnLocation` de `BP_StorageRack*` |
+
 ## Ce qui manque encore
 
 | Manque | Piste |
 |---|---|
 | Dimension exacte des 4 objets « larges » | Voir la section grille ci-dessous : le jeu ne distingue que normal et large. Reste à mesurer combien de cases occupent les 4 concernés |
 | Ports d'entrée / sortie | Absents des données. À décrire à la main par type d'objet : une trentaine de types de tapis, c'est tenable |
-| Prix de 6 objets sur 50 | `PurchaseInfo` porté par une classe parente. Il faut remonter la chaîne d'héritage. Concerne les outils liés aux licences (`Scales`, `Keypad`, `OpeningKit`), `Scanner2_Tier1` et les deux papiers peints |
-| `Speed` et `UpgradePrice` complets | Même cause : définis sur les classes de base (`BPC_ConveyorBelt`, `BP_ConveyorBelt`), pas sur les feuilles |
 | Géométrie des 17 extensions | À reconstruire depuis les `Transform` des 17 acteurs d'extension de la carte `ParcelSimulator` (fichier de 25 Mo). Non fait : la v1 ne conditionne pas la pose aux extensions |
-| Progression du prix des extensions | `BasePrice = 700` est confirmé dans `BP_WarehouseExpansion`. L'incrément par palier est calculé dans un graphe Blueprint non lu |
 
 ## Le système de grille
 
@@ -175,7 +203,7 @@ via la fonction `GridCellIdToXY_Coords` de `ParcelFunctionLibrary`.
 | Speedway Conveyor | 5 000 |
 | Country Diverter Conveyor | 10 000 |
 | Vertical Elevator Conveyor | 10 000 |
-| Auto Pauser Conveyor | 50 000 |
+| Auto Pauser Conveyor | 30 000 (50 000 avant la mise à jour du 30 juillet 2026) |
 | Storage Rack Medium / Large / ExtraLarge | 500 / 900 / 1 600 |
 | Pallet / Medium / Large | 125 / 500 / 2 000 |
 
@@ -205,11 +233,12 @@ Licence imposée par palier d'entrepôt : 1 → Weight, 2 → SerialNumber,
 | Conveyor Deliveries | 3 | 1 500 | 2 |
 | Export Size | 2 | 1 000 | 6 |
 | Automatic Exports | 1 | 3 000 | 10 |
-| Pallet Build Mode | 1 | 5 000 | 13 |
+| Storage Rack Signs | 1 | 1 500 | 8 |
+| Pallet Build Mode | 1 | 5 000 | 11 |
 | Flooring | 1 | 5 000 | 14 |
 
 La formule liant `BasePrice` au prix du palier *n* n'est pas dans les données : elle est
-implémentée dans un Blueprint. À déterminer.
+implémentée dans un Blueprint, pas encore lu.
 
 ### Paramètres de livraison
 
@@ -219,14 +248,13 @@ Relevés dans les descriptions de `DT_Upgrades` et `DT_TieredUpgrades` :
 - `Delivery Size` : +2 colis par palier, 2 paliers → 3 → 5 → **7 colis**
 - `Delivery Speed` : −10 secondes par palier, 3 paliers → 40 → 30 → 20 → **10 secondes**
 
-Les 7 colis par livraison concordent avec le chiffre avancé par la communauté.
+Les 7 colis par livraison concordent avec le chiffre avancé par la communauté. Les deux
+minuteries sont confirmées dans le bytecode (voir « Valeurs codées en dur »).
 
-En revanche la durée maximale ne concorde pas. Le relevé communautaire suppose 30 minutes
-de déchargement, ce qui correspond au **premier** palier de `Delivery Speed`, pas au
-dernier. Si le troisième palier ramène bien la durée à 10 secondes, le nombre de créneaux
-par porte est très supérieur à 16 et le plafond de 560 colis/jour est sous-estimé.
-
-**À vérifier avant tout calcul de colis par jour.** Il faut établir la correspondance entre
-les secondes réelles et les minutes de l'horloge du jeu, et confirmer qu'aucune autre
-contrainte ne limite la cadence. Tant que ce point n'est pas tranché, aucun chiffre de
-colis/jour ne doit être affiché comme exact.
+**Cadence réelle.** La journée de livraison dure 480 s (9 h à 17 h exclu, une minute de jeu
+par seconde). Le premier camion arrive après une minuterie complète et aucun n'arrive à 17 h :
+une porte reçoit ⌈480 / intervalle⌉ − 1 camions, soit 11, 15 et 23 aux trois premiers
+niveaux, exactement les comptages des joueurs. Au dernier niveau, la minuterie de 10 s n'est
+pas ce qui limite : la porte ne rouvre qu'une fois les colis du camion précédent sortis. Le
+comptage communautaire de 26 camions par jour donne un intervalle effectif de 18 s, que
+`src/data/deliveries.ts` garde comme plancher mesuré.
