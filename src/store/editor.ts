@@ -201,6 +201,12 @@ interface EditorState {
   realCountries: boolean;
   setRealCountries: (on: boolean) => void;
   loadPlan: (plan: Plan) => void;
+  /**
+   * Counts the plans loaded whole (an import, a shared link, a cleared plan),
+   * as opposed to edits. The parcel preview restarts on a change, since its
+   * parcels belong to the plan that was there.
+   */
+  planLoads: number;
 
   /**
    * True while someone else's plan is on screen and the visitor's own layout is
@@ -596,11 +602,13 @@ export const useEditor = create<EditorState>((set, get) => {
 
   loadPlan: (plan) => {
     persist(plan);
-    set({
+    set((s) => ({
       plan, undoStack: [], redoStack: [], selectedIds: [], floor: 0,
       drag: null, marquee: null, sharedOverWork: false, heldEdit: null,
-    });
+      planLoads: s.planLoads + 1,
+    }));
   },
+  planLoads: 0,
 
   sharedOverWork: false,
   heldEdit: null,

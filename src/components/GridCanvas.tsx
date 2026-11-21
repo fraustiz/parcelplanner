@@ -1157,6 +1157,20 @@ export default function GridCanvas() {
     setPlaying(false);
   };
 
+  // A plan loaded whole replaces the layout the parcels were on: they would
+  // keep running where belts no longer are and pile up as fallen. Edits keep
+  // the preview going (see contextRef above); a new plan stops it.
+  const planLoads = useEditor((s) => s.planLoads);
+  const loadsSeen = useRef(planLoads);
+  useEffect(() => {
+    if (planLoads === loadsSeen.current) return;
+    loadsSeen.current = planLoads;
+    setSim(EMPTY_SIM);
+    setLead(0);
+    setPlaying(false);
+    useSimStats.setState({ pausers: {} });
+  }, [planLoads]);
+
   const sendParcels = (): void => {
     if (simLayout.entries.length === 0) return; // nothing is wired up; say nothing
     setSim(EMPTY_SIM);
