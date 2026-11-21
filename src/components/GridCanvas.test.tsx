@@ -2488,6 +2488,29 @@ describe('GridCanvas following parcels', () => {
 
     expect(simStats()).toBeNull();
   });
+  it('stops when a whole plan is loaded, instead of running the old parcels on the new layout', () => {
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
+    render(<GridCanvas />);
+    play();
+    expect(screen.getByRole('button', { name: /pause/i })).toBeTruthy();
+
+    // An import, a shared link or a cleared plan all go through loadPlan.
+    act(() => useEditor.getState().loadPlan({ gameVersion: 'test', warehouse: 'main', placements: fedLine(2) }));
+
+    expect(simStats()).toBeNull();
+    expect(screen.getByRole('button', { name: /play/i })).toBeTruthy();
+  });
+
+  it('keeps running through an edit, which is not a new plan', () => {
+    useEditor.setState((s) => ({ plan: { ...s.plan, placements: fedLine(4) } }));
+    render(<GridCanvas />);
+    play();
+    act(() => useEditor.getState().dispatch({ kind: 'add', placement: {
+      id: 'extra', objectId: 'BP_ConveyorBelt_Straight_Tier1', warehouse: 'main', floor: 0, cell: { x: 40, y: 30 }, rotation: 0, tier: 1,
+    } }));
+    expect(screen.getByRole('button', { name: /pause/i })).toBeTruthy();
+  });
+
   it('survives a frame timestamped BEFORE the clock started', () => {
     // requestAnimationFrame reports when the frame began, which can precede a
     // performance.now() read, so a first step can be negative. The fake clock
