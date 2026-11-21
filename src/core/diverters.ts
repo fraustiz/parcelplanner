@@ -12,12 +12,16 @@ import type { CargoChoice, CatalogEntry, Cell, DiverterSides, Placement, Side } 
  * - The cargo type diverter (`BP_ConveyorBelt_Diverter`) has a screen per way
  *   out. A parcel takes, in turn, a way set to its cargo type, or one set to
  *   "other" when no screen names its type; failing those, one left on "any".
+ *   A way set to "none" takes nothing: it matches no type and is no fallback.
  */
 export const COUNTRY_DIVERTER = 'BP_ConveyorBelt_CountryDiverter2';
 export const CARGO_DIVERTER = 'BP_ConveyorBelt_Diverter';
 
-/** Every setting a cargo screen can hold besides "any", in the order offered. */
-export const CARGO_CHOICES: readonly CargoChoice[] = ['Road', 'Rail', 'Air', 'Maritime', 'Other'];
+/**
+ * Every setting a cargo screen can hold besides "any", in the order offered.
+ * A link stores a setting by its place here, so append only.
+ */
+export const CARGO_CHOICES: readonly CargoChoice[] = ['Road', 'Rail', 'Air', 'Maritime', 'Other', 'None'];
 
 export const isCargoChoice = (value: unknown): value is CargoChoice =>
   typeof value === 'string' && (CARGO_CHOICES as readonly string[]).includes(value);
