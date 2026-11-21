@@ -17,7 +17,7 @@ export class LinkStoreFull extends Error {
   }
 }
 
-/** Roughly 30 MB of layouts, so a public write endpoint cannot fill the disk. */
+/** At most 100 000 layouts of up to 8 000 characters each (about 800 MB), so a public write endpoint cannot fill the disk. */
 const DEFAULT_MAX_ENTRIES = 100_000;
 
 /** Files are sharded by the first two characters of the id to keep directories small. */

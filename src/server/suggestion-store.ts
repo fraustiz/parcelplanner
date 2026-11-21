@@ -46,11 +46,23 @@ export function createSuggestionBook(
     maxSuggestions?: number;
   },
 ): SuggestionBook {
-  let written = 0;
+  // Counted from disk once per process, since the volume outlives the process: a counter starting
+  // at 0 on every restart would let the cap reset forever. Held as a promise so concurrent first
+  // writes share one scan.
+  let counted: Promise<number> | undefined;
+
+  const countOnDisk = async (): Promise<number> => {
+    try {
+      return (await readdir(directory)).filter(isSuggestionId).length;
+    } catch {
+      return 0; // nothing written yet, as on a fresh volume
+    }
+  };
 
   return {
     async add(text, at) {
-      if (written >= maxSuggestions) throw new SuggestionBookFull();
+      counted ??= countOnDisk();
+      if (await counted >= maxSuggestions) throw new SuggestionBookFull();
 
       // The timestamp orders the directory; the random tail keeps two notes sent in the same
       // millisecond from overwriting each other.
@@ -60,7 +72,7 @@ export function createSuggestionBook(
       await mkdir(directory, { recursive: true });
       // The date is also inside the file, so a copied note keeps it.
       await writeFile(join(directory, name), `${at.toISOString()}\n\n${text}\n`, 'utf8');
-      written++;
+      counted = Promise.resolve((await counted) + 1);
       return name;
     },
 
@@ -94,7 +106,10 @@ export function createSuggestionBook(
         await unlink(join(directory, id));
       } catch {
         // Already gone.
+        return true;
       }
+      // Only a file that really went frees a place under the cap.
+      if (counted) counted = Promise.resolve(Math.max(0, (await counted) - 1));
       return true;
     },
   };
