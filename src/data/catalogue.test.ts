@@ -50,6 +50,16 @@ describe('getCatalogue', () => {
     }
   });
 
+  it('lets a belt cross under any of the three cells of a bridge, as the game does', () => {
+    // A real save had belts under both ramps of a Bridger, not only its middle.
+    const bridge = { id: 'b', objectId: 'BP_ConveyorBelt_Bridger', warehouse: 'main' as const, floor: 0, cell: { x: 30, y: 5 }, rotation: 0 as const, tier: 1 };
+    for (const y of [5, 6, 7]) {
+      const belt = { id: `s${y}`, objectId: 'BP_ConveyorBelt_Straight_Tier1', warehouse: 'main' as const, floor: 0, cell: { x: 30, y }, rotation: 90 as const, tier: 1 };
+      const plan = { gameVersion: CATALOGUE_GAME_VERSION, warehouse: 'main' as const, placements: [bridge, belt] };
+      expect(validate(plan, catalogue, WAREHOUSES)).toEqual([]);
+    }
+  });
+
   it('marks the elevator as reaching up through the floor above, and nothing else', () => {
     const reaching = [...catalogue.values()].filter((e) => e.spansTheFloorAbove);
     expect(reaching.map((e) => e.id)).toEqual(['BP_ConveyorBelt_Elevator']);

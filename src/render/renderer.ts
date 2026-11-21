@@ -1023,7 +1023,7 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
     return entry !== undefined && onScreen(p, entry);
   });
 
-  // A bridge passes over its middle cell (see CatalogEntry.bridgedCells), so ground-level objects
+  // A bridge passes over the cells it covers (see CatalogEntry.bridgedCells), so ground-level objects
   // are painted first. Whole objects are reordered so a bridge stays one rotated group.
   const spans = (p: Placement): boolean =>
     (o.catalogue.get(p.objectId)?.bridgedCells?.length ?? 0) > 0;

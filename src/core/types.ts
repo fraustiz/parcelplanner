@@ -59,7 +59,7 @@ export interface CatalogEntry {
   ports: Port[];
   /**
    * Cells this object passes over rather than stands on, as offsets into its
-   * unrotated footprint (the bridge conveyor's raised middle). `canPlace` lets
+   * unrotated footprint (all three cells of the bridge conveyor). `canPlace` lets
    * such a cell hold one ground and one raised occupant.
    */
   bridgedCells?: readonly Cell[];

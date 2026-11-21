@@ -38,11 +38,14 @@ const CONFIRMED_FOOTPRINTS = {
 
 /**
  * Cells an object passes over rather than stands on, as offsets into its
- * unrotated footprint (see `CatalogEntry.bridgedCells`). Only the Bridger's
- * middle cell is raised; both ramps collide normally.
+ * unrotated footprint (see `CatalogEntry.bridgedCells`). The whole Bridger is
+ * raised: in a real save of 74 bridges, something stood under the middle cell
+ * 57 times, under the first 13 and under the last 29, with nothing pointing to
+ * a misread position (the same orientation shows every pattern). A belt is
+ * still fed into and out of it from the cells beyond its two ends.
  */
 const BRIDGED_CELLS = {
-  BP_ConveyorBelt_Bridger: [{ x: 0, y: 1 }],
+  BP_ConveyorBelt_Bridger: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }],
 };
 
 /**
