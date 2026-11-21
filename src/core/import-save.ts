@@ -51,8 +51,12 @@ export interface SaveTables {
   rackColours: Readonly<Record<string, string | null>>;
   /** Whether a colour can be put on this object (see `repaintableColourOf`). */
   canPaint: (entry: CatalogEntry) => boolean;
-  /** The `E_TieredUpgrade` values of the delivery door upgrades, and how many levels each has. */
-  deliveryUpgrades: { size: string; speed: string; sizeLevels: number; speedLevels: number };
+  /** The `E_TieredUpgrade` values of the door upgrades, and how many levels each has. */
+  deliveryUpgrades: {
+    size: string; speed: string; sizeLevels: number; speedLevels: number;
+    exportSize: string; exportLevels: number; automaticExports: string;
+    conveyorDeliveries: string;
+  };
 }
 
 /**
@@ -60,7 +64,16 @@ export interface SaveTables {
  * settings (src/store/sim-stats.ts). Not part of the plan: it describes the
  * save, not the layout.
  */
-export interface SaveDelivery { sizeLevel: number; speedLevel: number }
+export interface SaveDelivery {
+  sizeLevel: number;
+  speedLevel: number;
+  /** Export Size level, 0-based like the preview's settings. */
+  exportLevel: number;
+  /** Whether the Automatic Exports upgrade is bought. */
+  automaticExports: boolean;
+  /** Conveyor Deliveries level, 1 to 3 (none bought reads as 1). */
+  bayLevel: number;
+}
 
 export interface SaveImportResult extends ImportResult {
   /** Absent when the save does not list its upgrades. */
@@ -184,7 +197,13 @@ function delivery(save: GvasSave, tables: SaveTables): SaveDelivery | undefined 
     return typeof n === 'number' ? Math.min(Math.max(0, Math.round(n)), levels - 1) : 0;
   };
   const u = tables.deliveryUpgrades;
-  return { sizeLevel: level(u.size, u.sizeLevels), speedLevel: level(u.speed, u.speedLevels) };
+  return {
+    sizeLevel: level(u.size, u.sizeLevels),
+    speedLevel: level(u.speed, u.speedLevels),
+    exportLevel: level(u.exportSize, u.exportLevels),
+    automaticExports: level(u.automaticExports, 2) > 0,
+    bayLevel: Math.max(1, level(u.conveyorDeliveries, 4)),
+  };
 }
 
 /** The country each export door takes, as the player set it. */

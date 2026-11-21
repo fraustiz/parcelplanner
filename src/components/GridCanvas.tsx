@@ -19,7 +19,7 @@ import type { CatalogEntry, Cell, Door, Placement, Rotation } from '@/core/types
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
 import { countryDoorAt, countryDoorNear, countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
-import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { DOOR_TIMER_SECONDS, EXPORT_DOOR_SHUT_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
 import { STAIRS } from '@/data/stairs';
@@ -53,9 +53,13 @@ const TICK_SECONDS = 0.25;
 /** The smart splitter, which picks its way on when a parcel gets there. */
 const SMART_SPLITTER = 'BP_ConveyorBelt_Splitter';
 
-/** Seconds to cross a delivery or export door's own cell, outside the wall:
- * a tier 1 belt's pace. */
+/** Seconds to cross an export door's own cell, outside the wall: a tier 1
+ * belt's pace. A delivery door's pace depends on its bay belts (`bayLevel`). */
 const DOOR_CELL_SECONDS = 2;
+
+/** The game's bay belts are plain straight belts, upgraded with the Conveyor
+ * Deliveries tier (`BP_ConveyorBelt.SetUpgradeInteractableLevel`). */
+const BAY_BELT = 'BP_ConveyorBelt_Straight_Tier1';
 
 /** Where a scanner sends a parcel out of a side with no belt on it: no node
  * at all, so the route ends there and the parcel falls. */
@@ -913,6 +917,11 @@ export default function GridCanvas() {
     const onward = onwardOf(graph.edges);
     const portIndex = portIndexOf(graph.ports);
     const entries = [...entryPoints(graph.edges, deliveryIds)];
+    // The delivery door behind each entry: the preview's source is the first
+    // object the door feeds, but the bay and its truck belong to the door.
+    const entryDoor = new Map(graph.edges
+      .filter((edge) => deliveryIds.has(edge.from) && !deliveryIds.has(edge.to))
+      .map((edge) => [edge.to, edge.from] as const));
     const pullers = storePullers(
       graph.ports,
       graph.edges,
@@ -930,7 +939,7 @@ export default function GridCanvas() {
       ...pullers.map(({ puller, store }) => ({ from: puller, slot: firstSlot(puller), rack: store as string | undefined })),
     ].filter((source): source is { from: string; slot: string; rack: string | undefined } => source.slot !== undefined);
     const inbound = inboundIndexOf(portIndex);
-    return { exitIds, storeIds, byId, onward, portIndex, inbound, entries, sources, capacity };
+    return { exitIds, storeIds, byId, onward, portIndex, inbound, entries, entryDoor, sources, capacity };
   }, [plan, catalogue]);
 
   /**
@@ -1100,6 +1109,10 @@ export default function GridCanvas() {
 
     const slideSeconds = (cell: RouteStep, previous: RouteStep | undefined): number => {
       const here = byId.get(cell.node);
+      // A truck's parcels come out of the delivery bay at its belts' pace,
+      // one after the other: the bursts the game shows.
+      // A route from a delivery door starts on the door's own cell.
+      if (here === undefined && previous === undefined) return secondsPerCell(BAY_BELT, simSettings.bayLevel);
       if (here === undefined) return DOOR_CELL_SECONDS;
       if (storeIds.has(cell.node)) {
         const loader = previous === undefined ? undefined : byId.get(previous.node);
@@ -1128,6 +1141,11 @@ export default function GridCanvas() {
         if (here === undefined || !PAUSERS.has(here.objectId)) return false;
         return !isPauserOpen(useSimStats.getState().pausers, node, here.objectId);
       },
+      exportTrucks: {
+        parcels: EXPORT_TRUCK_PARCELS[simSettings.exportLevel] ?? EXPORT_TRUCK_PARCELS[0]!,
+        shutSeconds: EXPORT_DOOR_SHUT_SECONDS,
+        automatic: simSettings.automaticExports,
+      },
       unloadSeconds: UNLOAD_SECONDS,
       retrySeconds: SPLITTER_RETRY_SECONDS,
       maxParcels: MAX_PARCELS,
@@ -1151,8 +1169,25 @@ export default function GridCanvas() {
         to: { x: Math.max(...xs), y: Math.max(...ys) },
         text: `${held}/${holds}`,
       }];
-    });
-  }, [sim.racks, sim.parcels.length, simLayout, catalogue, floor]);
+    }).concat(
+      // Each delivery door's truck while it unloads: parcels still in the bay.
+      [...simLayout.entryDoor].flatMap(([entry, doorNode]) => {
+        const left = sim.truckLeft[entry] ?? 0;
+        const d = DOORS.find((door) => doorNodeId(door) === doorNode);
+        if (left === 0 || d === undefined || d.warehouse !== plan.warehouse || d.floor !== floor) return [];
+        const brings = PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!;
+        return [{ from: d.cell, to: d.cell, text: `${left}/${brings}` }];
+      }),
+      // Each export door's truck: how full, or how long it stays shut.
+      DOORS.filter((d) => d.warehouse === plan.warehouse && d.floor === floor && sim.exports[doorNodeId(d)] !== undefined)
+        .map((d) => {
+          const truck = sim.exports[doorNodeId(d)]!;
+          const shut = truck.shutUntil > sim.now;
+          const holds = EXPORT_TRUCK_PARCELS[simSettings.exportLevel] ?? EXPORT_TRUCK_PARCELS[0]!;
+          return { from: d.cell, to: d.cell, text: shut ? `${Math.ceil(truck.shutUntil - sim.now)} s` : `${truck.load}/${holds}` };
+        }),
+    );
+  }, [sim.racks, sim.parcels.length, sim.exports, sim.now, simLayout, catalogue, floor, plan.warehouse, simSettings.exportLevel, sim.truckLeft, simSettings.sizeLevel]);
   rackFillRef.current = rackFillNow;
 
   /** One step of the preview, TICK_SECONDS of game time. */

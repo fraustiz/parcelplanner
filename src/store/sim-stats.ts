@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { ALL_UNLOCKED, type Criterion } from '@/core/parcel-labels';
-import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { DOOR_TIMER_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 
 /** What the parcel preview has counted since play was pressed. */
 export interface SimStats {
@@ -30,6 +30,15 @@ export interface SimSettings {
   sizeLevel: number;
   /** Delivery Speed level, 0-based into DOOR_TIMER_SECONDS. */
   speedLevel: number;
+  /**
+   * Conveyor Deliveries level, 1 to 3: the tier of the belts the game lays in
+   * each delivery bay, so how fast a truck's parcels come out of it.
+   */
+  bayLevel: number;
+  /** Export Size level, 0-based into EXPORT_TRUCK_PARCELS. */
+  exportLevel: number;
+  /** The Automatic Exports upgrade: a full export truck leaves on its own. */
+  automaticExports: boolean;
   unlocked: ReadonlySet<Criterion>;
 }
 
@@ -37,6 +46,9 @@ export interface SimSettings {
 export const DEFAULT_SIM_SETTINGS: SimSettings = {
   sizeLevel: PARCELS_PER_TRUCK.length - 1,
   speedLevel: DOOR_TIMER_SECONDS.length - 1,
+  exportLevel: EXPORT_TRUCK_PARCELS.length - 1,
+  automaticExports: true,
+  bayLevel: 3,
   unlocked: ALL_UNLOCKED,
 };
 
@@ -67,8 +79,8 @@ interface SimStore {
    * planner, which keeps its own levels until a save gives some.
    */
   savedDelivery: { sizeLevel: number; speedLevel: number } | null;
-  /** Sets the preview's delivery levels and the storage planner's from a save. */
-  applySavedDelivery: (levels: { sizeLevel: number; speedLevel: number }) => void;
+  /** Sets the preview's door levels and the storage planner's delivery levels from a save. */
+  applySavedDelivery: (levels: { sizeLevel: number; speedLevel: number; exportLevel?: number; automaticExports?: boolean; bayLevel?: number }) => void;
 }
 
 export const useSimStats = create<SimStore>((set) => ({
@@ -80,7 +92,7 @@ export const useSimStats = create<SimStore>((set) => ({
   savedDelivery: null,
   applySavedDelivery: (levels) => set((s) => ({
     settings: { ...s.settings, ...levels },
-    savedDelivery: { ...levels },
+    savedDelivery: { sizeLevel: levels.sizeLevel, speedLevel: levels.speedLevel },
   })),
 }));
 

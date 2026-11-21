@@ -11,7 +11,7 @@ import { isZone, ZONE_PREFIX } from '@/core/zone';
 import { formatMoney, t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
 import { UNLOCKABLE_CRITERIA, type Criterion } from '@/core/parcel-labels';
-import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
+import { DOOR_TIMER_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
 import DiverterScreens from './DiverterScreens';
 import { sizeOf } from './HoverCard';
@@ -116,6 +116,34 @@ function SimSettingsPanel({ locale }: { locale: Locale }) {
           >
             {DOOR_TIMER_SECONDS.map((seconds, level) => <option key={level} value={level}>{seconds} s</option>)}
           </select>
+        </label>
+        <label className="flex items-center justify-between gap-2" title={t(locale, 'simSettings.bayHint')}>
+          <span className="text-[var(--text-faint)]">{t(locale, 'simSettings.bay')}</span>
+          <select
+            value={settings.bayLevel}
+            onChange={(event) => setSettings({ bayLevel: Number(event.target.value) })}
+            className="rounded bg-[var(--raised)] px-1.5 py-0.5"
+          >
+            {[1, 2, 3].map((level) => <option key={level} value={level}>{level}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-2">
+          <span className="text-[var(--text-faint)]">{t(locale, 'simSettings.exportTruck')}</span>
+          <select
+            value={settings.exportLevel}
+            onChange={(event) => setSettings({ exportLevel: Number(event.target.value) })}
+            className="rounded bg-[var(--raised)] px-1.5 py-0.5"
+          >
+            {EXPORT_TRUCK_PARCELS.map((n, level) => <option key={level} value={level}>{n}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2" title={t(locale, 'simSettings.automaticExportsHint')}>
+          <input
+            type="checkbox"
+            checked={settings.automaticExports}
+            onChange={(event) => setSettings({ automaticExports: event.target.checked })}
+          />
+          {t(locale, 'simSettings.automaticExports')}
         </label>
         <fieldset>
           <legend className="mb-1 text-[var(--text-faint)]">{t(locale, 'simSettings.unlocked')}</legend>

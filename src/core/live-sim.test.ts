@@ -169,3 +169,51 @@ describe('a smart splitter in the timed preview', () => {
     expect(state.delivered).toBeGreaterThan(100);
   });
 });
+
+describe('export doors fill a truck, as in the game', () => {
+  const cells = line('a', 5);
+  const toDoor = () => ({ cells, ending: 'delivered' as const, endsAt: 'door:x' });
+
+  it('sends a full truck off and shuts the door for a while, with automatic exports', () => {
+    // 8 parcels a truck, then 11 s shut: a free line would pass 60 in 120 s.
+    const ctx = context({
+      sources: [door('d', toDoor)],
+      exportTrucks: { parcels: 8, shutSeconds: 11, automatic: true },
+    });
+    const state = run(ctx, 120);
+    expect(state.delivered).toBeLessThan(55);
+    expect(state.delivered).toBeGreaterThan(30);
+    expect(state.fell).toBe(0);
+  });
+
+  it('keeps a full door full without automatic exports, and parcels wait on the belt', () => {
+    const ctx = context({
+      sources: [door('d', toDoor)],
+      exportTrucks: { parcels: 8, shutSeconds: 11, automatic: false },
+    });
+    const state = run(ctx, 120);
+    expect(state.delivered).toBe(8);
+    expect(state.exports['door:x']).toEqual({ load: 8, shutUntil: 0 });
+    // Waiting, not falling: the line backs up to the door.
+    expect(state.fell).toBe(0);
+    expect(state.parcels.length).toBeGreaterThan(0);
+  });
+
+  it('opens again on an empty truck once the door has been shut long enough', () => {
+    const ctx = context({
+      sources: [door('d', toDoor)],
+      exportTrucks: { parcels: 2, shutSeconds: 11, automatic: true },
+    });
+    let state = run(ctx, 20);
+    const shut = state.exports['door:x']!;
+    // Run on until well past the reopening: more parcels come in after it.
+    state = run(ctx, 40, 0.25, state);
+    expect(state.delivered).toBeGreaterThan(4);
+    expect(shut.load).toBeGreaterThan(0);
+  });
+
+  it('takes everything when no truck is modelled', () => {
+    const state = run(context({ sources: [door('d', toDoor)] }), 120);
+    expect(state.delivered).toBeGreaterThanOrEqual(55);
+  });
+});

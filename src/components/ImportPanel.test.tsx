@@ -173,10 +173,11 @@ describe('a game save', () => {
   it('shows the delivery door levels it read, and hands them over on confirm', () => {
     const onConfirm = vi.fn();
     const { getByText, getByRole } = render(
-      <ImportPanel outcome={SAVE({ delivery: { sizeLevel: 2, speedLevel: 3 } })} onConfirm={onConfirm} onClose={() => {}} />);
-    expect(getByText(/delivery doors: 7 parcels per truck, 10 s/i)).toBeTruthy();
+      <ImportPanel outcome={SAVE({ delivery: { sizeLevel: 2, speedLevel: 3, exportLevel: 1, automaticExports: false, bayLevel: 2 } })} onConfirm={onConfirm} onClose={() => {}} />);
+    expect(getByText(/delivery doors: 7 parcels per truck, 10 s, bay belts tier 2/i)).toBeTruthy();
+    expect(getByText(/export doors: 12 parcels per truck, sent by hand/i)).toBeTruthy();
     fireEvent.click(getByRole('button', { name: /import anyway/i }));
-    expect(onConfirm).toHaveBeenCalledWith(PLAN, { sizeLevel: 2, speedLevel: 3 });
+    expect(onConfirm).toHaveBeenCalledWith(PLAN, { sizeLevel: 2, speedLevel: 3, exportLevel: 1, automaticExports: false, bayLevel: 2 });
   });
 
   it('tells where saves are kept when the file is not one', () => {

@@ -2,7 +2,7 @@ import type { SaveGrid, SaveTables } from '@/core/import-save';
 import { getCatalogue } from './catalogue';
 import { repaintableColourOf } from './colours';
 import { isCountry } from './countries';
-import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from './deliveries';
+import { DOOR_TIMER_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from './deliveries';
 import { WAREHOUSES } from './warehouses';
 import type { CargoChoice } from '@/core/types';
 
@@ -169,6 +169,11 @@ export const SAVE_RACK_COLOURS: Readonly<Record<string, string | null>> = {
  */
 export const SAVE_DELIVERY_SPEED = 'E_TieredUpgrade::NewEnumerator0';
 export const SAVE_DELIVERY_SIZE = 'E_TieredUpgrade::NewEnumerator1';
+/** ExportSize (2 levels to buy) and AutomaticExports (1), also from `DT_TieredUpgrades`. */
+export const SAVE_EXPORT_SIZE = 'E_TieredUpgrade::NewEnumerator4';
+export const SAVE_AUTOMATIC_EXPORTS = 'E_TieredUpgrade::NewEnumerator2';
+/** ConveyorDeliveries (3 levels): the tier of the delivery bay belts. */
+export const SAVE_CONVEYOR_DELIVERIES = 'E_TieredUpgrade::NewEnumerator5';
 
 /** Every table `planFromSave` needs, from this app's data. */
 export function saveTables(): SaveTables {
@@ -188,6 +193,9 @@ export function saveTables(): SaveTables {
     deliveryUpgrades: {
       size: SAVE_DELIVERY_SIZE, speed: SAVE_DELIVERY_SPEED,
       sizeLevels: PARCELS_PER_TRUCK.length, speedLevels: DOOR_TIMER_SECONDS.length,
+      exportSize: SAVE_EXPORT_SIZE, exportLevels: EXPORT_TRUCK_PARCELS.length,
+      automaticExports: SAVE_AUTOMATIC_EXPORTS,
+      conveyorDeliveries: SAVE_CONVEYOR_DELIVERIES,
     },
   };
 }
