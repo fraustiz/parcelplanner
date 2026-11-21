@@ -1,7 +1,10 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { COUNTRIES } from './countries';
+import { readFileSync, statSync } from 'node:fs';
+import {
+  COUNTRIES, COUNTRY_DOORS, countryFlag, countryFlags, countryName, isCountryDoor, REAL_COUNTRY_NAMES,
+} from './countries';
+import { KEEP_OWN_COLOURS } from './icons';
 import { DOORS } from './doors';
 
 describe('the country list', () => {
@@ -18,5 +21,57 @@ describe('the country list', () => {
     const doors = DOORS.filter((d) => d.kind === 'country-export');
     expect(doors).toHaveLength(COUNTRIES.length);
     expect(doors.every((d) => d.warehouse === 'second')).toBe(true);
+  });
+});
+
+describe('the flags', () => {
+  it('ship one image per country, from the game and from the RealCountries mod', () => {
+    for (const id of COUNTRIES) {
+      for (const real of [false, true]) {
+        const path = countryFlag(id, real)!;
+        // Small enough to load all twelve with the page: the exports are 64 px wide.
+        expect(statSync(`public${path}`).size, path).toBeLessThan(4096);
+      }
+    }
+  });
+
+  it('have none for something that is not a country', () => {
+    expect(countryFlag('France', false)).toBeUndefined();
+    expect(countryFlags(true).size).toBe(COUNTRIES.length);
+  });
+
+  it('keep their own colours on the canvas instead of being blackened like glyphs', () => {
+    expect(KEEP_OWN_COLOURS.has('/flags/Cristin.png')).toBe(true);
+    expect(KEEP_OWN_COLOURS.has('/flags/real/Cristin.png')).toBe(true);
+  });
+});
+
+describe('the RealCountries names', () => {
+  it('give every game country a real name, and only those', () => {
+    expect(Object.keys(REAL_COUNTRY_NAMES).sort()).toEqual([...COUNTRIES].sort());
+    expect(new Set(Object.values(REAL_COUNTRY_NAMES)).size).toBe(COUNTRIES.length);
+  });
+
+  it("agree with the placeholder the game's own table already carries for Cristin", () => {
+    // data/raw/dt-countries.json: the developers' own placeholder for Cristin is France.
+    expect(countryName('Cristin', true)).toBe('France');
+  });
+
+  it('change only the display: off, the game name; anything else passes through', () => {
+    expect(countryName('Cristin', false)).toBe('Cristin');
+    expect(countryName('Road', true)).toBe('Road');
+  });
+});
+
+describe('the country doors', () => {
+  it('run ground floor first, then left to right', () => {
+    expect(COUNTRY_DOORS.map((d) => d.id)).toEqual([
+      'second-country-0-a', 'second-country-0-b', 'second-country-0-c',
+      'second-country-0-d', 'second-country-0-e', 'second-country-0-f',
+      'second-country-1-b', 'second-country-1-c', 'second-country-1-d',
+      'second-country-1-e', 'second-country-1-f', 'second-country-1-g',
+    ]);
+    expect(isCountryDoor('second-country-0-a')).toBe(true);
+    expect(isCountryDoor('second-export-reject-0')).toBe(false);
   });
 });

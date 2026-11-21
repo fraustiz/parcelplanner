@@ -1050,6 +1050,24 @@ describe('doors', () => {
       .toEqual(['/criteria/country-flag-icon.png']);
   });
 
+  it('shows the flag of the country the plan gives a country door, in place of the generic icon', () => {
+    const ctx = recorder();
+    const countryDoor: Door = { ...door, id: 'c1', kind: 'country-export' };
+    const base = options();
+    drawScene(ctx, options({
+      plan: { ...base.plan, doorCountries: { c1: 'Vocua' } },
+      doors: [countryDoor, { ...countryDoor, id: 'c2', cell: { x: 14, y: 10 } }],
+      countryIcon: '/criteria/country-flag-icon.png',
+      countryFlags: new Map([['Vocua', '/flags/Vocua.png']]),
+    }));
+    const drawn = ctx.calls.filter((c) => c.op === 'drawImage');
+    // c1 has its flag; c2, unassigned, keeps the generic icon.
+    expect(drawn.map((c) => c.args[0])).toEqual(['/flags/Vocua.png', '/criteria/country-flag-icon.png']);
+    // Drawn at the game's 5:3 flag shape, not squashed into a square glyph.
+    const [, , , w, h] = drawn[0]!.args.map(Number);
+    expect(w! / h!).toBeCloseTo(5 / 3);
+  });
+
   it('never reads a country exit as a reject bin, despite it having no cargo types', () => {
     // For a cargo export door an empty cargo list means a reject bin; a country door legitimately
     // has none.

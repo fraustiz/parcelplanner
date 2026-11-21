@@ -10,7 +10,7 @@ import { getCatalogue } from '@/data/catalogue';
 import {
   CARGO_TYPES, cargoShare, dailyIntakePerDoor, DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK, VALID_SHARE,
 } from '@/data/deliveries';
-import { COUNTRIES } from '@/data/countries';
+import { COUNTRIES, countryName } from '@/data/countries';
 import { DOORS } from '@/data/doors';
 import { WAREHOUSE_TIERS } from '@/data/warehouse-tiers';
 import { t, type TranslationKey } from '@/i18n';
@@ -57,6 +57,9 @@ function warehouseTierOf(ownedTiers: readonly number[] | undefined): number {
 export default function StoragePlanner() {
   const locale = useEditor((s) => s.locale);
   const plan = useEditor((s) => s.plan);
+  // Countries are keyed by the game's ids and only shown under the mod's names.
+  const realCountries = useEditor((s) => s.realCountries);
+  const shown = (kind: string) => countryName(kind, realCountries);
   const warehouse = plan.warehouse;
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
@@ -211,12 +214,12 @@ export default function StoragePlanner() {
             <tbody>
               {axis.kinds.map((type) => (
                 <tr key={type}>
-                  <td className="py-0.5">{type}</td>
+                  <td className="py-0.5">{shown(type)}</td>
                   {days.map((label, day) => (
                     <td key={label} className="text-center">
                       <input
                         type="checkbox"
-                        aria-label={`${type} ${label}`}
+                        aria-label={`${shown(type)} ${label}`}
                         checked={accepted.get(type)?.has(day) ?? false}
                         onChange={() => toggle(type, day)}
                       />
@@ -242,7 +245,7 @@ export default function StoragePlanner() {
                 if (!row) return null;
                 return (
                   <tr key={type}>
-                    <td className="font-sans">{type}</td>
+                    <td className="font-sans">{shown(type)}</td>
                     <td className="text-right">{row.closedRun}</td>
                     <td className="text-right">{Math.ceil(row.parcels)}</td>
                     {/* The large rack: all three share a 1x3 footprint, so it

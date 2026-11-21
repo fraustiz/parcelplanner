@@ -5,6 +5,7 @@ import { isZone } from '@/core/zone';
 import type { Plan } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { repaintableColourOf } from '@/data/colours';
+import { countryFlags as flagsOf } from '@/data/countries';
 import { DOORS } from '@/data/doors';
 import { CARGO_TYPE_ICONS, COUNTRY_DOOR_ICON, KEEP_OWN_COLOURS, OBJECT_ICONS } from '@/data/icons';
 import { shapesFor, SHAPE_DIVISOR } from '@/data/shapes';
@@ -25,14 +26,26 @@ const SCALE = 2;
  * src/render/export-image.ts). Every icon is loaded before drawing, because
  * the picture is drawn once and cannot redraw when an icon arrives.
  */
-export async function exportImage(plan: Plan, floor: number, locale: Locale, theme: 'light' | 'dark'): Promise<void> {
+export async function exportImage(
+  plan: Plan,
+  floor: number,
+  locale: Locale,
+  theme: 'light' | 'dark',
+  realCountries = false,
+): Promise<void> {
   const catalogue = getCatalogue();
   const entries = legendOf(plan, floor, catalogue, DOORS);
   const dims = warehouseDimensions(plan.warehouse, WAREHOUSES);
   const objects = new Map(Object.entries(OBJECT_ICONS));
   const cargo = new Map(Object.entries(CARGO_TYPE_ICONS));
 
+  const countryFlags = flagsOf(realCountries);
   const paths = new Set<string>([COUNTRY_DOOR_ICON, ...cargo.values()]);
+  // Only the flags the plan's doors show.
+  for (const country of Object.values(plan.doorCountries ?? {})) {
+    const flag = countryFlags.get(country);
+    if (flag) paths.add(flag);
+  }
   for (const p of plan.placements) {
     const icon = p.warehouse === plan.warehouse ? objects.get(p.objectId) : undefined;
     if (icon) paths.add(icon);
@@ -63,7 +76,7 @@ export async function exportImage(plan: Plan, floor: number, locale: Locale, the
       plan, catalogue, palette: theme === 'light' ? LIGHT_SCENE : DARK_SCENE, floor,
       geometry: WAREHOUSES, unlocked: ownedGeometry(ownedTiersOf(plan)),
       shapes, shapeDivisor: SHAPE_DIVISOR, icons: objects, cargoIcons: cargo,
-      countryIcon: COUNTRY_DOOR_ICON, notes: plan.notes, doors: DOORS, stairs: STAIRS,
+      countryIcon: COUNTRY_DOOR_ICON, countryFlags, notes: plan.notes, doors: DOORS, stairs: STAIRS,
       doorArrow: DOOR_ARROW, doorArrowDivisor: UI_SHAPE_DIVISOR, repaintableColourOf,
     },
     dims,

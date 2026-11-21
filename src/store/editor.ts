@@ -7,6 +7,7 @@ import { mirroredSelection, rotatedSelection, settledSelection, type FlipAxis, t
 import { zoneObjectId, zoneSize } from '@/core/zone';
 import { copiedShape, pastedAt, type ClipboardEntry } from '@/core/clipboard';
 import { ALL_TIERS, MANDATORY_TIERS } from '@/data/warehouse-tiers';
+import { isCountry, isCountryDoor } from '@/data/countries';
 import { CATALOGUE_GAME_VERSION } from '@/core/version';
 import type { CatalogEntry, Cell, Placement, Plan, Rotation, WarehouseId } from '@/core/types';
 import { detectLocale } from '@/i18n';
@@ -17,6 +18,18 @@ export const STORAGE_KEY = 'parcelplanner.plan';
 /** Kept apart from the plan, so opening a shared link keeps the viewer's own theme. */
 export const THEME_KEY = 'parcelplanner.theme';
 export const LOCALE_KEY = 'parcelplanner.locale';
+/** Whether to show the RealCountries mod's names and flags. A viewer's preference like the
+ * theme, kept apart from the plan: the plan stores the game's own country ids either way. */
+export const REAL_COUNTRIES_KEY = 'parcelplanner.realCountries';
+
+/** The saved RealCountries choice; off when none was made or storage refuses. */
+export function savedRealCountries(): boolean {
+  try {
+    return window.localStorage.getItem(REAL_COUNTRIES_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The saved language choice, falling back to the browser's languages when
@@ -176,6 +189,16 @@ interface EditorState {
   /** Ticks or unticks an owned expansion tier. Not undoable: it is a fact about
    * the player's game, not a layout edit. */
   toggleOwnedTier: (tier: number) => void;
+  /**
+   * Says which country a country export door takes, or none with null. One door per
+   * country, as in the game: a country already on another door moves here, and that door
+   * takes this one's old country (or none). Not undoable, like owned tiers: it records
+   * what the player's game dealt them, not a layout edit. Unknown doors or countries are ignored.
+   */
+  setDoorCountry: (doorId: string, country: string | null) => void;
+  /** Show the RealCountries mod's names and flags instead of the game's own. Saved per browser. */
+  realCountries: boolean;
+  setRealCountries: (on: boolean) => void;
   loadPlan: (plan: Plan) => void;
 
   /**
@@ -501,6 +524,44 @@ export const useEditor = create<EditorState>((set, get) => {
     // Held like any edit: it writes to storage too.
     if (get().sharedOverWork) { set({ heldEdit: run }); return; }
     run();
+  },
+
+  setDoorCountry: (doorId, country) => {
+    if (!isCountryDoor(doorId) || (country !== null && !isCountry(country))) return;
+    const { plan } = get();
+    const assigned = { ...(plan.doorCountries ?? {}) };
+    const previous = assigned[doorId];
+    if (previous === (country ?? undefined)) return;
+    if (country === null) {
+      delete assigned[doorId];
+    } else {
+      for (const [other, its] of Object.entries(assigned)) {
+        if (other === doorId || its !== country) continue;
+        if (previous === undefined) delete assigned[other];
+        else assigned[other] = previous;
+      }
+      assigned[doorId] = country;
+    }
+    // The field goes away with the last assignment, like notes.
+    const { doorCountries: _old, ...rest } = plan;
+    const next: Plan = Object.keys(assigned).length > 0 ? { ...rest, doorCountries: assigned } : rest;
+    const run = () => {
+      write(next);
+      set({ plan: next });
+    };
+    // Held like any edit: it writes to storage too.
+    if (get().sharedOverWork) { set({ heldEdit: run }); return; }
+    run();
+  },
+
+  realCountries: false,
+  setRealCountries: (on) => {
+    set({ realCountries: on });
+    try {
+      window.localStorage.setItem(REAL_COUNTRIES_KEY, on ? 'on' : 'off');
+    } catch {
+      // Storage refused: the choice still applies for this visit.
+    }
   },
 
   collapseUndo: (count) =>

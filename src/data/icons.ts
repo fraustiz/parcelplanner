@@ -1,4 +1,5 @@
 import generatedSvgIcons from './generated/object-icons.json';
+import { COUNTRIES, countryFlag } from './countries';
 
 /**
  * Canvas icons for the criteria scanners and related objects, extracted from the game UI (FModel),
@@ -17,7 +18,11 @@ export const PARCEL_ICON = '/parcel.png';
  * Icon paths the canvas draws as authored. Everything else is repainted solid black, because
  * the game's pale glyphs vanish on pale scanner artwork. An explicit list, not a guess from the path.
  */
-export const KEEP_OWN_COLOURS: ReadonlySet<string> = new Set([PARCEL_ICON]);
+export const KEEP_OWN_COLOURS: ReadonlySet<string> = new Set([
+  PARCEL_ICON,
+  // A flag is its colours: both sets, the game's and the RealCountries mod's.
+  ...COUNTRIES.flatMap((id) => [countryFlag(id, false)!, countryFlag(id, true)!]),
+]);
 
 export const OBJECT_ICONS: Record<string, string> = {
   BP_ConveyorBelt_CriteriaScanner_Weight: '/criteria/weight-icon.png',

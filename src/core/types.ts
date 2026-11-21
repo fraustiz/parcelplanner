@@ -126,6 +126,13 @@ export interface Plan {
    * would grey out all but a 10x20 corner.
    */
   ownedTiers?: number[];
+  /**
+   * Which country each country export door of the second warehouse takes, by door id
+   * ('second-country-0-a') to the game's country id ('Cristin'), never a display name.
+   * The game deals them at random, so the player says. A door absent from the map is
+   * unassigned, and the field is absent when none is.
+   */
+  doorCountries?: Record<string, string>;
 }
 
 /**
@@ -150,7 +157,8 @@ export interface Door {
    * 'export': a permanent `in` port sorted by cargo type (see `cargoTypes`).
    * 'country-export': a permanent `in` port sorted by destination country. Kept
    * separate because an 'export' door with no cargo types is a reject bin. The
-   * country each one serves is unknown, so none is modelled.
+   * game deals each one its country at random, so the door itself names none; the
+   * player's assignment lives in `Plan.doorCountries`.
    */
   kind: 'delivery' | 'export' | 'country-export';
   /** Cargo types this 'export' door accepts; empty or absent means any (a
