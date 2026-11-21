@@ -1,8 +1,8 @@
 # Palette icon overrides
 
 The palette does NOT normally need an icon file. By default it draws each
-object's own grid artwork — the same `assets/shapes/*.svg` data the canvas
-renders — so a palette row always looks like the thing it places, and the two
+object's own grid artwork (the same `assets/shapes/*.svg` data the canvas
+renders), so a palette row always looks like the thing it places, and the two
 can never drift apart because there is only one drawing. See
 `src/components/ObjectIcon.tsx`.
 
@@ -16,7 +16,7 @@ needed anywhere.
 
     public/objects/BP_StorageRack_Medium.svg   ->  palette icon for BP_StorageRack_Medium
 
-The file is served exactly as authored — nothing parses, rewrites, or
+The file is served exactly as authored: nothing parses, rewrites, or
 recolours it. Sizing is handled by CSS, so any viewBox works, but a square one
 lines up best with the rest of the palette.
 

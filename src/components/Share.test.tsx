@@ -118,6 +118,17 @@ describe('sharing a link', () => {
 });
 
 describe('on a phone', () => {
+  it('says it is reading a save, then explains when the file is not one', async () => {
+    const { container } = render(<Share />);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const notASave = new File(['PK this is not a save'], 'Save1.sav');
+    fireEvent.change(input, { target: { files: [notASave] } });
+    // Announced as well as shown.
+    expect(screen.getByRole('status').textContent).toMatch(/reading the file/i);
+    await waitFor(() => expect(screen.getByText(/not a Parcel Simulator save/i)).toBeTruthy());
+    expect(screen.queryAllByText(/reading the file/i)).toHaveLength(0);
+  });
+
   it('folds the text buttons into one Share menu, which Escape closes', () => {
     render(<Share />);
     const toggle = screen.getByRole('button', { name: 'Share' });
