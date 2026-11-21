@@ -30,6 +30,11 @@ export interface SimSettings {
   sizeLevel: number;
   /** Delivery Speed level, 0-based into DOOR_TIMER_SECONDS. */
   speedLevel: number;
+  /**
+   * Conveyor Deliveries level, 1 to 3: the tier of the belts the game lays in
+   * each delivery bay, so how fast a truck's parcels come out of it.
+   */
+  bayLevel: number;
   /** Export Size level, 0-based into EXPORT_TRUCK_PARCELS. */
   exportLevel: number;
   /** The Automatic Exports upgrade: a full export truck leaves on its own. */
@@ -43,6 +48,7 @@ export const DEFAULT_SIM_SETTINGS: SimSettings = {
   speedLevel: DOOR_TIMER_SECONDS.length - 1,
   exportLevel: EXPORT_TRUCK_PARCELS.length - 1,
   automaticExports: true,
+  bayLevel: 3,
   unlocked: ALL_UNLOCKED,
 };
 
@@ -74,7 +80,7 @@ interface SimStore {
    */
   savedDelivery: { sizeLevel: number; speedLevel: number } | null;
   /** Sets the preview's door levels and the storage planner's delivery levels from a save. */
-  applySavedDelivery: (levels: { sizeLevel: number; speedLevel: number; exportLevel?: number; automaticExports?: boolean }) => void;
+  applySavedDelivery: (levels: { sizeLevel: number; speedLevel: number; exportLevel?: number; automaticExports?: boolean; bayLevel?: number }) => void;
 }
 
 export const useSimStats = create<SimStore>((set) => ({

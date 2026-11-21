@@ -117,6 +117,16 @@ function SimSettingsPanel({ locale }: { locale: Locale }) {
             {DOOR_TIMER_SECONDS.map((seconds, level) => <option key={level} value={level}>{seconds} s</option>)}
           </select>
         </label>
+        <label className="flex items-center justify-between gap-2" title={t(locale, 'simSettings.bayHint')}>
+          <span className="text-[var(--text-faint)]">{t(locale, 'simSettings.bay')}</span>
+          <select
+            value={settings.bayLevel}
+            onChange={(event) => setSettings({ bayLevel: Number(event.target.value) })}
+            className="rounded bg-[var(--raised)] px-1.5 py-0.5"
+          >
+            {[1, 2, 3].map((level) => <option key={level} value={level}>{level}</option>)}
+          </select>
+        </label>
         <label className="flex items-center justify-between gap-2">
           <span className="text-[var(--text-faint)]">{t(locale, 'simSettings.exportTruck')}</span>
           <select

@@ -118,7 +118,7 @@ export default function ImportPanel(
     if (ready.delivery) {
       const parcels = PARCELS_PER_TRUCK[ready.delivery.sizeLevel];
       const seconds = DOOR_TIMER_SECONDS[ready.delivery.speedLevel];
-      lines.push(`${say('import.saveDelivery')} ${parcels} ${say('import.saveDeliveryParcels')}, ${seconds} s`);
+      lines.push(`${say('import.saveDelivery')} ${parcels} ${say('import.saveDeliveryParcels')}, ${seconds} s, ${say('import.saveBay')} ${ready.delivery.bayLevel}`);
       const exported = EXPORT_TRUCK_PARCELS[ready.delivery.exportLevel];
       lines.push(`${say('import.saveExports')} ${exported} ${say('import.saveDeliveryParcels')}, ${say(ready.delivery.automaticExports ? 'import.saveExportsAuto' : 'import.saveExportsByHand')}`);
     }

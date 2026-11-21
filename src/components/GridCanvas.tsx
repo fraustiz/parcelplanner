@@ -52,9 +52,13 @@ const TICK_SECONDS = 0.25;
 /** The smart splitter, which picks its way on when a parcel gets there. */
 const SMART_SPLITTER = 'BP_ConveyorBelt_Splitter';
 
-/** Seconds to cross a delivery or export door's own cell, outside the wall:
- * a tier 1 belt's pace. */
+/** Seconds to cross an export door's own cell, outside the wall: a tier 1
+ * belt's pace. A delivery door's pace depends on its bay belts (`bayLevel`). */
 const DOOR_CELL_SECONDS = 2;
+
+/** The game's bay belts are plain straight belts, upgraded with the Conveyor
+ * Deliveries tier (`BP_ConveyorBelt.SetUpgradeInteractableLevel`). */
+const BAY_BELT = 'BP_ConveyorBelt_Straight_Tier1';
 
 /** Where a scanner sends a parcel out of a side with no belt on it: no node
  * at all, so the route ends there and the parcel falls. */
@@ -1082,6 +1086,9 @@ export default function GridCanvas() {
 
     const slideSeconds = (cell: RouteStep, previous: RouteStep | undefined): number => {
       const here = byId.get(cell.node);
+      // A truck's parcels come out of the delivery bay at its belts' pace,
+      // one after the other: the bursts the game shows.
+      if (here === undefined && previous === undefined) return secondsPerCell(BAY_BELT, simSettings.bayLevel);
       if (here === undefined) return DOOR_CELL_SECONDS;
       if (storeIds.has(cell.node)) {
         const loader = previous === undefined ? undefined : byId.get(previous.node);
@@ -1139,6 +1146,13 @@ export default function GridCanvas() {
         text: `${held}/${holds}`,
       }];
     }).concat(
+      // Each delivery door's truck while it unloads: parcels still in the bay.
+      DOORS.filter((d) => d.kind === 'delivery' && d.warehouse === plan.warehouse && d.floor === floor
+        && (sim.truckLeft[doorNodeId(d)] ?? 0) > 0)
+        .map((d) => {
+          const brings = PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!;
+          return { from: d.cell, to: d.cell, text: `${sim.truckLeft[doorNodeId(d)]}/${brings}` };
+        }),
       // Each export door's truck: how full, or how long it stays shut.
       DOORS.filter((d) => d.warehouse === plan.warehouse && d.floor === floor && sim.exports[doorNodeId(d)] !== undefined)
         .map((d) => {
@@ -1148,7 +1162,7 @@ export default function GridCanvas() {
           return { from: d.cell, to: d.cell, text: shut ? `${Math.ceil(truck.shutUntil - sim.now)} s` : `${truck.load}/${holds}` };
         }),
     );
-  }, [sim.racks, sim.parcels.length, sim.exports, sim.now, simLayout, catalogue, floor, plan.warehouse, simSettings.exportLevel]);
+  }, [sim.racks, sim.parcels.length, sim.exports, sim.now, simLayout, catalogue, floor, plan.warehouse, simSettings.exportLevel, sim.truckLeft, simSettings.sizeLevel]);
   rackFillRef.current = rackFillNow;
 
   /** One step of the preview, TICK_SECONDS of game time. */

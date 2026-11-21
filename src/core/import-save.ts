@@ -55,6 +55,7 @@ export interface SaveTables {
   deliveryUpgrades: {
     size: string; speed: string; sizeLevels: number; speedLevels: number;
     exportSize: string; exportLevels: number; automaticExports: string;
+    conveyorDeliveries: string;
   };
 }
 
@@ -70,6 +71,8 @@ export interface SaveDelivery {
   exportLevel: number;
   /** Whether the Automatic Exports upgrade is bought. */
   automaticExports: boolean;
+  /** Conveyor Deliveries level, 1 to 3 (none bought reads as 1). */
+  bayLevel: number;
 }
 
 export interface SaveImportResult extends ImportResult {
@@ -199,6 +202,7 @@ function delivery(save: GvasSave, tables: SaveTables): SaveDelivery | undefined 
     speedLevel: level(u.speed, u.speedLevels),
     exportLevel: level(u.exportSize, u.exportLevels),
     automaticExports: level(u.automaticExports, 2) > 0,
+    bayLevel: Math.max(1, level(u.conveyorDeliveries, 4)),
   };
 }
 
