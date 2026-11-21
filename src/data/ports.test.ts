@@ -20,9 +20,12 @@ describe('criteria scanners', () => {
 });
 
 describe('racks', () => {
-  it('take a loader at either short end', () => {
+  it('take a loader at either short end, or at any cell of either long side', () => {
     for (const id of ['BP_StorageRack_Medium', 'BP_StorageRack_Large', 'BP_StorageRack_ExtraLarge']) {
-      expect(PORTS[id]!.filter((p) => p.dir === 'in').map((p) => p.side).sort()).toEqual(['N', 'S']);
+      const ins = PORTS[id]!.filter((p) => p.dir === 'in');
+      expect(ins.filter((p) => p.side === 'N' || p.side === 'S').map((p) => p.side).sort()).toEqual(['N', 'S']);
+      expect(ins.filter((p) => p.side === 'E').map((p) => p.offset)).toEqual([0, 1, 2]);
+      expect(ins.filter((p) => p.side === 'W').map((p) => p.offset)).toEqual([0, 1, 2]);
       expect(PORTS[id]!.some((p) => p.dir === 'out')).toBe(false);
     }
   });

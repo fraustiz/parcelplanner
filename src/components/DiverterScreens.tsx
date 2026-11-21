@@ -12,6 +12,7 @@ const CARGO_NAME: Readonly<Record<CargoChoice, TranslationKey>> = {
   Air: 'export.cargo.Air',
   Maritime: 'export.cargo.Maritime',
   Other: 'diverter.cargoOther',
+  None: 'diverter.cargoNone',
 };
 
 const selectClass = 'w-full min-w-0 rounded bg-[var(--raised)] px-1.5 py-0.5';

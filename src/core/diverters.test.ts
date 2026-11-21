@@ -52,6 +52,13 @@ describe('where a cargo type diverter sends a parcel', () => {
     expect(diverterChoice(diverter, cargoExits, { country: null, cargo: 'Road' })).toEqual({ wanted: [0], fallback: [] });
   });
 
+  it('sends nothing down a way set to none, not even as a fallback', () => {
+    // The game's "None": the player closes a way.
+    const diverter = place(CARGO_DIVERTER, { diverterCargo: { left: 'None', forward: 'Road' } });
+    expect(diverterChoice(diverter, cargoExits, { country: null, cargo: 'Road' })).toEqual({ wanted: [1], fallback: [2] });
+    expect(diverterChoice(diverter, cargoExits, { country: null, cargo: 'Air' })).toEqual({ wanted: [], fallback: [2] });
+  });
+
   it('works like a smart splitter when nothing is set', () => {
     expect(diverterChoice(place(CARGO_DIVERTER), cargoExits, { country: null, cargo: 'Air' })).toEqual({ wanted: [], fallback: [0, 1, 2] });
   });
@@ -86,7 +93,7 @@ describe('diverter settings travel with the plan', () => {
     warehouse: 'second',
     placements: [
       place(COUNTRY_DIVERTER, { diverterCountries: [{ left: 'Cristin', right: 'Molland' }, {}, { right: 'Vocua' }] }),
-      place(CARGO_DIVERTER, { id: 'c', cell: { x: 9, y: 3 }, diverterCargo: { left: 'Road', forward: 'Other' } }),
+      place(CARGO_DIVERTER, { id: 'c', cell: { x: 9, y: 3 }, diverterCargo: { left: 'Road', forward: 'Other', right: 'None' } }),
       place('BP_ConveyorBelt_Straight_Tier1', { id: 's', cell: { x: 1, y: 1 } }),
     ],
   };

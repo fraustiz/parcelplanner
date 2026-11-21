@@ -59,7 +59,7 @@ export interface CatalogEntry {
   ports: Port[];
   /**
    * Cells this object passes over rather than stands on, as offsets into its
-   * unrotated footprint (the bridge conveyor's raised middle). `canPlace` lets
+   * unrotated footprint (all three cells of the bridge conveyor). `canPlace` lets
    * such a cell hold one ground and one raised occupant.
    */
   bridgedCells?: readonly Cell[];
@@ -117,9 +117,10 @@ export interface Placement {
 /** What a diverter screen sends one way, for each side it has. */
 export interface DiverterSides<T> { left?: T; right?: T }
 
-/** A cargo diverter screen's setting: one cargo type, or every type no other
- * screen of the same diverter takes. "Any" is the absence of a setting. */
-export type CargoChoice = 'Road' | 'Rail' | 'Air' | 'Maritime' | 'Other';
+/** A cargo diverter screen's setting: one cargo type, every type no other
+ * screen of the same diverter takes, or none at all (the game's "None", which
+ * closes that way). "Any" is the absence of a setting. */
+export type CargoChoice = 'Road' | 'Rail' | 'Air' | 'Maritime' | 'Other' | 'None';
 
 /**
  * A note left on the grid. It belongs to the plan, so it survives a reload,

@@ -113,11 +113,16 @@ const elevator: Port[] = [
 
 /**
  * Racks accept parcels but do not pass them on. A loader can feed either short end: a real
- * layout puts one at each end of every rack, as many on one end as on the other.
+ * layout puts one at each end of every rack, as many on one end as on the other. It can also
+ * feed a long side: a real save had 27 loaders facing one, mostly at its end cells.
  */
 const sinkOnly: Port[] = [
   { side: 'N', offset: 0, dir: 'in' },
   { side: 'S', offset: 0, dir: 'in' },
+  ...[0, 1, 2].flatMap((offset): Port[] => [
+    { side: 'E', offset, dir: 'in' },
+    { side: 'W', offset, dir: 'in' },
+  ]),
 ];
 
 /**

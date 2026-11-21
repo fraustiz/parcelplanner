@@ -3,7 +3,7 @@
 //
 //   dotnet run -- list <regex>                       package paths matching <regex>
 //   dotnet run -- grep <regex> <text>...             which matching packages contain <text>
-//   dotnet run -- dump <regex> <outDir> <usmap>      every export of the matching .uasset as JSON,
+//   dotnet run -- dump <regex> <outDir> <usmap>      every export of the matching .uasset or .umap as JSON,
 //                                                    laid out like FModel's Output\Exports
 //   dotnet run -- png <regex> <outDir> <usmap> [width]
 //                                                    every matching Texture2D as <outDir>\<name>.png,
@@ -68,7 +68,7 @@ switch (args[0])
         }
         provider.MappingsContainer = new FileUsmapTypeMappingsProvider(args[3]);
         var failed = 0;
-        foreach (var f in files.Where(f => f.EndsWith(".uasset")))
+        foreach (var f in files.Where(IsPackage))
         {
             try
             {
@@ -89,7 +89,7 @@ switch (args[0])
                 Console.Error.WriteLine($"FAIL {f}: {e.Message}");
             }
         }
-        Console.WriteLine($"{files.Count(f => f.EndsWith(".uasset")) - failed} packages written, {failed} failed");
+        Console.WriteLine($"{files.Count(IsPackage) - failed} packages written, {failed} failed");
         return failed == 0 ? 0 : 1;
 
     case "png":
@@ -131,3 +131,6 @@ switch (args[0])
         Console.Error.WriteLine($"unknown command {args[0]}");
         return 2;
 }
+
+// A package dump can read: an asset, or a level (actors placed in the world).
+static bool IsPackage(string f) => f.EndsWith(".uasset") || f.EndsWith(".umap");

@@ -2,13 +2,16 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { readGvas } from '@/core/gvas';
 import { checkTemplate, planFromWorkbook } from '@/core/import-plan';
+import { planFromSave } from '@/core/import-save';
 import { encodePlan, planFromJson, planToJson } from '@/core/serialize';
 import { shareTarget } from '@/core/short-link';
 import { CATALOGUE_GAME_VERSION } from '@/core/version';
 import { readWorkbook } from '@/core/xlsx';
 import { getCatalogue } from '@/data/catalogue';
 import { DOORS } from '@/data/doors';
+import { saveTables } from '@/data/save-format';
 import {
   DOOR_FILLS, TEMPLATE_CODES, TEMPLATE_LABELS, TEMPLATE_SHEETS, TEMPLATE_SIGNAGE,
   TEMPLATE_VERSION,
@@ -16,6 +19,7 @@ import {
 import { WAREHOUSES } from '@/data/warehouses';
 import { t, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
+import { useSimStats } from '@/store/sim-stats';
 import { exportImage } from './export-image';
 import ImportPanel, { type ImportOutcome } from './ImportPanel';
 import { useDialog } from './use-dialog';
@@ -24,6 +28,8 @@ import { useDialog } from './use-dialog';
 const CONFIRM_MS = 2000;
 /** The largest .xlsx file read at all; the real template is about 60 KB. */
 const MAX_TEMPLATE_FILE_BYTES = 20 * 1024 * 1024;
+/** The largest .sav read at all; a long game with both warehouses full is about 7 MB. */
+const MAX_SAVE_FILE_BYTES = 64 * 1024 * 1024;
 /** A clipboard write that has not settled by then is treated as refused: some
  * browsers leave it pending behind a permission prompt. */
 const CLIPBOARD_MS = 3000;
@@ -62,13 +68,13 @@ async function shorten(payload: string): Promise<string | null> {
 async function readTemplate(file: File): Promise<ImportOutcome> {
   // The real template is about 60 KB; anything this large is not one, and
   // reading it whole would only cost memory before the unzipper refuses it.
-  if (file.size > MAX_TEMPLATE_FILE_BYTES) return { kind: 'unreadable' };
+  if (file.size > MAX_TEMPLATE_FILE_BYTES) return { kind: 'unreadable', source: 'template' };
 
   let book;
   try {
     book = await readWorkbook(await file.arrayBuffer());
   } catch {
-    return { kind: 'unreadable' };
+    return { kind: 'unreadable', source: 'template' };
   }
 
   // Checked before anything is read: the version and doors prove the grid is
@@ -89,7 +95,23 @@ async function readTemplate(file: File): Promise<ImportOutcome> {
     catalogue: getCatalogue(),
     geometry: WAREHOUSES,
   }, CATALOGUE_GAME_VERSION);
-  return { kind: 'ready', plan, report };
+  return { kind: 'ready', source: 'template', plan, report };
+}
+
+/**
+ * Reads a game save (`SaveN.sav`). Exact where the spreadsheet guesses, but
+ * it still goes through the dialog: what the planner left out is listed there.
+ */
+async function readSave(file: File): Promise<ImportOutcome> {
+  if (file.size > MAX_SAVE_FILE_BYTES) return { kind: 'unreadable', source: 'save' };
+  let save;
+  try {
+    save = readGvas(await file.arrayBuffer());
+  } catch {
+    return { kind: 'unreadable', source: 'save' };
+  }
+  const { plan, report, delivery } = planFromSave(save, saveTables(), CATALOGUE_GAME_VERSION);
+  return { kind: 'ready', source: 'save', plan, report, ...(delivery ? { delivery } : {}) };
 }
 
 export default function Share() {
@@ -181,13 +203,18 @@ export default function Share() {
   /**
    * A `.json` is this app's own download, so it round-trips and loads at once.
    * A `.xlsx` is the community template, never read exactly (see ImportPanel),
-   * so it goes through the caution first. The extension decides: a workbook is
-   * a ZIP and cannot be told apart without unpacking.
+   * and a `.sav` a game save; both go through the caution first. The extension
+   * decides: a workbook is a ZIP and cannot be told apart without unpacking.
    */
   const importFile = async (file: File) => {
     if (/\.xlsx$/i.test(file.name)) {
       setState('idle');
       setOutcome(await readTemplate(file));
+      return;
+    }
+    if (/\.sav$/i.test(file.name)) {
+      setState('idle');
+      setOutcome(await readSave(file));
       return;
     }
     try {
@@ -274,7 +301,7 @@ export default function Share() {
       <input
         ref={fileRef}
         type="file"
-        accept=".xlsx,application/json,.json"
+        accept=".xlsx,.sav,application/json,.json"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -289,7 +316,11 @@ export default function Share() {
         <ImportPanel
           outcome={outcome}
           onClose={() => setOutcome(null)}
-          onConfirm={(imported) => { loadPlan(imported); setOutcome(null); }}
+          onConfirm={(imported, delivery) => {
+            loadPlan(imported);
+            if (delivery) useSimStats.getState().applySavedDelivery(delivery);
+            setOutcome(null);
+          }}
         />
       )}
 
