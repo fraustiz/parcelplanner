@@ -463,8 +463,8 @@ function drawDeadEnd(ctx: Draw2D, camera: Camera, size: number, cell: Cell, side
   const step = SIDE_STEP[side];
   const edgeX = px + size / 2 + (step.dx * size) / 2;
   const edgeY = py + size / 2 + (step.dy * size) / 2;
-  const half = size * 0.22;
-  const reach = size * 0.32;
+  const half = size * 0.3;
+  const reach = size * 0.45;
   ctx.fillStyle = colours.deadEnd;
   ctx.strokeStyle = colours.doorPortal;
   ctx.lineWidth = Math.max(1, size * 0.04);

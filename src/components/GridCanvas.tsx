@@ -620,6 +620,15 @@ export default function GridCanvas() {
     // trigger and must stay though it is unread.
   }, [plan, catalogue, camera, floor, highlight, selectedIds, marquee, area, icons, cargoIcons, countryFlags, overDoor, finePointer, unlocked, imageTick, sizeTick, scheduler, palette, parcelsNow, trailNow, showCursor, cursor, deadEndMarks]);
 
+  // Brings a cell another component asked for into view (the status bar's
+  // dead-end warning), with room around it.
+  const focus = useEditor((s) => s.focus);
+  useEffect(() => {
+    if (!focus) return;
+    const { width, height } = sizeRef.current;
+    setCamera((c) => cameraShowing(c, focus.cell, width, height, 6));
+  }, [focus]);
+
   // A box describes cells on one floor of one building; see `area`.
   useEffect(() => setArea(null), [floor, plan.warehouse]);
   const bounds = useMemo(() => floorBounds(plan.warehouse, floor, WAREHOUSES), [plan.warehouse, floor]);

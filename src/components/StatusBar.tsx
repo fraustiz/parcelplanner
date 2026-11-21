@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { computeCost } from '@/core/cost';
 import { deadEnds } from '@/core/dead-ends';
 import { buildGraph } from '@/core/graph';
@@ -37,10 +37,23 @@ export default function StatusBar() {
   );
   // Exits a parcel would fall from: a warning, not an issue, since the layout
   // may be unfinished. Never on the workshop bench (see GridCanvas).
-  const looseExits = useMemo(
-    () => (plan.warehouse === 'workshop' ? 0 : deadEnds(buildGraph(plan, catalogue, DOORS)).length),
+  const looseExitList = useMemo(
+    () => (plan.warehouse === 'workshop' ? [] : deadEnds(buildGraph(plan, catalogue, DOORS))),
     [plan, catalogue],
   );
+  const looseExits = looseExitList.length;
+  // Each press shows the next one, so every exit can be found in turn, on
+  // whichever floor it is.
+  const nextLoose = useRef(0);
+  const select = useEditor((s) => s.select);
+  const showCell = useEditor((s) => s.showCell);
+  const showNextLoose = () => {
+    if (looseExitList.length === 0) return;
+    const exit = looseExitList[nextLoose.current % looseExitList.length]!;
+    nextLoose.current += 1;
+    select([exit.placementId]);
+    showCell(exit.floor, exit.cell);
+  };
   // computeCost prices both warehouses (see src/core/cost.ts); that figure is
   // only shown as a labelled grand total. The headline covers this warehouse.
   const costThisWarehouse = useMemo(
@@ -117,9 +130,14 @@ export default function StatusBar() {
       )}
 
       {looseExits > 0 && (
-        <span className="text-[var(--warning)]" title={t(locale, 'status.deadEndsHint')}>
+        <button
+          type="button"
+          onClick={showNextLoose}
+          title={t(locale, 'status.deadEndsHint')}
+          className="inline-flex min-h-11 items-center rounded px-1 text-[var(--warning)] underline decoration-dotted underline-offset-2 hover:bg-[var(--raised)] md:min-h-0"
+        >
           {t(locale, 'status.deadEnds')}: {looseExits}
-        </span>
+        </button>
       )}
 
       {/* The total stays on a phone; the breakdown needs the width. */}
