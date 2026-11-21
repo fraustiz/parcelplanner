@@ -6,6 +6,8 @@ import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 export interface SimStats {
   onBelt: number;
   delivered: number;
+  /** Delivered through a door that should have refused them. */
+  misSorted: number;
   stored: number;
   fell: number;
   /** Game seconds since play was pressed, for rates per minute. */

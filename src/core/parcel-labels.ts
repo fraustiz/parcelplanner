@@ -19,6 +19,12 @@ export interface ParcelLabels {
   cargo: CargoType;
   /** The inspection sticker on it, if any: put on at spawn or by an applier. */
   sticker: 'approve' | 'deny' | null;
+  /**
+   * The country on its label, a game country id, or null for a made-up name
+   * no country diverter screen can show. Empty `countries` given to
+   * drawLabels means none is drawn.
+   */
+  country: string | null;
 }
 
 /**
@@ -73,6 +79,7 @@ export function drawLabels(
   random: () => number,
   warehouseTier: number,
   unlocked: ReadonlySet<Criterion> = ALL_UNLOCKED,
+  countries: readonly string[] = [],
 ): ParcelLabels {
   const valid = random() < 0.5;
   const openable = random() < OPENABLE_CHANCE && unlocked.has('prohibited');
@@ -93,7 +100,15 @@ export function drawLabels(
   }
 
   const sticker = random() < preStickerChance(warehouseTier) ? (valid ? 'approve' : 'deny') : null;
-  return { valid, ...(invalid ? { invalid } : {}), cargo, sticker };
+
+  // Any of the countries, evenly (`Get Random Country Data`). When the country
+  // is what the parcel fails, one time in eight its label names a country that
+  // does not exist (`GetInvalidCountryAndAnotherCountrysFlag`); the other seven
+  // keep a real name with a wrong flag, which no diverter can see.
+  let country: string | null = countries.length > 0 ? pick(countries, random()) : null;
+  if (invalid === 'country' && Math.floor(random() * 8) === 7) country = null;
+
+  return { valid, ...(invalid ? { invalid } : {}), cargo, sticker, country };
 }
 
 /** The criterion each scanner checks (`CriteriaToCheck`). The cargo type is

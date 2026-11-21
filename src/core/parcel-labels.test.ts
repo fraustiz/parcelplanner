@@ -8,7 +8,7 @@ const rolls = (...values: number[]) => {
 };
 
 const parcel = (over: Partial<ParcelLabels> = {}): ParcelLabels => ({
-  valid: true, cargo: 'Road', sticker: null, ...over,
+  valid: true, cargo: 'Road', sticker: null, country: null, ...over,
 });
 
 describe('drawing a new parcel', () => {
@@ -60,6 +60,26 @@ describe('drawing a new parcel', () => {
     expect(drawLabels(rolls(0.1, 0.9, 0, 0.01), 0).sticker).toBe('approve');
     expect(drawLabels(rolls(0.9, 0.9, 0, 0, 0.01), 0).sticker).toBe('deny');
     expect(drawLabels(rolls(0.1, 0.9, 0, 0.99), 0).sticker).toBeNull();
+  });
+});
+
+describe("a parcel's country", () => {
+  const countries = ['Cristin', 'Molland', 'Vocua'];
+
+  it('is one of the countries, picked evenly', () => {
+    // valid, openable, cargo, sticker, then the country roll
+    expect(drawLabels(rolls(0.1, 0.9, 0, 0.99, 0.0), 0, undefined, countries).country).toBe('Cristin');
+    expect(drawLabels(rolls(0.1, 0.9, 0, 0.99, 0.99), 0, undefined, countries).country).toBe('Vocua');
+  });
+
+  it('is sometimes a made-up name when the country is what the parcel fails', () => {
+    // invalid, closed criterion roll 0 (country), cargo, sticker, country, then the 1-in-8 roll
+    expect(drawLabels(rolls(0.9, 0.9, 0.0, 0, 0.99, 0.5, 0.99), 0, undefined, countries).country).toBeNull();
+    expect(drawLabels(rolls(0.9, 0.9, 0.0, 0, 0.99, 0.5, 0.5), 0, undefined, countries).country).toBe('Molland');
+  });
+
+  it('is never drawn without a list of countries', () => {
+    expect(drawLabels(rolls(0.1, 0.9, 0, 0.99), 0).country).toBeNull();
   });
 });
 

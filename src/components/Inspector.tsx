@@ -13,6 +13,7 @@ import { useEditor } from '@/store/editor';
 import { UNLOCKABLE_CRITERIA, type Criterion } from '@/core/parcel-labels';
 import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
+import DiverterScreens from './DiverterScreens';
 import { sizeOf } from './HoverCard';
 
 /** Game time as minutes and seconds, as the game's clock would show it. */
@@ -36,6 +37,8 @@ function SimStatsPanel({ locale }: { locale: Locale }) {
     ['sim.time', gameTime(stats.seconds), null],
     ['sim.onBelt', String(stats.onBelt), null],
     ['sim.delivered', String(stats.delivered), finished > 0 ? share.format(stats.delivered / finished) : null],
+    // Out of the delivered ones: what reached a door that should have refused it.
+    ['sim.misSorted', String(stats.misSorted), stats.delivered > 0 ? share.format(stats.misSorted / stats.delivered) : null],
     ['sim.stored', String(stats.stored), null],
     ['sim.fell', String(stats.fell), finished > 0 ? share.format(stats.fell / finished) : null],
   ];
@@ -331,6 +334,7 @@ export default function Inspector() {
             <div><dt className="inline">{t(locale, 'warehouse.floor')}:</dt> <dd className="inline">{only.floor}</dd></div>
           </dl>
           {PAUSERS.has(only.objectId) && <PauserToggle id={only.id} objectId={only.objectId} locale={locale} />}
+          <DiverterScreens placement={only} locale={locale} />
         </>
       ) : (
         <>

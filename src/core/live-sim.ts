@@ -43,6 +43,8 @@ export interface SimState {
   now: number;
   parcels: SimParcel[];
   delivered: number;
+  /** Delivered through a door that does not take them: see SimContext.misSorted. */
+  misSorted: number;
   fell: number;
   /** What each rack holds, by placement id, oldest first. */
   racks: Record<string, ParcelLabels[]>;
@@ -55,7 +57,7 @@ export interface SimState {
 }
 
 export const EMPTY_SIM: SimState = {
-  now: 0, parcels: [], delivered: 0, fell: 0, racks: {}, nextRelease: {}, truckLeft: {}, turn: {},
+  now: 0, parcels: [], delivered: 0, misSorted: 0, fell: 0, racks: {}, nextRelease: {}, truckLeft: {}, turn: {},
 };
 
 /** Where parcels come in: a delivery door, or an unloader emptying a rack. */
@@ -75,7 +77,7 @@ export interface SimSource {
   walk: (labels: ParcelLabels) => Walk;
 }
 
-/** One way on from a smart splitter. */
+/** One way on from a splitter or a diverter that decides when the parcel arrives. */
 export interface Branch {
   /** The first cell past the splitter: free means the splitter may use it. */
   slot: string;
@@ -89,8 +91,15 @@ export interface SimContext {
   capacity: ReadonlyMap<string, number>;
   /** A new parcel's labels, for a delivery door. */
   draw: () => ParcelLabels;
-  /** The ways on from a smart splitter, in the order it takes its turns. */
-  branches: (splitter: string) => readonly Branch[];
+  /**
+   * The ways on from a node that decides on arrival, for this parcel: those it
+   * wants, taken in turn, and those it settles for when none of them has room
+   * (a cargo diverter's "any" screens). Null when the node leads nowhere.
+   */
+  branches: (node: string, labels: ParcelLabels) => { wanted: readonly Branch[]; fallback: readonly Branch[] } | null;
+  /** Whether the door `node` should not have had this parcel: an invalid one
+   * exported, a valid one rejected, the wrong cargo type or country. */
+  misSorted: (node: string, labels: ParcelLabels) => boolean;
   /** How long sliding into `cell` takes, coming from `previous`. */
   slideSeconds: (cell: RouteStep, previous: RouteStep | undefined) => number;
   /** How long a parcel must stop on `cell` once there: a scanner's scan. */
@@ -123,15 +132,23 @@ function decideAtSplitter(
   taken: ReadonlySet<string>,
 ): SimParcel | 'blocked' | 'dead' {
   const splitter = parcel.endsAt!;
-  const ways = ctx.branches(splitter);
-  if (ways.length === 0) return 'dead';
-  const start = turn[splitter] ?? 0;
-  for (let k = 0; k < ways.length; k++) {
-    const pick = (start + k) % ways.length;
-    const way = ways[pick]!;
-    if (taken.has(way.slot)) continue;
-    turn[splitter] = (pick + 1) % ways.length;
-    const rest = way.walk(parcel.labels);
+  const options = ctx.branches(splitter, parcel.labels);
+  if (options === null) return 'dead';
+  // The ways it wants first, in turn; then the fallbacks, in turn. With none
+  // free the parcel waits on the splitter and it tries again.
+  let chosen: Branch | undefined;
+  for (const ways of [options.wanted, options.fallback]) {
+    const start = turn[splitter] ?? 0;
+    for (let k = 0; k < ways.length && chosen === undefined; k++) {
+      const pick = (start + k) % ways.length;
+      if (taken.has(ways[pick]!.slot)) continue;
+      chosen = ways[pick];
+      turn[splitter] = (pick + 1) % ways.length;
+    }
+    if (chosen !== undefined) break;
+  }
+  if (chosen !== undefined) {
+    const rest = chosen.walk(parcel.labels);
     const offset = parcel.cells.length;
     return {
       ...parcel,
@@ -152,7 +169,7 @@ export function stepSim(state: SimState, ctx: SimContext, dt: number): SimState 
   const turn = { ...state.turn };
   const nextRelease = { ...state.nextRelease };
   const truckLeft = { ...state.truckLeft };
-  let { delivered, fell } = state;
+  let { delivered, misSorted, fell } = state;
 
   // Splitters decide first, on what stands where right now.
   const taken = new Set(state.parcels.map(slotOf));
@@ -174,7 +191,11 @@ export function stepSim(state: SimState, ctx: SimContext, dt: number): SimState 
   for (const p of live) {
     const atEnd = p.index >= p.cells.length - 1 && p.wrapTo === undefined;
     if (atEnd && p.due <= now) {
-      if (p.ending === 'delivered') { delivered++; continue; }
+      if (p.ending === 'delivered') {
+        delivered++;
+        if (p.endsAt !== undefined && ctx.misSorted(p.endsAt, p.labels)) misSorted++;
+        continue;
+      }
       if (p.ending === 'stored' && p.endsAt !== undefined) {
         const held = racks[p.endsAt] ?? [];
         if (held.length < (ctx.capacity.get(p.endsAt) ?? 0)) {
@@ -254,6 +275,7 @@ export function stepSim(state: SimState, ctx: SimContext, dt: number): SimState 
     now,
     parcels: kept.length > ctx.maxParcels ? kept.slice(-ctx.maxParcels) : kept,
     delivered,
+    misSorted,
     fell,
     racks,
     nextRelease,

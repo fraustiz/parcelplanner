@@ -99,8 +99,27 @@ export interface Placement {
    * carry one. Absent means unnamed.
    */
   label?: string;
+  /**
+   * A country diverter's screens, as set in the game: for each of its three
+   * cells from the entry, the country sent off to the left and to the right
+   * (the game's country ids). Absent or unset means no country, so parcels
+   * carry straight on. See src/core/diverters.ts.
+   */
+  diverterCountries?: readonly DiverterSides<string>[];
+  /**
+   * A cargo type diverter's three screens: the cargo type sent left, straight
+   * on and right. Absent means "any", the game's default.
+   */
+  diverterCargo?: DiverterSides<CargoChoice> & { forward?: CargoChoice };
   tier: number;
 }
+
+/** What a diverter screen sends one way, for each side it has. */
+export interface DiverterSides<T> { left?: T; right?: T }
+
+/** A cargo diverter screen's setting: one cargo type, or every type no other
+ * screen of the same diverter takes. "Any" is the absence of a setting. */
+export type CargoChoice = 'Road' | 'Rail' | 'Air' | 'Maritime' | 'Other';
 
 /**
  * A note left on the grid. It belongs to the plan, so it survives a reload,

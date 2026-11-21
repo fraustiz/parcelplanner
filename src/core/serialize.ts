@@ -1,6 +1,7 @@
 import { SHARE_COUNTRY_DOOR_IDS, SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from '@/data/share-object-ids';
 import { COUNTRIES, isCountry } from '@/data/countries';
 import { isObjectColour, OBJECT_COLOURS } from '@/data/colours';
+import { CARGO_CHOICES, CARGO_DIVERTER, cleanDiverterSettings, COUNTRY_DIVERTER, COUNTRY_DIVERTER_CELLS } from './diverters';
 import { rotatedFootprint } from './grid';
 import type { Cell, Placement, Plan, PlanNote } from './types';
 import { zoneObjectId, zoneSize } from './zone';
@@ -114,7 +115,7 @@ export function planFromJson(json: string): Plan {
     ...rest,
     ...(doors !== undefined ? { doorCountries: doors } : {}),
     placements: parsed.placements.map(({ colour, ...p }) => ({
-      ...p,
+      ...cleanDiverterSettings(p as Placement, isCountry),
       warehouse: p.warehouse ?? DEFAULT_PLACEMENT_WAREHOUSE,
       // A colour the app no longer offers (e.g. the dropped cyan #00a2ba) is
       // removed rather than rejected: it would go straight into a canvas fillStyle.
@@ -265,7 +266,10 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
   // Door countries go last of all (see below); every block before them is then written,
   // empty if need be, so the reader finds them.
   const countries = doorCountryPairs(plan);
-  if (notes.length > 0 || zones.length > 0 || benched.length > 0 || countries.length > 0) {
+  // Diverter settings go after the door countries, so they too force every earlier block.
+  const set = plan.placements.filter((p) => p.diverterCountries !== undefined || p.diverterCargo !== undefined);
+  const later = countries.length > 0 || set.length > 0;
+  if (notes.length > 0 || zones.length > 0 || benched.length > 0 || later) {
     writeVarint(out, notes.length);
     const text = new TextEncoder();
     for (const note of notes) {
@@ -282,7 +286,7 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
 
   // Zones, after the notes: a link that ends before them has none. Written as
   // the ground they cover (rotation 0, same top-left cell): a zone has no front.
-  if (zones.length > 0 || benched.length > 0 || countries.length > 0) {
+  if (zones.length > 0 || benched.length > 0 || later) {
     writeVarint(out, zones.length);
     const text = new TextEncoder();
     for (const zone of zones) {
@@ -303,15 +307,43 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
 
   // Workshop objects, last, in the same columns; their position marks them as
   // the workshop's. A link that ends before this block has nothing on the bench.
-  if (benched.length > 0 || countries.length > 0) writeColumns(out, benched);
+  if (benched.length > 0 || later) writeColumns(out, benched);
 
   // Country doors, last: a count, then each door's index in SHARE_COUNTRY_DOOR_IDS and its
   // country's in COUNTRIES. A link that ends before this block assigns none.
-  if (countries.length > 0) {
+  if (later) {
     writeVarint(out, countries.length);
     for (const [door, country] of countries) {
       writeVarint(out, door);
       writeVarint(out, country);
+    }
+  }
+
+  // Diverter settings, last: a count, then each diverter's place (building,
+  // floor, cell) and its screens, 0 for unset and otherwise 1 + the index in
+  // COUNTRIES or CARGO_CHOICES. Placements carry no stable id in a link, so the
+  // reader finds the diverter by where it stands.
+  if (set.length > 0) {
+    writeVarint(out, set.length);
+    for (const p of set) {
+      writeVarint(out, WAREHOUSES_BY_INDEX.indexOf(p.warehouse));
+      writeVarint(out, p.floor);
+      writeVarint(out, zigzag(p.cell.x));
+      writeVarint(out, zigzag(p.cell.y));
+      if (p.objectId === COUNTRY_DIVERTER) {
+        writeVarint(out, 0);
+        for (let cell = 0; cell < COUNTRY_DIVERTER_CELLS; cell++) {
+          for (const side of ['left', 'right'] as const) {
+            writeVarint(out, COUNTRIES.indexOf(p.diverterCountries?.[cell]?.[side] ?? '') + 1);
+          }
+        }
+      } else {
+        writeVarint(out, 1);
+        for (const way of ['left', 'forward', 'right'] as const) {
+          const choice = p.diverterCargo?.[way];
+          writeVarint(out, choice === undefined ? 0 : CARGO_CHOICES.indexOf(choice) + 1);
+        }
+      }
     }
   }
   return new Uint8Array(out);
@@ -512,6 +544,35 @@ function unpackPlanBinary(bytes: Uint8Array): Plan {
       doorCountries[door] = country;
     }
     if (count > 0) plan.doorCountries = doorCountries;
+  }
+
+  // Diverter settings, after the door countries (see packPlanBinary).
+  if (!reader.exhausted()) {
+    const count = reader.varint();
+    for (let i = 0; i < count; i++) {
+      const warehouse = WAREHOUSES_BY_INDEX[reader.varint()];
+      const floor = reader.varint();
+      const x = unzigzag(reader.varint());
+      const y = unzigzag(reader.varint());
+      const kind = reader.varint();
+      const at = (p: Placement) => p.warehouse === warehouse && p.floor === floor && p.cell.x === x && p.cell.y === y;
+      if (warehouse === undefined || (kind !== 0 && kind !== 1)) throw new Error('not a ParcelPlanner plan');
+      if (kind === 0) {
+        const screens = Array.from({ length: COUNTRY_DIVERTER_CELLS }, () => {
+          const left = COUNTRIES[reader.varint() - 1];
+          const right = COUNTRIES[reader.varint() - 1];
+          return { ...(left !== undefined ? { left } : {}), ...(right !== undefined ? { right } : {}) };
+        });
+        const target = placements.find((p) => at(p) && p.objectId === COUNTRY_DIVERTER);
+        if (target) target.diverterCountries = screens;
+      } else {
+        const ways = Object.fromEntries((['left', 'forward', 'right'] as const)
+          .map((way) => [way, CARGO_CHOICES[reader.varint() - 1]] as const)
+          .filter(([, choice]) => choice !== undefined));
+        const target = placements.find((p) => at(p) && p.objectId === CARGO_DIVERTER);
+        if (target) target.diverterCargo = ways;
+      }
+    }
   }
   return plan;
 }

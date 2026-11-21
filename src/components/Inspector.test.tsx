@@ -334,13 +334,13 @@ describe('Inspector semantics', () => {
 
 describe('the parcel preview counts', () => {
   it('shows what the running preview has counted, selected or not', () => {
-    useSimStats.setState({ stats: { onBelt: 385, delivered: 2, stored: 53, fell: 111, seconds: 600 } });
+    useSimStats.setState({ stats: { onBelt: 385, delivered: 2, misSorted: 1, stored: 53, fell: 111, seconds: 600 } });
     for (const selectedIds of [[], ['a']]) {
       withPlacements([belt('a', 0)], selectedIds);
       render(<Inspector />);
       const rows = [...screen.getByRole('region', { name: 'Parcels' }).querySelectorAll('dl > div')].map((row) => row.textContent);
       expect(rows).toEqual([
-        'Game time10:00', 'On the belts385', 'Delivered2%2', 'In racks53', 'Fell off98%111',
+        'Game time10:00', 'On the belts385', 'Delivered2%2', 'of which mis-sorted50%1', 'In racks53', 'Fell off98%111',
         'Delivered per minute0.2', 'Fell off per minute11.1',
       ]);
       cleanup();
@@ -348,12 +348,12 @@ describe('the parcel preview counts', () => {
   });
 
   it('gives no share before any parcel has finished', () => {
-    useSimStats.setState({ stats: { onBelt: 4, delivered: 0, stored: 1, fell: 0, seconds: 30 } });
+    useSimStats.setState({ stats: { onBelt: 4, delivered: 0, misSorted: 0, stored: 1, fell: 0, seconds: 30 } });
     withPlacements([belt('a', 0)]);
     render(<Inspector />);
     const rows = [...screen.getByRole('region', { name: 'Parcels' }).querySelectorAll('dl > div')].map((row) => row.textContent);
     expect(rows).toEqual([
-      'Game time0:30', 'On the belts4', 'Delivered0', 'In racks1', 'Fell off0',
+      'Game time0:30', 'On the belts4', 'Delivered0', 'of which mis-sorted0', 'In racks1', 'Fell off0',
       'Delivered per minute0.0', 'Fell off per minute0.0',
     ]);
   });

@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FastForward, Pause, Play, Square } from 'lucide-react';
-import { cellsBetween, centredAnchor, coveredCells, displayColumn, displayRow, emitDirection, joinerOrientation, orientationFor, portFacings, rotatedAboutCentre, splitterOrientation, warehouseDimensions, type Orientation, type Step } from '@/core/grid';
+import { cellsBetween, centredAnchor, coveredCells, displayColumn, displayRow, emitDirection, joinerOrientation, orientationFor, rotatedAboutCentre, splitterOrientation, warehouseDimensions, type Orientation, type Step } from '@/core/grid';
 import { flippedShape, pastedAt, turnedShape } from '@/core/clipboard';
 import { clampedCell, floorBounds, pickedSelection, placementAt, steppedCursor } from '@/core/cursor';
+import { CARGO_DIVERTER, COUNTRY_DIVERTER, diverterChoice, exitWay, type Way } from '@/core/diverters';
 import { buildGraph, doorNodeId } from '@/core/graph';
 import { canPlace, shiftedSelection, type PlacementRejection } from '@/core/occupancy';
 import { EMPTY_SIM, stepSim, type Branch, type SimContext, type SimState, type Walk } from '@/core/live-sim';
@@ -16,7 +17,7 @@ import { flippedAbout, settledSelection, turnedGroup, type FlipAxis } from '@/co
 import type { CatalogEntry, Cell, Placement, Rotation } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
-import { countryFlags as flagsOf } from '@/data/countries';
+import { countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
 import { DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK } from '@/data/deliveries';
 import { DOORS } from '@/data/doors';
 import { storageCapacityOf } from '@/data/storage';
@@ -906,6 +907,7 @@ export default function GridCanvas() {
   const simContext = useMemo((): SimContext => {
     const { exitIds, storeIds, byId, onward, portIndex, inbound, sources, capacity } = simLayout;
     const warehouseTier = warehouseTierOf(plan);
+    const doorById = new Map(DOORS.map((door) => [doorNodeId(door), door]));
     // What each delivery door brings, as the player set their upgrades.
     const truck = {
       parcels: PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!,
@@ -924,8 +926,37 @@ export default function GridCanvas() {
     };
 
     /** A smart splitter with a real choice: it decides when the parcel arrives. */
-    const decidesOnArrival = (node: string) =>
-      objectOf(node) === SMART_SPLITTER && (onward.get(node)?.length ?? 0) > 1;
+    const decidesOnArrival = (node: string) => {
+      const objectId = objectOf(node);
+      if (objectId === SMART_SPLITTER) return (onward.get(node)?.length ?? 0) > 1;
+      return objectId === COUNTRY_DIVERTER || objectId === CARGO_DIVERTER;
+    };
+
+    /**
+     * Each wired exit of a diverter, with the cell it leaves from (counted from
+     * the entry) and its way, seen in the direction parcels travel: what its
+     * screens are set by.
+     */
+    const exitsCache = new Map<string, { cell: number; way: Way; to: string }[]>();
+    const exitsOf = (node: string) => {
+      let exits = exitsCache.get(node);
+      if (exits === undefined) {
+        const own = portIndex.get(node) ?? [];
+        const entry = own.find((port) => port.dir === 'in');
+        exits = linksOf(node).map(({ port, to }) => ({ ...exitWay(entry, own[port]!), to }));
+        exitsCache.set(node, exits);
+      }
+      return exits;
+    };
+
+    /** The ways a diverter wants for this parcel, and those it settles for,
+     * as exit indexes; every way for a smart splitter. */
+    const choiceAt = (node: string, labels: ParcelLabels) => {
+      const here = byId.get(node);
+      const exits = exitsOf(node);
+      const choice = here === undefined ? undefined : diverterChoice(here, exits, labels);
+      return choice ?? { wanted: exits.map((_, i) => i), fallback: [] };
+    };
 
     /**
      * Where the parcel goes at a branch: a scanner or the sticker verifier
@@ -937,6 +968,13 @@ export default function GridCanvas() {
       const objectId = objectOf(at);
       const port = objectId === undefined ? undefined : sortingPort(objectId, labels);
       if (port !== undefined) return linksOf(at).find((link) => link.port === port)?.to ?? OFF_THE_SIDE;
+      // A diverter met where a parcel enters the layout, before any walk could
+      // stop at it: its first wanted way, room or not.
+      if (objectId === COUNTRY_DIVERTER || objectId === CARGO_DIVERTER) {
+        const { wanted, fallback } = choiceAt(at, labels);
+        const exit = exitsOf(at)[wanted[0] ?? fallback[0] ?? -1];
+        return exit?.to ?? OFF_THE_SIDE;
+      }
       return options[Math.min(options.length - 1, Math.floor(Math.random() * options.length))]!;
     };
 
@@ -957,13 +995,25 @@ export default function GridCanvas() {
 
     /** A route from `start`, walked as `labels` decides; `before` is the
      * node the parcel comes from, whose own cells are left out. */
+    /**
+     * A route from `start`, walked as `labels` decides. `before` is the node
+     * that decided on arrival and sends the parcel on: the parcel stands on its
+     * entry cell, so the route runs through the rest of it (all three cells of
+     * a country diverter, if it leaves by the far end).
+     */
     const walkFrom = (start: string, labels: ParcelLabels, before?: string): Walk => {
       const walked = parcelPath(onward, start, chooser(labels), walkOptions(labels));
       const path = before === undefined ? walked.path : [before, ...walked.path];
       const offset = before === undefined ? 0 : 1;
       const goesBackTo = walked.loopsBackTo === undefined ? undefined : walked.path[walked.loopsBackTo];
-      const { steps, startOf } = routeSteps(path, portIndex, goesBackTo);
-      const skip = startOf[offset] ?? 0;
+      const routed = routeSteps(path, portIndex, goesBackTo);
+      const { startOf } = routed;
+      // A walk stopped at a node deciding on arrival ends on that node's entry
+      // cell: the rest depends on the way it picks.
+      const steps = walked.ending === 'pending'
+        ? routed.steps.slice(0, (startOf[startOf.length - 1] ?? 0) + 1)
+        : routed.steps;
+      const skip = before === undefined ? 0 : 1;
       const wrapTo = walked.loopsBackTo === undefined ? undefined : startOf[walked.loopsBackTo + offset]! - skip;
       return {
         cells: steps.slice(skip),
@@ -973,18 +1023,45 @@ export default function GridCanvas() {
       };
     };
 
-    const branchesCache = new Map<string, Branch[]>();
-    const branches = (splitter: string): Branch[] => {
-      let ways = branchesCache.get(splitter);
+    /** Every exit of a deciding node as a Branch, in exit order; null for an
+     * exit that leads nowhere a parcel can stand. */
+    const waysCache = new Map<string, (Branch | null)[]>();
+    const waysOf = (node: string): (Branch | null)[] => {
+      let ways = waysCache.get(node);
       if (ways === undefined) {
-        ways = linksOf(splitter).flatMap(({ to }) => {
-          const { steps, startOf } = routeSteps([splitter, to], portIndex);
+        ways = exitsOf(node).map(({ to }) => {
+          const { steps, startOf } = routeSteps([node, to], portIndex);
+          // Room is judged on the first cell past the node, as the game's
+          // splitters look at the belt they would hand the parcel to.
           const slot = steps[startOf[1] ?? steps.length]?.slot;
-          return slot === undefined ? [] : [{ slot, walk: (labels: ParcelLabels) => walkFrom(to, labels, splitter) }];
+          return slot === undefined ? null : { slot, walk: (labels: ParcelLabels) => walkFrom(to, labels, node) };
         });
-        branchesCache.set(splitter, ways);
+        waysCache.set(node, ways);
       }
       return ways;
+    };
+
+    const branches = (node: string, labels: ParcelLabels) => {
+      const ways = waysOf(node);
+      if (ways.every((way) => way === null)) return null;
+      const { wanted, fallback } = choiceAt(node, labels);
+      const usable = (indexes: number[]) => indexes.map((i) => ways[i]).filter((way): way is Branch => way != null);
+      return { wanted: usable(wanted), fallback: usable(fallback) };
+    };
+
+    /** Whether the door `node` should have refused this parcel. */
+    const misSorted = (node: string, labels: ParcelLabels): boolean => {
+      const door = doorById.get(node);
+      if (door === undefined) return false;
+      if (door.kind === 'country-export') {
+        const country = plan.doorCountries?.[door.id];
+        return !labels.valid || (country !== undefined && country !== labels.country);
+      }
+      if (door.kind !== 'export') return false;
+      const cargoTypes = door.cargoTypes ?? [];
+      // A door with no cargo types is a reject bin: only invalid parcels belong there.
+      if (cargoTypes.length === 0) return labels.valid;
+      return !labels.valid || !cargoTypes.includes(labels.cargo);
     };
 
     const slideSeconds = (cell: RouteStep, previous: RouteStep | undefined): number => {
@@ -1004,8 +1081,9 @@ export default function GridCanvas() {
         walk: (labels: ParcelLabels) => walkFrom(from, labels),
       })),
       capacity,
-      draw: () => drawLabels(Math.random, warehouseTier, simSettings.unlocked),
+      draw: () => drawLabels(Math.random, warehouseTier, simSettings.unlocked, COUNTRIES),
       branches,
+      misSorted,
       slideSeconds,
       stopSeconds: (cell) => {
         const here = byId.get(cell.node);
@@ -1634,6 +1712,7 @@ export default function GridCanvas() {
     const stats = parcels.length === 0 && stored === 0 ? null : {
       onBelt: parcels.length,
       delivered: sim.delivered,
+      misSorted: sim.misSorted,
       stored,
       fell: sim.fell,
       seconds: sim.now,

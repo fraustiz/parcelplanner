@@ -9,7 +9,7 @@ const line = (name: string, length: number, from = 0): RouteStep[] =>
     x: from + i, y: 0, floor: 0, node: `${name}${i}`, slot: `${name}${i}`,
   }));
 
-const labels: ParcelLabels = { valid: true, cargo: 'Road', sticker: null };
+const labels: ParcelLabels = { valid: true, cargo: 'Road', sticker: null, country: null };
 
 const door = (key: string, walk: () => Walk): SimSource => ({ key, slot: walk().cells[0]!.slot, walk });
 
@@ -17,7 +17,8 @@ const context = (over: Partial<SimContext>): SimContext => ({
   sources: [],
   capacity: new Map(),
   draw: () => ({ ...labels }),
-  branches: () => [],
+  branches: () => null,
+  misSorted: () => false,
   slideSeconds: () => 2,
   stopSeconds: () => 0,
   isClosed: () => false,
@@ -141,7 +142,7 @@ describe('a smart splitter in the timed preview', () => {
     });
     return context({
       sources: [door('d', () => ({ cells: into, ending: 'pending', endsAt: 'split' }))],
-      branches: () => ways,
+      branches: () => ({ wanted: ways, fallback: [] }),
       isClosed: (node) => node === blocked,
     });
   };
