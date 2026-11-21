@@ -7,24 +7,24 @@ import { feedingDoors } from '@/core/simulate';
 import { storageNeeded } from '@/core/storage-need';
 import type { WarehouseId } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
-import { CARGO_SHARE, dailyIntakePerDoor, PARCELS_PER_TRUCK, VALID_SHARE } from '@/data/deliveries';
+import {
+  CARGO_TYPES, cargoShare, dailyIntakePerDoor, DOOR_TIMER_SECONDS, PARCELS_PER_TRUCK, VALID_SHARE,
+} from '@/data/deliveries';
 import { COUNTRIES } from '@/data/countries';
 import { DOORS } from '@/data/doors';
+import { WAREHOUSE_TIERS } from '@/data/warehouse-tiers';
 import { t, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
 import { useDialog } from './use-dialog';
-
-/** The four cargo types, as the game names them. */
-const CARGO = ['Road', 'Rail', 'Air', 'Maritime'] as const;
 
 /**
  * What a warehouse sorts by: the main one's export doors are all cargo types;
  * the second has twelve country doors and two cargo ones.
  *
- * The cargo split is measured (10,000 parcels counted). None exists per
- * country, so `undefined` share means an even split, and the note says so.
+ * The cargo split is the game's own weighting at `warehouseTier`. None exists
+ * per country, so `undefined` share means an even split, and the note says so.
  */
-function sortedBy(warehouse: WarehouseId): {
+function sortedBy(warehouse: WarehouseId, warehouseTier: number): {
   kinds: readonly string[];
   share?: ReadonlyMap<string, number>;
   assumption: TranslationKey;
@@ -32,17 +32,25 @@ function sortedBy(warehouse: WarehouseId): {
   return warehouse === 'second'
     ? { kinds: COUNTRIES, assumption: 'planner.assumptionCountries' }
     : {
-      kinds: CARGO,
-      share: new Map(Object.entries(CARGO_SHARE)),
+      kinds: CARGO_TYPES,
+      share: cargoShare(warehouseTier),
       assumption: 'planner.assumption',
     };
 }
 const WEEK = 7;
 
 /**
+ * The game's warehouse tier, which decides the cargo types drawn: the highest
+ * expansion the plan owns. Absent means all owned, as everywhere else.
+ */
+function warehouseTierOf(ownedTiers: readonly number[] | undefined): number {
+  return ownedTiers === undefined ? WAREHOUSE_TIERS.length : Math.max(0, ...ownedTiers);
+}
+
+/**
  * How many racks a delivery schedule demands. The player gives the schedule;
- * the rest is measured: a door brings 33 parcels a day at the bottom and 105
- * fully upgraded, and a rack holds 8, 12 or 16.
+ * the rest comes from the game: a door brings 33 parcels a day at the bottom
+ * and 182 fully upgraded, and a rack holds 8, 12 or 16.
  *
  * Not saved with the plan, so it never travels in share links.
  */
@@ -53,7 +61,8 @@ export default function StoragePlanner() {
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   useDialog(panel, open, { onClose: () => setOpen(false) });
-  const axis = useMemo(() => sortedBy(warehouse), [warehouse]);
+  const warehouseTier = warehouseTierOf(plan.ownedTiers);
+  const axis = useMemo(() => sortedBy(warehouse, warehouseTier), [warehouse, warehouseTier]);
   const [sizeLevel, setSizeLevel] = useState(0);
   const [speedLevel, setSpeedLevel] = useState(0);
   // Everything starts accepted every day, so the player marks what is closed.
@@ -100,7 +109,7 @@ export default function StoragePlanner() {
     () => storageNeeded({
       dailyIntake: intake,
       cargoTypes: axis.kinds,
-      // Both measured in-game (see src/data/deliveries.ts).
+      // Both read from the game (see src/data/deliveries.ts).
       ...(axis.share ? { share: axis.share } : {}),
       validShare: VALID_SHARE,
       accepted,
@@ -148,10 +157,14 @@ export default function StoragePlanner() {
             </button>
           </div>
 
-          {/* The game data has no cargo weighting; the note names the measured
-              figures and their source. */}
+          {/* The note gives the cargo weighting and where it comes from. */}
           <p className="mb-3 text-xs leading-relaxed text-[var(--text-faint)]">
-            {t(locale, axis.assumption)}
+            {t(locale, axis.assumption)
+              .replace('{tier}', String(warehouseTier))
+              .replace('{shares}', [...(axis.share ?? [])]
+                .filter(([, share]) => share > 0)
+                .map(([type, share]) => `${t(locale, `export.cargo.${type}` as TranslationKey)} ${Math.round(share * 100)}${locale === 'fr' ? ' %' : '%'}`)
+                .join(', '))}
           </p>
 
           <div className="mb-3 flex flex-wrap gap-3 text-xs">
@@ -174,7 +187,7 @@ export default function StoragePlanner() {
                 onChange={(e) => setSpeedLevel(Number(e.target.value))}
                 className="rounded bg-[var(--sunken)] px-1 py-0.5"
               >
-                {[0, 1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
+                {DOOR_TIMER_SECONDS.map((_, n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </label>
             <span className="text-[var(--text-dim)]">

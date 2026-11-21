@@ -42,9 +42,9 @@ export function storageNeeded(input: {
   dailyIntake: number;
   cargoTypes: readonly string[];
   /**
-   * The share of a day's parcels of each type, community-measured over 10,000
-   * parcels (see CARGO_SHARE in src/data/deliveries.ts). A missing type falls
-   * back to an even split, which is not a figure to rely on.
+   * The share of a day's parcels of each type, the game's own weighting (see
+   * cargoShare in src/data/deliveries.ts). A missing type falls back to an
+   * even split, which is not a figure to rely on.
    */
   share?: ReadonlyMap<string, number>;
   /**
