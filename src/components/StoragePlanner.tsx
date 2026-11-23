@@ -12,6 +12,7 @@ import {
 } from '@/data/deliveries';
 import { COUNTRIES, countryName } from '@/data/countries';
 import { DOORS } from '@/data/doors';
+import { doorsOf } from '@/core/door-cargo';
 import { warehouseTierOf } from '@/data/warehouse-tiers';
 import { t, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
@@ -102,7 +103,7 @@ export default function StoragePlanner() {
       DOORS.filter((d) => d.warehouse === warehouse && d.kind === 'delivery')
         .map((d) => doorNodeId(d)),
     );
-    const graph = buildGraph(plan, getCatalogue(), DOORS);
+    const graph = buildGraph(plan, getCatalogue(), doorsOf(DOORS, plan));
     return feedingDoors(graph.edges, ids).size;
   }, [plan, warehouse]);
 

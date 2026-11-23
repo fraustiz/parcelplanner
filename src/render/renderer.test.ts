@@ -1081,15 +1081,15 @@ describe('doors', () => {
     expect(w! / h!).toBeCloseTo(5 / 3);
   });
 
-  it('marks each country door as clickable with a drop-down chip, in the editor only', () => {
+  it('marks each country and cargo door as clickable with a drop-down chip, in the editor only', () => {
     const countryDoor: Door = { ...door, id: 'c1', kind: 'country-export' };
     const chips = (doorChips: boolean | undefined) => {
       const ctx = recorder();
-      drawScene(ctx, options({ doors: [countryDoor, exportDoor], doorChips }));
+      drawScene(ctx, options({ doors: [countryDoor, exportDoor, rejectDoor], doorChips }));
       return ctx.calls.filter((c) => c.op === 'fillPath' && c.fill === '#ffffff').length;
     };
-    // One chip, on the country door; none on the cargo export door.
-    expect(chips(true)).toBe(1);
+    // One chip on the country door and one on the cargo door; none on the reject bin.
+    expect(chips(true)).toBe(2);
     // An exported image or a link preview is not clicked.
     expect(chips(undefined)).toBe(0);
   });

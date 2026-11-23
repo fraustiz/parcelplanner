@@ -1,10 +1,13 @@
-import { SHARE_COUNTRY_DOOR_IDS, SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from '@/data/share-object-ids';
+import { SHARE_CARGO_DOOR_IDS, SHARE_COUNTRY_DOOR_IDS, SHARE_GAME_VERSIONS, SHARE_OBJECT_IDS, shareIndexOf } from '@/data/share-object-ids';
 import { COUNTRIES, isCountry } from '@/data/countries';
 import { isObjectColour, OBJECT_COLOURS } from '@/data/colours';
 import { getCatalogue } from '@/data/catalogue';
+import { DOORS } from '@/data/doors';
 import { WAREHOUSES } from '@/data/warehouses';
 import { CARGO_CHOICES, CARGO_DIVERTER, cleanDiverterSettings, COUNTRY_DIVERTER, COUNTRY_DIVERTER_CELLS } from './diverters';
+import { CARGO_TYPES, cleanDoorCargo } from './door-cargo';
 import { rotatedFootprint } from './grid';
+import type { CargoType } from './parcel-labels';
 import type { Cell, Placement, Plan, PlanNote } from './types';
 import { zoneObjectId, zoneSize } from './zone';
 
@@ -87,7 +90,8 @@ function isPlan(value: unknown): value is Plan {
     Array.isArray(v.placements) && v.placements.every(isPlacement) &&
     (v.ownedTiers === undefined || (Array.isArray(v.ownedTiers) && v.ownedTiers.every(isFiniteNumber))) &&
     (v.notes === undefined || (Array.isArray(v.notes) && v.notes.every(isNote))) &&
-    (v.doorCountries === undefined || isRecord(v.doorCountries))
+    (v.doorCountries === undefined || isRecord(v.doorCountries)) &&
+    (v.doorCargo === undefined || isRecord(v.doorCargo))
   );
 }
 
@@ -119,11 +123,13 @@ export function planFromJson(json: string): Plan {
   if (!isPlan(parsed)) {
     throw new Error('not a ParcelPlanner plan');
   }
-  const { doorCountries, ...rest } = parsed;
+  const { doorCountries, doorCargo, ...rest } = parsed;
   const doors = cleanDoorCountries(doorCountries);
+  const cargo = cleanDoorCargo(doorCargo, DOORS);
   return {
     ...rest,
     ...(doors !== undefined ? { doorCountries: doors } : {}),
+    ...(cargo !== undefined ? { doorCargo: cargo } : {}),
     placements: parsed.placements.map(({ colour, ...p }) => ({
       ...cleanDiverterSettings(p as Placement, isCountry),
       warehouse: p.warehouse ?? DEFAULT_PLACEMENT_WAREHOUSE,
@@ -305,7 +311,9 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
   const countries = doorCountryPairs(plan);
   // Diverter settings go after the door countries, so they too force every earlier block.
   const set = plan.placements.filter((p) => p.diverterCountries !== undefined || p.diverterCargo !== undefined);
-  const later = countries.length > 0 || set.length > 0;
+  // Cargo door settings go after the diverters, so they too force every earlier block.
+  const cargoDoors = doorCargoPairs(plan);
+  const later = countries.length > 0 || set.length > 0 || cargoDoors.length > 0;
   if (notes.length > 0 || zones.length > 0 || benched.length > 0 || later) {
     writeVarint(out, notes.length);
     const text = new TextEncoder();
@@ -360,7 +368,7 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
   // floor, cell) and its screens, 0 for unset and otherwise 1 + the index in
   // COUNTRIES or CARGO_CHOICES. Placements carry no stable id in a link, so the
   // reader finds the diverter by where it stands.
-  if (set.length > 0) {
+  if (set.length > 0 || cargoDoors.length > 0) {
     writeVarint(out, set.length);
     for (const p of set) {
       writeVarint(out, WAREHOUSES_BY_INDEX.indexOf(p.warehouse));
@@ -383,7 +391,27 @@ function packPlanBinary(plan: Plan): Uint8Array<ArrayBuffer> {
       }
     }
   }
+  // Cargo doors, last: a count, then each door's index in SHARE_CARGO_DOOR_IDS and its types
+  // as bits in CARGO_TYPES order. A link that ends before this block keeps the game's types.
+  if (cargoDoors.length > 0) {
+    writeVarint(out, cargoDoors.length);
+    for (const [door, bits] of cargoDoors) {
+      writeVarint(out, door);
+      writeVarint(out, bits);
+    }
+  }
   return new Uint8Array(out);
+}
+
+/** The plan's cargo door settings as (door index, type bits) pairs, in door order. */
+function doorCargoPairs(plan: Plan): [number, number][] {
+  return Object.entries(plan.doorCargo ?? {})
+    .map(([door, types]) => [
+      SHARE_CARGO_DOOR_IDS.indexOf(door),
+      CARGO_TYPES.reduce((bits, type, i) => (types.includes(type) ? bits | (1 << i) : bits), 0),
+    ] as [number, number])
+    .filter(([door, bits]) => door >= 0 && bits > 0)
+    .sort((a, b) => a[0] - b[0]);
 }
 
 /** The plan's door assignments as (door index, country index) pairs, in door order,
@@ -610,6 +638,20 @@ function unpackPlanBinary(bytes: Uint8Array): Plan {
         if (target) target.diverterCargo = ways;
       }
     }
+  }
+
+  // Cargo doors, after the diverter settings (see packPlanBinary).
+  if (!reader.exhausted()) {
+    const count = reader.varint();
+    const doorCargo: Record<string, CargoType[]> = {};
+    for (let i = 0; i < count; i++) {
+      const door = SHARE_CARGO_DOOR_IDS[reader.varint()];
+      const bits = reader.varint();
+      // A door past the list, or no type or an unknown bit, is a payload this app did not write.
+      if (door === undefined || bits === 0 || bits >= 1 << CARGO_TYPES.length) throw new Error('not a ParcelPlanner plan');
+      doorCargo[door] = CARGO_TYPES.filter((_, b) => (bits & (1 << b)) !== 0);
+    }
+    if (count > 0) plan.doorCargo = doorCargo;
   }
   return plan;
 }

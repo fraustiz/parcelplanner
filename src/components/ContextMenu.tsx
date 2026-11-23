@@ -63,6 +63,7 @@ export default function ContextMenu({
   onNote,
   onReserve,
   onDoorCountry,
+  onDoorCargo,
 }: {
   anchor: MenuAnchor;
   onClose: () => void;
@@ -74,6 +75,8 @@ export default function ContextMenu({
   onNote: (cell: Cell) => void;
   /** Opens the country picker of the country door the menu was opened on; present only then. */
   onDoorCountry?: () => void;
+  /** Opens the cargo type picker of the export door the menu was opened on; present only then. */
+  onDoorCargo?: () => void;
 }) {
   const locale = useEditor((s) => s.locale);
   const plan = useEditor((s) => s.plan);
@@ -209,7 +212,7 @@ export default function ContextMenu({
     </button>
   );
 
-  const doorRow = onDoorCountry && (
+  const doorRow = onDoorCountry ? (
     <button
       role="menuitem"
       tabIndex={-1}
@@ -217,6 +220,15 @@ export default function ContextMenu({
       onClick={() => { onDoorCountry(); onClose(); }}
     >
       {t(locale, 'menu.doorCountry')}
+    </button>
+  ) : onDoorCargo && (
+    <button
+      role="menuitem"
+      tabIndex={-1}
+      className={ROW}
+      onClick={() => { onDoorCargo(); onClose(); }}
+    >
+      {t(locale, 'menu.doorCargo')}
     </button>
   );
 

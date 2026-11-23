@@ -7,6 +7,7 @@ import { getCatalogue } from '@/data/catalogue';
 import { repaintableColourOf } from '@/data/colours';
 import { countryFlags as flagsOf } from '@/data/countries';
 import { DOORS } from '@/data/doors';
+import { doorsOf } from '@/core/door-cargo';
 import { CARGO_TYPE_ICONS, COUNTRY_DOOR_ICON, KEEP_OWN_COLOURS, OBJECT_ICONS } from '@/data/icons';
 import { shapesFor, SHAPE_DIVISOR } from '@/data/shapes';
 import { STAIRS } from '@/data/stairs';
@@ -34,7 +35,7 @@ export async function exportImage(
   realCountries = false,
 ): Promise<void> {
   const catalogue = getCatalogue();
-  const entries = legendOf(plan, floor, catalogue, DOORS);
+  const entries = legendOf(plan, floor, catalogue, doorsOf(DOORS, plan));
   const dims = warehouseDimensions(plan.warehouse, WAREHOUSES);
   const objects = new Map(Object.entries(OBJECT_ICONS));
   const cargo = new Map(Object.entries(CARGO_TYPE_ICONS));
@@ -76,7 +77,7 @@ export async function exportImage(
       plan, catalogue, palette: theme === 'light' ? LIGHT_SCENE : DARK_SCENE, floor,
       geometry: WAREHOUSES, unlocked: ownedGeometry(ownedTiersOf(plan)),
       shapes, shapeDivisor: SHAPE_DIVISOR, icons: objects, cargoIcons: cargo,
-      countryIcon: COUNTRY_DOOR_ICON, countryFlags, notes: plan.notes, doors: DOORS, stairs: STAIRS,
+      countryIcon: COUNTRY_DOOR_ICON, countryFlags, notes: plan.notes, doors: doorsOf(DOORS, plan), stairs: STAIRS,
       doorArrow: DOOR_ARROW, doorArrowDivisor: UI_SHAPE_DIVISOR, repaintableColourOf,
     },
     dims,

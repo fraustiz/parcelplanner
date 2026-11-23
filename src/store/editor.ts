@@ -9,6 +9,8 @@ import { copiedShape, pastedAt, type ClipboardEntry } from '@/core/clipboard';
 import { planFromJson } from '@/core/serialize';
 import { ALL_TIERS, MANDATORY_TIERS } from '@/data/warehouse-tiers';
 import { isCountry, isCountryDoor } from '@/data/countries';
+import { DOORS } from '@/data/doors';
+import { isCargoDoor, orderedCargo, sameCargo } from '@/core/door-cargo';
 import { CATALOGUE_GAME_VERSION } from '@/core/version';
 import type { CatalogEntry, Cell, Placement, Plan, Rotation, WarehouseId } from '@/core/types';
 import { detectLocale } from '@/i18n';
@@ -219,6 +221,8 @@ interface EditorState {
    * what the player's game dealt them, not a layout edit. Unknown doors or countries are ignored.
    */
   setDoorCountry: (doorId: string, country: string | null) => void;
+  /** The cargo types an export door takes; null, or the game's own set, goes back to the game's. */
+  setDoorCargo: (doorId: string, types: readonly string[] | null) => void;
   /** Show the RealCountries mod's names and flags instead of the game's own. Saved per browser. */
   realCountries: boolean;
   setRealCountries: (on: boolean) => void;
@@ -593,6 +597,28 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ plan: next });
     };
     // Held like any edit: it writes to storage too.
+    if (get().sharedOverWork) { set({ heldEdit: run }); return; }
+    run();
+  },
+
+  setDoorCargo: (doorId, types) => {
+    const door = DOORS.find((d) => d.id === doorId);
+    if (!door || !isCargoDoor(door)) return;
+    const ordered = types === null ? [] : orderedCargo(types);
+    const { plan } = get();
+    const chosen = { ...(plan.doorCargo ?? {}) };
+    // The game's own set is the default, so it is stored as nothing.
+    if (ordered.length === 0 || sameCargo(ordered, door.cargoTypes ?? [])) delete chosen[doorId];
+    else chosen[doorId] = ordered;
+    const before = plan.doorCargo?.[doorId];
+    const after = chosen[doorId];
+    if ((before === undefined && after === undefined) || (before && after && sameCargo(before, after))) return;
+    const { doorCargo: _old, ...rest } = plan;
+    const next: Plan = Object.keys(chosen).length > 0 ? { ...rest, doorCargo: chosen } : rest;
+    const run = () => {
+      write(next);
+      set({ plan: next });
+    };
     if (get().sharedOverWork) { set({ heldEdit: run }); return; }
     run();
   },
