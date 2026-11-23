@@ -1,3 +1,4 @@
+import type { CargoType } from './parcel-labels';
 export type Rotation = 0 | 90 | 180 | 270;
 export type Side = 'N' | 'E' | 'S' | 'W';
 /**
@@ -153,6 +154,11 @@ export interface Plan {
    * unassigned, and the field is absent when none is.
    */
   doorCountries?: Record<string, string>;
+  /**
+   * The cargo types an export door takes, by door id, where the player set them apart from
+   * the game's (mods can change them; see src/core/door-cargo.ts). Absent when none is set.
+   */
+  doorCargo?: Record<string, readonly CargoType[]>;
 }
 
 /**

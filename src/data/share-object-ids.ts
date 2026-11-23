@@ -64,6 +64,20 @@ export const SHARE_COUNTRY_DOOR_IDS: readonly string[] = [
 /** Index of `objectId` in the frozen order, or -1 if it is not there. */
 export const shareIndexOf = (objectId: string): number => SHARE_OBJECT_IDS.indexOf(objectId);
 
+
+/**
+ * The frozen order of the export doors sorted by cargo type, for share links
+ * (`Plan.doorCargo`): a link stores a door as its index here. Append only.
+ */
+export const SHARE_CARGO_DOOR_IDS: readonly string[] = [
+  'main-export-air-0',
+  'main-export-maritime-0',
+  'main-export-road-rail-0',
+  'main-export-road-0',
+  'main-export-rail-0',
+  'main-export-air-maritime-0',
+];
+
 /**
  * The frozen game-version order for share links. Append only, like the list above.
  *

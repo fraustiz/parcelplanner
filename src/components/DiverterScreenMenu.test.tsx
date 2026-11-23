@@ -49,4 +49,12 @@ describe('the screen picker on a diverter', () => {
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Molland' }));
     expect(placed().diverterCountries).toEqual([{}, {}, { right: 'Molland' }]);
   });
+
+  it('puts the keyboard on the option the screen shows, "any type" when unset', () => {
+    render(<DiverterScreenMenu placementId="d" screen={{ cell: 0, way: 'right' }} at={{ x: 10, y: 10 }} onClose={vi.fn()} />);
+    expect(document.activeElement?.textContent).toBe('Any type');
+    cleanup();
+    render(<DiverterScreenMenu placementId="d" screen={{ cell: 0, way: 'left' }} at={{ x: 10, y: 10 }} onClose={vi.fn()} />);
+    expect(document.activeElement?.textContent).toBe('Road');
+  });
 });

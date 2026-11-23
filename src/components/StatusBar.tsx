@@ -7,6 +7,7 @@ import { buildGraph } from '@/core/graph';
 import { validate } from '@/core/validate';
 import { getCatalogue } from '@/data/catalogue';
 import { DOORS } from '@/data/doors';
+import { doorsOf } from '@/core/door-cargo';
 import { storageCapacityOf } from '@/data/storage';
 import { ownedGeometry, ownedTiersOf } from '@/data/warehouse-tiers';
 import { formatMoney, t, type TranslationKey } from '@/i18n';
@@ -38,7 +39,7 @@ export default function StatusBar() {
   // Exits a parcel would fall from: a warning, not an issue, since the layout
   // may be unfinished. Never on the workshop bench (see GridCanvas).
   const looseExitList = useMemo(
-    () => (plan.warehouse === 'workshop' ? [] : deadEnds(buildGraph(plan, catalogue, DOORS))),
+    () => (plan.warehouse === 'workshop' ? [] : deadEnds(buildGraph(plan, catalogue, doorsOf(DOORS, plan)))),
     [plan, catalogue],
   );
   const looseExits = looseExitList.length;

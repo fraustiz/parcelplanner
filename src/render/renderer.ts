@@ -118,7 +118,7 @@ export interface DrawOptions {
   countryFlags?: ReadonlyMap<string, string>;
   /** The country door under the pointer, lit up so it reads as something to click. */
   hoveredDoorId?: string;
-  /** Marks country doors as clickable (the editor). Left off in exported images and previews. */
+  /** Marks country and cargo doors as clickable (the editor). Left off in exported images and previews. */
   doorChips?: boolean;
   /**
    * Marks diverter screens as clickable (the editor, with a mouse): an unset screen of a selected
@@ -551,8 +551,8 @@ function drawDoors(
           ctx.drawImage(path, centre.cx - glyph / 2, centre.cy - glyph / 2, glyph, glyph);
         });
       }
-      // A country door is set by clicking it: a drop-down chip says so, flag or not.
-      if (look === 'country' && doorChips) drawPickChip(ctx, field, size);
+      // A country or cargo door is set by clicking it: a drop-down chip says so.
+      if ((look === 'country' || look === 'export') && doorChips) drawPickChip(ctx, field, size);
     }
 
     // The opening, with an arrow showing which way parcels travel.
@@ -689,20 +689,21 @@ function drawCargoScreen(
 
 /**
  * Where a screen can be clicked: a rounded outline in the page's accent, the colour of the
- * keyboard cursor and focused controls. Faint for a screen left unset on a selected or hovered
- * diverter, full for the screen under the pointer.
+ * keyboard cursor and focused controls, on a black edge, since the dark theme's accent is
+ * under 3:1 against the belt's grey. Thin for a screen left unset on a selected or hovered
+ * diverter, thick for the screen under the pointer.
  */
 function outlineScreen(ctx: Draw2D, camera: Camera, size: number, screen: DiverterScreen, strong: boolean): void {
   const { x, y, w, h } = screenRect(camera, size, screen);
   const r = Math.min(w, h) * 0.2;
   const d = `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
-  ctx.save();
-  ctx.globalAlpha = strong ? 1 : 0.55;
-  ctx.strokeStyle = colours.cursor;
-  ctx.lineWidth = strong ? 2 : 1.5;
+  const width = strong ? 2 : 1;
+  ctx.strokeStyle = colours.doorGlyph;
+  ctx.lineWidth = width + 2;
   ctx.strokePath(d);
-  ctx.restore();
-  ctx.globalAlpha = 1;
+  ctx.strokeStyle = colours.cursor;
+  ctx.lineWidth = width;
+  ctx.strokePath(d);
 }
 
 /** Below this on-screen cell size an icon would be a few pixels of noise, so it is skipped. */
@@ -1233,7 +1234,7 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
         }
         // A diverter's screens: flags on a country diverter, cargo types on a cargo diverter.
         // Where the editor asks, the screens of a selected or hovered diverter that are still
-        // unset get a faint outline to click, and the one under the pointer a full one.
+        // unset get a thin outline to click, and the one under the pointer a thick one.
         const slots = o.screenSlots === true
           && (o.selectedIds.includes(placement.id) || o.hoveredScreen?.placementId === placement.id);
         for (const screen of diverterScreens(placement, entry)) {

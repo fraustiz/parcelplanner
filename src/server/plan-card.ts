@@ -3,6 +3,7 @@ import type { Plan } from '@/core/types';
 import { getCatalogue } from '@/data/catalogue';
 import { repaintableColourOf } from '@/data/colours';
 import { DOORS } from '@/data/doors';
+import { doorsOf } from '@/core/door-cargo';
 import { CARGO_TYPE_ICONS, COUNTRY_DOOR_ICON, OBJECT_ICONS } from '@/data/icons';
 import { shapesFor, SHAPE_DIVISOR } from '@/data/shapes';
 import { STAIRS } from '@/data/stairs';
@@ -74,7 +75,7 @@ export function planCardSvg(plan: Plan, width: number, height: number): string {
     icons: new Map(Object.entries(OBJECT_ICONS)),
     cargoIcons: new Map(Object.entries(CARGO_TYPE_ICONS)),
     countryIcon: COUNTRY_DOOR_ICON,
-    doors: DOORS,
+    doors: doorsOf(DOORS, plan),
     doorArrow: DOOR_ARROW,
     doorArrowDivisor: UI_SHAPE_DIVISOR,
     stairs: STAIRS,

@@ -20,7 +20,9 @@ import { getCatalogue } from '@/data/catalogue';
 import { CORNER_FOR, FOLLOWS_THE_RUN, JOINS_FROM, JOINS_INTO, SPLITS_INTO } from '@/data/corners';
 import { countryDoorAt, countryDoorNear, countryFlags as flagsOf, COUNTRIES } from '@/data/countries';
 import { DOOR_TIMER_SECONDS, EXPORT_DOOR_SHUT_SECONDS, EXPORT_TRUCK_PARCELS, PARCELS_PER_TRUCK } from '@/data/deliveries';
-import { DOORS } from '@/data/doors';
+import { DOORS as GAME_DOORS } from '@/data/doors';
+import { cargoDoorAt, cargoDoorNear } from '@/data/cargo-doors';
+import { doorsOf } from '@/core/door-cargo';
 import { storageCapacityOf } from '@/data/storage';
 import { STAIRS } from '@/data/stairs';
 import { repaintableColourOf } from '@/data/colours';
@@ -39,6 +41,7 @@ import { draggedPlacement, useEditor, type MarqueeState } from '@/store/editor';
 import { isPauserOpen, LIVE_PREVIEW, PAUSERS, useSimStats } from '@/store/sim-stats';
 import ContextMenu, { type MenuAnchor } from './ContextMenu';
 import DiverterScreenMenu from './DiverterScreenMenu';
+import DoorCargoMenu from './DoorCargoMenu';
 import DoorCountryMenu from './DoorCountryMenu';
 import HoverCard from './HoverCard';
 
@@ -298,7 +301,11 @@ export default function GridCanvas() {
   const [menu, setMenu] = useState<MenuAnchor | null>(null);
   // The country picker of a country door, opened by clicking the door's bay.
   const [doorMenu, setDoorMenu] = useState<{ door: Door; at: { x: number; y: number } } | null>(null);
-  // The country door whose bay is under the pointer: lit up, with a hand cursor.
+  // The same for an export door sorted by cargo type: its types, picked on the plan.
+  const [cargoMenu, setCargoMenu] = useState<{ door: Door; at: { x: number; y: number } } | null>(null);
+  // The game's doors as this plan has them: cargo doors take the types the player set.
+  const doors = useMemo(() => doorsOf(GAME_DOORS, plan), [plan]);
+  // The country or cargo door whose bay is under the pointer: lit up, with a hand cursor.
   const [overDoor, setOverDoor] = useState<string | null>(null);
   // A diverter screen picked by clicking it on the plan, and the one under the pointer.
   type ScreenRef = { placementId: string; cell: number; way: Way };
@@ -338,7 +345,7 @@ export default function GridCanvas() {
   // Exits that lead nowhere. Not on the workshop bench, where a module being
   // built always has loose ends.
   const deadEndMarks = useMemo(
-    () => (plan.warehouse === 'workshop' ? [] : deadEnds(buildGraph(plan, catalogue, DOORS)))
+    () => (plan.warehouse === 'workshop' ? [] : deadEnds(buildGraph(plan, catalogue, doors)))
       .map(({ floor: onFloor, cell, side }) => ({ floor: onFloor, cell, side })),
     [plan, catalogue],
   );
@@ -612,7 +619,7 @@ export default function GridCanvas() {
         shapes, shapeDivisor: SHAPE_DIVISOR,
         icons, cargoIcons, countryIcon: COUNTRY_DOOR_ICON, countryFlags, hoveredDoorId: overDoor ?? undefined, doorChips: finePointer, screenSlots: finePointer, hoveredScreen: overScreen ?? undefined, parcelIcon: PARCEL_ICON,
         notes: plan.notes,
-        doors: DOORS, marquee: marquee ?? area,
+        doors, marquee: marquee ?? area,
         cursor: showCursor ? cursor : null,
         doorArrow: DOOR_ARROW, doorArrowDivisor: UI_SHAPE_DIVISOR, stairs: STAIRS,
         parcels: parcelsNow,
@@ -910,8 +917,8 @@ export default function GridCanvas() {
    * rebuilding it each step froze the drawing for about 150 ms per step.
    */
   const simLayout = useMemo(() => {
-    const graph = buildGraph(plan, catalogue, DOORS);
-    const here = DOORS.filter((d) => d.warehouse === plan.warehouse);
+    const graph = buildGraph(plan, catalogue, doors);
+    const here = doors.filter((d) => d.warehouse === plan.warehouse);
     const deliveryIds = new Set(
       here.filter((d) => d.kind === 'delivery').map((d) => doorNodeId(d)),
     );
@@ -973,7 +980,7 @@ export default function GridCanvas() {
   const simContext = useMemo((): SimContext => {
     const { exitIds, storeIds, byId, onward, portIndex, inbound, sources, capacity } = simLayout;
     const warehouseTier = warehouseTierOf(plan);
-    const doorById = new Map(DOORS.map((door) => [doorNodeId(door), door]));
+    const doorById = new Map(doors.map((door) => [doorNodeId(door), door]));
     // What each delivery door brings, as the player set their upgrades.
     const truck = {
       parcels: PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!,
@@ -1196,13 +1203,13 @@ export default function GridCanvas() {
       // Each delivery door's truck while it unloads: parcels still in the bay.
       [...simLayout.entryDoor].flatMap(([entry, doorNode]) => {
         const left = sim.truckLeft[entry] ?? 0;
-        const d = DOORS.find((door) => doorNodeId(door) === doorNode);
+        const d = doors.find((door) => doorNodeId(door) === doorNode);
         if (left === 0 || d === undefined || d.warehouse !== plan.warehouse || d.floor !== floor) return [];
         const brings = PARCELS_PER_TRUCK[simSettings.sizeLevel] ?? PARCELS_PER_TRUCK[0]!;
         return [{ from: d.cell, to: d.cell, text: `${left}/${brings}` }];
       }),
       // Each export door's truck: how full, or how long it stays shut.
-      DOORS.filter((d) => d.warehouse === plan.warehouse && d.floor === floor && sim.exports[doorNodeId(d)] !== undefined)
+      doors.filter((d) => d.warehouse === plan.warehouse && d.floor === floor && sim.exports[doorNodeId(d)] !== undefined)
         .map((d) => {
           const truck = sim.exports[doorNodeId(d)]!;
           const shut = truck.shutUntil > sim.now;
@@ -1430,7 +1437,7 @@ export default function GridCanvas() {
     // Hover card: only over a real object, and never while one is armed.
     const cell = cellAt(event);
     const over = drag ? undefined : hitTest(cell);
-    setOverDoor(drag || over ? null : countryDoorAt(plan.warehouse, floor, cell)?.id ?? null);
+    setOverDoor(drag || over ? null : (countryDoorAt(plan.warehouse, floor, cell) ?? cargoDoorAt(plan.warehouse, floor, cell))?.id ?? null);
     const nextScreen = drag ? undefined : screenUnder(event, over);
     setOverScreen((before) => {
       if (!nextScreen) return null;
@@ -1568,6 +1575,11 @@ export default function GridCanvas() {
     const door = hit ? undefined : countryDoorAt(plan.warehouse, floor, cell);
     if (door) {
       setDoorMenu({ door, at: { x: event.clientX, y: event.clientY } });
+      return;
+    }
+    const cargoDoor = hit ? undefined : cargoDoorAt(plan.warehouse, floor, cell);
+    if (cargoDoor) {
+      setCargoMenu({ door: cargoDoor, at: { x: event.clientX, y: event.clientY } });
       return;
     }
     // A diverter's screen is set by clicking it, as in the game. The diverter is selected too,
@@ -1969,6 +1981,10 @@ export default function GridCanvas() {
         <DoorCountryMenu door={doorMenu.door} at={doorMenu.at} onClose={() => setDoorMenu(null)} />
       )}
 
+      {cargoMenu && (
+        <DoorCargoMenu door={cargoMenu.door} at={cargoMenu.at} onClose={() => setCargoMenu(null)} />
+      )}
+
       {screenMenu && (
         <DiverterScreenMenu
           placementId={screenMenu.screen.placementId}
@@ -1985,6 +2001,10 @@ export default function GridCanvas() {
           onDoorCountry={(() => {
             const door = countryDoorNear(plan.warehouse, floor, menu.cell);
             return door ? () => setDoorMenu({ door, at: { x: menu.x, y: menu.y } }) : undefined;
+          })()}
+          onDoorCargo={(() => {
+            const door = cargoDoorNear(plan.warehouse, floor, menu.cell);
+            return door ? () => setCargoMenu({ door, at: { x: menu.x, y: menu.y } }) : undefined;
           })()}
           onReserve={area && inBox(menu.cell, area)
             ? () => { reserveArea(area, catalogue, unlocked); setArea(null); }
