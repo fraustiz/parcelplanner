@@ -640,9 +640,17 @@ function drawScreenFlag(ctx: Draw2D, camera: Camera, size: number, cell: Cell, s
   ctx.drawImage(path, cx - w / 2, cy - h / 2, w, h);
 }
 
+/** A screen's square on screen pixels, from its box in grid units (`screenBox`). */
+function screenRect(camera: Camera, size: number, screen: DiverterScreen): { x: number; y: number; w: number; h: number } {
+  const box = screenBox(screen.cell, screen.side);
+  const { px, py } = worldToScreen(camera, { x: 0, y: 0 });
+  return { x: px + box.x * size, y: py + box.y * size, w: box.w * size, h: box.h * size };
+}
+
 /**
- * A cargo diverter's screen: the cargo type's icon on a white plate, three dots for "other
- * types", a struck plate for "nothing", or an empty plate to click when `value` is unset.
+ * What a cargo diverter's screen is set to, in the artwork's own ink, straight on the belt:
+ * the cargo type's glyph, as on an export door's bay, three dots for "other types", or a
+ * cross for "nothing". An unset screen draws nothing.
  */
 function drawCargoScreen(
   ctx: Draw2D,
@@ -651,53 +659,50 @@ function drawCargoScreen(
   screen: DiverterScreen,
   cargoIcons: ReadonlyMap<string, string>,
 ): void {
-  const box = screenBox(screen.cell, screen.side);
-  const { px, py } = worldToScreen(camera, { x: 0, y: 0 });
-  const x = px + box.x * size;
-  const y = py + box.y * size;
-  const w = box.w * size;
-  const h = box.h * size;
-  ctx.fillStyle = colours.doorChip;
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = colours.doorGlyph;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x, y, w, h);
-  const icon = screen.value === undefined ? undefined : cargoIcons.get(screen.value);
+  if (screen.value === undefined) return;
+  const { x, y, w, h } = screenRect(camera, size, screen);
+  const side = Math.min(w, h);
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const icon = cargoIcons.get(screen.value);
   if (icon !== undefined) {
-    const side = Math.min(w, h) * 0.8;
-    ctx.drawImage(icon, x + (w - side) / 2, y + (h - side) / 2, side, side);
-  } else if (screen.value === 'Other') {
-    ctx.fillStyle = colours.doorGlyph;
-    const dot = Math.max(1, Math.min(w, h) * 0.14);
-    const gap = Math.min(w, h) * 0.26;
-    for (const k of [-1, 0, 1]) ctx.fillRect(x + w / 2 + k * gap - dot / 2, y + h / 2 - dot / 2, dot, dot);
+    ctx.drawImage(icon, cx - side / 2, cy - side / 2, side, side);
+    return;
+  }
+  ctx.fillStyle = colours.doorGlyph;
+  ctx.strokeStyle = colours.doorGlyph;
+  if (screen.value === 'Other') {
+    const dot = Math.max(1.5, side * 0.16);
+    const gap = side * 0.3;
+    for (const k of [-1, 0, 1]) ctx.fillRect(cx + k * gap - dot / 2, cy - dot / 2, dot, dot);
   } else if (screen.value === 'None') {
-    ctx.lineWidth = Math.max(1, w * 0.08);
+    const arm = side * 0.28;
+    ctx.lineWidth = Math.max(1.5, side * 0.12);
     ctx.beginPath();
-    ctx.moveTo(x + w * 0.2, y + h * 0.8);
-    ctx.lineTo(x + w * 0.8, y + h * 0.2);
+    ctx.moveTo(cx - arm, cy - arm);
+    ctx.lineTo(cx + arm, cy + arm);
+    ctx.moveTo(cx + arm, cy - arm);
+    ctx.lineTo(cx - arm, cy + arm);
     ctx.stroke();
   }
 }
 
-/** An empty frame where an unset country screen sits, to click and set it. */
-function drawScreenSlot(ctx: Draw2D, camera: Camera, size: number, screen: DiverterScreen): void {
-  const box = screenBox(screen.cell, screen.side);
-  const { px, py } = worldToScreen(camera, { x: 0, y: 0 });
-  ctx.fillStyle = colours.doorChip;
-  ctx.fillRect(px + box.x * size, py + box.y * size, box.w * size, box.h * size);
-  ctx.strokeStyle = colours.doorGlyph;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(px + box.x * size, py + box.y * size, box.w * size, box.h * size);
-}
-
-/** The outline of the screen under the pointer, in the keyboard cursor's accent. */
-function outlineScreen(ctx: Draw2D, camera: Camera, size: number, screen: DiverterScreen): void {
-  const box = screenBox(screen.cell, screen.side);
-  const { px, py } = worldToScreen(camera, { x: 0, y: 0 });
+/**
+ * Where a screen can be clicked: a rounded outline in the page's accent, the colour of the
+ * keyboard cursor and focused controls. Faint for a screen left unset on a selected or hovered
+ * diverter, full for the screen under the pointer.
+ */
+function outlineScreen(ctx: Draw2D, camera: Camera, size: number, screen: DiverterScreen, strong: boolean): void {
+  const { x, y, w, h } = screenRect(camera, size, screen);
+  const r = Math.min(w, h) * 0.2;
+  const d = `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+  ctx.save();
+  ctx.globalAlpha = strong ? 1 : 0.55;
   ctx.strokeStyle = colours.cursor;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(px + box.x * size - 1, py + box.y * size - 1, box.w * size + 2, box.h * size + 2);
+  ctx.lineWidth = strong ? 2 : 1.5;
+  ctx.strokePath(d);
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 /** Below this on-screen cell size an icon would be a few pixels of noise, so it is skipped. */
@@ -1220,25 +1225,28 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
       // The object's icon, on top of the artwork, skipped below the minimum size.
       if (isCurrent && size >= MIN_CELL_SIZE_FOR_ICON) {
         const iconPath = o.icons.get(placement.objectId);
-        if (iconPath) {
+        // A cargo diverter whose screens are set shows them instead: its own icon would sit under them.
+        const showsScreens = placement.objectId === CARGO_DIVERTER
+          && Object.keys(placement.diverterCargo ?? {}).length > 0;
+        if (iconPath && !showsScreens) {
           drawIcon(ctx, camera, size, placement.cell, iconPath, placement.rotation, entry.footprint);
         }
-        // A diverter's screens above its icon: flags on a country diverter, cargo types on a
-        // cargo diverter. Unset ones show an empty frame to click only where the editor asks.
+        // A diverter's screens: flags on a country diverter, cargo types on a cargo diverter.
+        // Where the editor asks, the screens of a selected or hovered diverter that are still
+        // unset get a faint outline to click, and the one under the pointer a full one.
         const slots = o.screenSlots === true
           && (o.selectedIds.includes(placement.id) || o.hoveredScreen?.placementId === placement.id);
         for (const screen of diverterScreens(placement, entry)) {
           if (placement.objectId === COUNTRY_DIVERTER) {
             const flag = screen.value === undefined ? undefined : o.countryFlags?.get(screen.value);
             if (flag !== undefined) drawScreenFlag(ctx, camera, size, screen.cell, screen.side, flag);
-            else if (slots) drawScreenSlot(ctx, camera, size, screen);
-          } else if (placement.objectId === CARGO_DIVERTER && (screen.value !== undefined || slots)) {
+          } else if (placement.objectId === CARGO_DIVERTER) {
             drawCargoScreen(ctx, camera, size, screen, o.cargoIcons);
           }
           const hovered = o.hoveredScreen;
-          if (hovered?.placementId === placement.id && hovered.cell === screen.at.cell && hovered.way === screen.at.way) {
-            outlineScreen(ctx, camera, size, screen);
-          }
+          const under = hovered?.placementId === placement.id && hovered.cell === screen.at.cell && hovered.way === screen.at.way;
+          if (under) outlineScreen(ctx, camera, size, screen, true);
+          else if (slots && screen.value === undefined) outlineScreen(ctx, camera, size, screen, false);
         }
       }
 
