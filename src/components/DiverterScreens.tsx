@@ -1,12 +1,12 @@
 'use client';
 
-import { CARGO_CHOICES, CARGO_DIVERTER, COUNTRY_DIVERTER, COUNTRY_DIVERTER_CELLS, isCargoChoice } from '@/core/diverters';
+import { CARGO_CHOICES, CARGO_DIVERTER, COUNTRY_DIVERTER, COUNTRY_DIVERTER_CELLS, isCargoChoice, withScreen } from '@/core/diverters';
 import type { CargoChoice, Placement } from '@/core/types';
 import { COUNTRIES, countryName } from '@/data/countries';
 import { t, type Locale, type TranslationKey } from '@/i18n';
 import { useEditor } from '@/store/editor';
 
-const CARGO_NAME: Readonly<Record<CargoChoice, TranslationKey>> = {
+export const CARGO_NAME: Readonly<Record<CargoChoice, TranslationKey>> = {
   Road: 'export.cargo.Road',
   Rail: 'export.cargo.Rail',
   Air: 'export.cargo.Air',
@@ -30,13 +30,7 @@ export default function DiverterScreens({ placement, locale }: { placement: Plac
   if (placement.objectId === COUNTRY_DIVERTER) {
     const screens = placement.diverterCountries ?? [];
     const setCountry = (cell: number, side: 'left' | 'right', country: string) => {
-      editSelection((p) => {
-        const next = Array.from({ length: COUNTRY_DIVERTER_CELLS }, (_, i) => ({ ...(p.diverterCountries?.[i] ?? {}) }));
-        if (country === '') delete next[cell]![side];
-        else next[cell]![side] = country;
-        const { diverterCountries: _drop, ...rest } = p;
-        return next.some((s) => Object.keys(s).length > 0) ? { ...rest, diverterCountries: next } : rest;
-      });
+      editSelection((p) => withScreen(p, { cell, way: side }, country === '' ? undefined : country));
     };
     return (
       <fieldset className="mb-3">
@@ -72,13 +66,7 @@ export default function DiverterScreens({ placement, locale }: { placement: Plac
   if (placement.objectId === CARGO_DIVERTER) {
     const screens = placement.diverterCargo ?? {};
     const setCargo = (way: 'left' | 'forward' | 'right', value: string) => {
-      editSelection((p) => {
-        const next = { ...(p.diverterCargo ?? {}) };
-        if (isCargoChoice(value)) next[way] = value;
-        else delete next[way];
-        const { diverterCargo: _drop, ...rest } = p;
-        return Object.keys(next).length > 0 ? { ...rest, diverterCargo: next } : rest;
-      });
+      editSelection((p) => withScreen(p, { cell: 0, way }, isCargoChoice(value) ? value : undefined));
     };
     const ways: readonly ['left' | 'forward' | 'right', TranslationKey][] = [
       ['left', 'diverter.left'], ['forward', 'diverter.forward'], ['right', 'diverter.right'],

@@ -54,16 +54,26 @@ export function exitWay(
 export const COUNTRY_DIVERTER_CELLS = 3;
 
 /**
- * Where each screen of a country diverter that is set to a country stands on
- * the grid: the cell, the side it looks out of, and the country. Ports are
- * placed as the flow graph places them, and read through `exitWay`, so the
- * flag drawn on a side is the one the parcel preview sorts by.
+ * One screen of a diverter on the grid: the cell and side it looks out of,
+ * which screen it is (`cell` counted from the entry, and its `way`), and what
+ * it is set to, a country id or a cargo choice, undefined when unset.
  */
-export function countryScreens(
-  placement: Placement,
-  entry: CatalogEntry,
-): { cell: Cell; side: Side; country: string }[] {
-  if (placement.objectId !== COUNTRY_DIVERTER || !placement.diverterCountries) return [];
+export interface DiverterScreen {
+  cell: Cell;
+  side: Side;
+  at: { cell: number; way: Way };
+  value: string | undefined;
+}
+
+/**
+ * Every screen of a country or cargo diverter, set or not. Ports are placed
+ * as the flow graph places them, and read through `exitWay`, so a screen
+ * drawn on a side is the one the parcel preview sorts by. A country diverter
+ * has no screen straight on; a cargo diverter has one on each of its ways.
+ */
+export function diverterScreens(placement: Placement, entry: CatalogEntry): DiverterScreen[] {
+  const country = placement.objectId === COUNTRY_DIVERTER;
+  if (!country && placement.objectId !== CARGO_DIVERTER) return [];
   const { w, h } = rotatedFootprint(entry.footprint, placement.rotation);
   const place = (port: { side: Side; offset: number }) => {
     const { side, offset } = placedPort(port, placement.rotation, placement.mirrored ?? false, entry.footprint);
@@ -71,16 +81,86 @@ export function countryScreens(
   };
   const inPort = entry.ports.find((port) => port.dir === 'in');
   const way = inPort === undefined ? undefined : place(inPort);
-  const screens: { cell: Cell; side: Side; country: string }[] = [];
+  const screens: DiverterScreen[] = [];
   for (const port of entry.ports) {
     if (port.dir !== 'out') continue;
     const out = place(port);
     const at = exitWay(way, out);
-    if (at.way === 'forward') continue;
-    const country = placement.diverterCountries[at.cell]?.[at.way];
-    if (country !== undefined) screens.push({ cell: out.cell, side: out.side, country });
+    let value: string | undefined;
+    if (country) {
+      if (at.way === 'forward') continue;
+      value = placement.diverterCountries?.[at.cell]?.[at.way];
+    } else {
+      value = placement.diverterCargo?.[at.way];
+    }
+    screens.push({ cell: out.cell, side: out.side, at, value });
   }
   return screens;
+}
+
+/**
+ * Where each screen of a country diverter that is set to a country stands on
+ * the grid: the cell, the side it looks out of, and the country.
+ */
+export function countryScreens(
+  placement: Placement,
+  entry: CatalogEntry,
+): { cell: Cell; side: Side; country: string }[] {
+  if (placement.objectId !== COUNTRY_DIVERTER) return [];
+  return diverterScreens(placement, entry).flatMap((screen) =>
+    screen.value === undefined ? [] : [{ cell: screen.cell, side: screen.side, country: screen.value }]);
+}
+
+/** A screen's size in cells, along the cell's edge and across it. */
+export const SCREEN_ALONG = 0.36;
+export const SCREEN_ACROSS = 0.3;
+/** The gap between a screen and its cell's edge, in cells. */
+export const SCREEN_MARGIN = 0.04;
+
+/**
+ * The square a screen takes on its cell, against the side it looks out of, in
+ * grid units. The renderer draws in it and a click inside it picks the screen.
+ */
+export function screenBox(cell: Cell, side: Side): { x: number; y: number; w: number; h: number } {
+  const step = SIDE_STEP[side];
+  const w = step.dx === 0 ? SCREEN_ALONG : SCREEN_ACROSS;
+  const h = step.dx === 0 ? SCREEN_ACROSS : SCREEN_ALONG;
+  const cx = cell.x + 0.5 + step.dx * (0.5 - w / 2 - SCREEN_MARGIN);
+  const cy = cell.y + 0.5 + step.dy * (0.5 - h / 2 - SCREEN_MARGIN);
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+/** The screen of `screens` under `point`, a position in grid units, if any. */
+export function screenAt(screens: readonly DiverterScreen[], point: { x: number; y: number }): DiverterScreen | undefined {
+  return screens.find((screen) => {
+    const box = screenBox(screen.cell, screen.side);
+    return point.x >= box.x && point.x <= box.x + box.w && point.y >= box.y && point.y <= box.y + box.h;
+  });
+}
+
+/**
+ * `placement` with one screen set to `value`, or cleared when it is
+ * undefined. Nothing is left behind when no screen is set any more.
+ */
+export function withScreen(placement: Placement, at: { cell: number; way: Way }, value: string | undefined): Placement {
+  if (placement.objectId === COUNTRY_DIVERTER) {
+    if (at.way === 'forward') return placement;
+    const next = Array.from({ length: COUNTRY_DIVERTER_CELLS }, (_, i) => ({ ...(placement.diverterCountries?.[i] ?? {}) }));
+    const screen = next[at.cell];
+    if (screen === undefined) return placement;
+    if (value === undefined) delete screen[at.way];
+    else screen[at.way] = value;
+    const { diverterCountries: _drop, ...rest } = placement;
+    return next.some((s) => Object.keys(s).length > 0) ? { ...rest, diverterCountries: next } : rest;
+  }
+  if (placement.objectId === CARGO_DIVERTER) {
+    const next = { ...(placement.diverterCargo ?? {}) };
+    if (isCargoChoice(value)) next[at.way] = value;
+    else delete next[at.way];
+    const { diverterCargo: _drop, ...rest } = placement;
+    return Object.keys(next).length > 0 ? { ...rest, diverterCargo: next } : rest;
+  }
+  return placement;
 }
 
 /**

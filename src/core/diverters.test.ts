@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARGO_DIVERTER, cleanDiverterSettings, COUNTRY_DIVERTER, countryScreens, diverterChoice, exitWay, type Way } from './diverters';
+import { CARGO_DIVERTER, cleanDiverterSettings, COUNTRY_DIVERTER, countryScreens, diverterChoice, diverterScreens, exitWay, screenAt, screenBox, withScreen, type Way } from './diverters';
 import { buildGraph } from './graph';
 import { getCatalogue } from '@/data/catalogue';
 import { decodePlan, encodePlan, planFromJson, planToJson } from './serialize';
@@ -185,5 +185,69 @@ describe('where a country diverter shows its flags', () => {
   it('shows nothing for screens left unset, or on any other object', () => {
     expect(countryScreens(place(COUNTRY_DIVERTER), entry)).toEqual([]);
     expect(countryScreens(place(CARGO_DIVERTER, { diverterCountries: [{ left: 'Cristin' }] }), entry)).toEqual([]);
+  });
+});
+
+describe('the screens of a cargo diverter on the plan', () => {
+  const entry = getCatalogue().get(CARGO_DIVERTER)!;
+  const plan = (placement: Placement): Plan => ({ gameVersion: 'test', warehouse: 'second', placements: [placement] });
+
+  /** The exit a parcel of `cargo` takes, as the sim resolves it: its out port's cell and side. */
+  const sortedTo = (placement: Placement, cargo: string) => {
+    const ports = buildGraph(plan(placement), getCatalogue(), []).ports;
+    const inPort = ports.find((port) => port.dir === 'in');
+    const outs = ports.filter((port) => port.dir === 'out');
+    const choice = diverterChoice(placement, outs.map((out) => exitWay(inPort, out)), { country: null, cargo })!;
+    const out = outs[choice.wanted[0]!]!;
+    return { cell: out.cell, side: out.side };
+  };
+
+  it('has a screen on each way, on the side parcels of its type leave by, however it is turned', () => {
+    for (const rotation of [0, 90, 180, 270] as const) {
+      for (const mirrored of [false, true]) {
+        const diverter = place(CARGO_DIVERTER, {
+          cell: { x: 10, y: 10 }, rotation, mirrored,
+          diverterCargo: { left: 'Road', forward: 'Air', right: 'Maritime' },
+        });
+        const screens = diverterScreens(diverter, entry);
+        expect(screens.map((s) => s.at.way).sort()).toEqual(['forward', 'left', 'right']);
+        for (const screen of screens) {
+          expect({ cell: screen.cell, side: screen.side }).toEqual(sortedTo(diverter, screen.value!));
+        }
+      }
+    }
+  });
+
+  it('lists unset screens too, so they can be clicked', () => {
+    const screens = diverterScreens(place(CARGO_DIVERTER), entry);
+    expect(screens).toHaveLength(3);
+    expect(screens.every((s) => s.value === undefined)).toBe(true);
+  });
+
+  it('finds the screen under a point, and none in the middle of the belt', () => {
+    const screens = diverterScreens(place(CARGO_DIVERTER, { cell: { x: 10, y: 10 } }), entry);
+    for (const screen of screens) {
+      const box = screenBox(screen.cell, screen.side);
+      expect(screenAt(screens, { x: box.x + box.w / 2, y: box.y + box.h / 2 })).toBe(screen);
+    }
+    expect(screenAt(screens, { x: 10.5, y: 10.5 })).toBeUndefined();
+  });
+});
+
+describe('setting one screen', () => {
+  it('sets and clears a cargo screen, leaving nothing behind when all are clear', () => {
+    const set = withScreen(place(CARGO_DIVERTER), { cell: 0, way: 'right' }, 'Rail');
+    expect(set.diverterCargo).toEqual({ right: 'Rail' });
+    expect('diverterCargo' in withScreen(set, { cell: 0, way: 'right' }, undefined)).toBe(false);
+  });
+
+  it('sets a country screen by cell and side, and never straight on', () => {
+    const diverter = place(COUNTRY_DIVERTER);
+    expect(withScreen(diverter, { cell: 1, way: 'left' }, 'Molland').diverterCountries).toEqual([{}, { left: 'Molland' }, {}]);
+    expect(withScreen(diverter, { cell: 1, way: 'forward' }, 'Molland')).toBe(diverter);
+  });
+
+  it('refuses a value a cargo screen cannot hold', () => {
+    expect('diverterCargo' in withScreen(place(CARGO_DIVERTER), { cell: 0, way: 'left' }, 'Molland')).toBe(false);
   });
 });

@@ -2,7 +2,7 @@ import {
   coveredCells, displayColumn, displayRow, isBuildable, rotatedFootprint, SIDE_STEP,
   warehouseDimensions, type WarehouseGeometry,
 } from '@/core/grid';
-import { countryScreens } from '@/core/diverters';
+import { CARGO_DIVERTER, COUNTRY_DIVERTER, diverterScreens, screenBox, type DiverterScreen, type Way } from '@/core/diverters';
 import type { LegendEntry } from '@/core/legend';
 import type { CatalogEntry, Cell, Door, Placement, Plan, PlanNote, Rotation, Shape, Side } from '@/core/types';
 import { CELL_PX, visibleCellRange, worldToScreen, type Camera } from './camera';
@@ -120,6 +120,13 @@ export interface DrawOptions {
   hoveredDoorId?: string;
   /** Marks country doors as clickable (the editor). Left off in exported images and previews. */
   doorChips?: boolean;
+  /**
+   * Marks diverter screens as clickable (the editor, with a mouse): an unset screen of a selected
+   * or hovered diverter draws an empty frame to click. Left off in exported images and previews.
+   */
+  screenSlots?: boolean;
+  /** The diverter screen under the pointer, outlined so it reads as something to click. */
+  hoveredScreen?: { placementId: string; cell: number; way: Way };
   /** Notes on the grid (`plan.notes`). Only those on the drawn floor and warehouse appear. */
   notes?: readonly PlanNote[];
   /** The parcel drawing (`PARCEL_ICON`). Without it a parcel draws no sprite, never a substitute shape. */
@@ -631,6 +638,66 @@ function drawScreenFlag(ctx: Draw2D, camera: Camera, size: number, cell: Cell, s
   ctx.fillStyle = colours.doorGlyph;
   ctx.fillRect(cx - w / 2 - 1, cy - h / 2 - 1, w + 2, h + 2);
   ctx.drawImage(path, cx - w / 2, cy - h / 2, w, h);
+}
+
+/**
+ * A cargo diverter's screen: the cargo type's icon on a white plate, three dots for "other
+ * types", a struck plate for "nothing", or an empty plate to click when `value` is unset.
+ */
+function drawCargoScreen(
+  ctx: Draw2D,
+  camera: Camera,
+  size: number,
+  screen: DiverterScreen,
+  cargoIcons: ReadonlyMap<string, string>,
+): void {
+  const box = screenBox(screen.cell, screen.side);
+  const { px, py } = worldToScreen(camera, { x: 0, y: 0 });
+  const x = px + box.x * size;
+  const y = py + box.y * size;
+  const w = box.w * size;
+  const h = box.h * size;
+  ctx.fillStyle = colours.doorChip;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = colours.doorGlyph;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  const icon = screen.value === undefined ? undefined : cargoIcons.get(screen.value);
+  if (icon !== undefined) {
+    const side = Math.min(w, h) * 0.8;
+    ctx.drawImage(icon, x + (w - side) / 2, y + (h - side) / 2, side, side);
+  } else if (screen.value === 'Other') {
+    ctx.fillStyle = colours.doorGlyph;
+    const dot = Math.max(1, Math.min(w, h) * 0.14);
+    const gap = Math.min(w, h) * 0.26;
+    for (const k of [-1, 0, 1]) ctx.fillRect(x + w / 2 + k * gap - dot / 2, y + h / 2 - dot / 2, dot, dot);
+  } else if (screen.value === 'None') {
+    ctx.lineWidth = Math.max(1, w * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.2, y + h * 0.8);
+    ctx.lineTo(x + w * 0.8, y + h * 0.2);
+    ctx.stroke();
+  }
+}
+
+/** An empty frame where an unset country screen sits, to click and set it. */
+function drawScreenSlot(ctx: Draw2D, camera: Camera, size: number, screen: DiverterScreen): void {
+  const box = screenBox(screen.cell, screen.side);
+  const { px, py } = worldToScreen(camera, { x: 0, y: 0 });
+  ctx.fillStyle = colours.doorChip;
+  ctx.fillRect(px + box.x * size, py + box.y * size, box.w * size, box.h * size);
+  ctx.strokeStyle = colours.doorGlyph;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(px + box.x * size, py + box.y * size, box.w * size, box.h * size);
+}
+
+/** The outline of the screen under the pointer, in the keyboard cursor's accent. */
+function outlineScreen(ctx: Draw2D, camera: Camera, size: number, screen: DiverterScreen): void {
+  const box = screenBox(screen.cell, screen.side);
+  const { px, py } = worldToScreen(camera, { x: 0, y: 0 });
+  ctx.strokeStyle = colours.cursor;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px + box.x * size - 1, py + box.y * size - 1, box.w * size + 2, box.h * size + 2);
 }
 
 /** Below this on-screen cell size an icon would be a few pixels of noise, so it is skipped. */
@@ -1156,10 +1223,22 @@ export function drawScene(ctx: Draw2D, o: DrawOptions): void {
         if (iconPath) {
           drawIcon(ctx, camera, size, placement.cell, iconPath, placement.rotation, entry.footprint);
         }
-        // A country diverter's screens, as flags, above its icon.
-        for (const screen of countryScreens(placement, entry)) {
-          const flag = o.countryFlags?.get(screen.country);
-          if (flag !== undefined) drawScreenFlag(ctx, camera, size, screen.cell, screen.side, flag);
+        // A diverter's screens above its icon: flags on a country diverter, cargo types on a
+        // cargo diverter. Unset ones show an empty frame to click only where the editor asks.
+        const slots = o.screenSlots === true
+          && (o.selectedIds.includes(placement.id) || o.hoveredScreen?.placementId === placement.id);
+        for (const screen of diverterScreens(placement, entry)) {
+          if (placement.objectId === COUNTRY_DIVERTER) {
+            const flag = screen.value === undefined ? undefined : o.countryFlags?.get(screen.value);
+            if (flag !== undefined) drawScreenFlag(ctx, camera, size, screen.cell, screen.side, flag);
+            else if (slots) drawScreenSlot(ctx, camera, size, screen);
+          } else if (placement.objectId === CARGO_DIVERTER && (screen.value !== undefined || slots)) {
+            drawCargoScreen(ctx, camera, size, screen, o.cargoIcons);
+          }
+          const hovered = o.hoveredScreen;
+          if (hovered?.placementId === placement.id && hovered.cell === screen.at.cell && hovered.way === screen.at.way) {
+            outlineScreen(ctx, camera, size, screen);
+          }
         }
       }
 
