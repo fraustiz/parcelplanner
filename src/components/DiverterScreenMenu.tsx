@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type KeyboardEvent } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Ellipsis, X } from 'lucide-react';
 import { CARGO_CHOICES, COUNTRY_DIVERTER, withScreen, type Way } from '@/core/diverters';
 import type { Placement } from '@/core/types';
 import { COUNTRIES, countryFlag, countryName } from '@/data/countries';
@@ -90,7 +90,25 @@ export default function DiverterScreenMenu({
   const left = Math.max(8, Math.min(at.x, window.innerWidth - MENU_W - 8));
   const top = Math.max(8, Math.min(at.y, window.innerHeight - MENU_H - 8));
 
-  const option = (value: string | undefined, label: string, image: string | undefined, wide: boolean) => {
+  /**
+   * What goes before a row's name. A flag keeps its own colours; a cargo glyph is white on
+   * transparent, so it is used as a mask and takes the text colour, as it takes the black ink
+   * on the plan. "Other types" and "nothing" get the plan's dots and cross.
+   */
+  type Mark = { flag: string } | { glyph: string } | 'other' | 'none' | null;
+  const markOf = (mark: Mark) => {
+    if (mark === null) return null;
+    if (mark === 'other') return <Ellipsis aria-hidden className="h-4 w-4" />;
+    if (mark === 'none') return <X aria-hidden className="h-4 w-4" />;
+    if ('flag' in mark) {
+      // eslint-disable-next-line @next/next/no-img-element
+      return <img src={mark.flag} alt="" width={25} height={15} className="block h-[15px] w-[25px] rounded-sm border border-[var(--line)]" />;
+    }
+    const mask = `url(${mark.glyph}) center / contain no-repeat`;
+    return <span aria-hidden className="block h-4 w-4 bg-current" style={{ mask, WebkitMask: mask }} />;
+  };
+
+  const option = (value: string | undefined, label: string, mark: Mark) => {
     const chosen = current === value;
     return (
       <button
@@ -102,17 +120,20 @@ export default function DiverterScreenMenu({
         onClick={() => pick(value)}
         className={ROW}
       >
-        <span className={`flex h-[15px] ${wide ? 'w-[25px]' : 'w-[15px]'} shrink-0 items-center justify-center rounded-sm ${image !== undefined ? 'border border-[var(--line)] bg-white' : ''}`}>
-          {/* Decorative: the name follows. */}
-          {image !== undefined && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" width={wide ? 25 : 15} height={15} className="block h-full w-full" />
-          )}
+        <span className={`flex h-[15px] ${country ? 'w-[25px]' : 'w-4'} shrink-0 items-center justify-center`}>
+          {markOf(mark)}
         </span>
         <span className="flex-1">{label}</span>
         {chosen && <Check aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" />}
       </button>
     );
+  };
+
+  const cargoMark = (choice: string): Mark => {
+    if (choice === 'Other') return 'other';
+    if (choice === 'None') return 'none';
+    const glyph = CARGO_TYPE_ICONS[choice as keyof typeof CARGO_TYPE_ICONS];
+    return glyph === undefined ? null : { glyph };
   };
 
   return (
@@ -127,17 +148,15 @@ export default function DiverterScreenMenu({
       <p className="px-3 pb-1 pt-0.5 text-xs text-[var(--text-faint)]">{title}</p>
       {country
         ? [
-          option(undefined, t(locale, 'diverter.none'), undefined, true),
-          ...COUNTRIES.map((id) => option(id, countryName(id, real), countryFlag(id, real), true)),
+          option(undefined, t(locale, 'diverter.none'), null),
+          ...COUNTRIES.map((id) => {
+            const flag = countryFlag(id, real);
+            return option(id, countryName(id, real), flag === undefined ? null : { flag });
+          }),
         ]
         : [
-          option(undefined, t(locale, 'diverter.cargoAny'), undefined, false),
-          ...CARGO_CHOICES.map((choice) => option(
-            choice,
-            t(locale, CARGO_NAME[choice]),
-            choice in CARGO_TYPE_ICONS ? CARGO_TYPE_ICONS[choice as keyof typeof CARGO_TYPE_ICONS] : undefined,
-            false,
-          )),
+          option(undefined, t(locale, 'diverter.cargoAny'), null),
+          ...CARGO_CHOICES.map((choice) => option(choice, t(locale, CARGO_NAME[choice]), cargoMark(choice))),
         ]}
     </div>
   );
